@@ -30,9 +30,11 @@ Il n'y a ni bundler, ni framework, ni dépendance runtime. Un seul script global
 | `index.html` | DOM (menus, panneaux, palettes), charge `style.css?v=…` et `app.js?v=…`. |
 | `style.css` | Tout le style. |
 | `three3d.js` | Bundle three.js (MIT, voir `THREE-LICENSE.txt`), chargé **à la demande** par `load3D()` (p10y). Expose `SF3D`. |
+| `models3d.js` | **Généré** par `tools/build_models.mjs` depuis `assets/HumanLowPolyBaseMesh.fbx` : mannequins homme / femme riggés (16 joints, mesh quantifié, poids de skin), chargé à la demande après `three3d.js`. Expose `SF_MODELS`. Ne pas éditer à la main. |
 | `sw.js` | Service worker network-first, cache `sketchforge-vXXX`. |
 | `main.js` | Coquille Electron (contextIsolation, sandbox, dialogue « modifications non enregistrées »). |
 | `tools/smoke.py` | Test de fumée headless (Playwright). |
+| `tools/build_models.mjs` | Génère `models3d.js` (`npm install` puis `npm run build:models`). Les repères des joints et les rayons des os sont en haut du fichier. |
 
 Modules dans `parts/` :
 
@@ -54,7 +56,7 @@ Modules dans `parts/` :
 - `p10v_workspace` : espaces de travail Dessin et Animation.
 - `p10w_csfeatures` : clipping, verrou de transparence, calques référence et brouillon, menu Filtre, Select expand/shrink.
 - `p10x_penset` : les 11 pens intégrés, avec des tips en base64 (lignes très longues : ne pas l'ouvrir en entier).
-- `p10y_3d` : panneau 3D (mannequin, primitives, glTF et OBJ).
+- `p10y_3d` : panneau 3D (mannequins riggés de `models3d.js`, repli sur un mannequin procédural, primitives, glTF et OBJ).
 - `p10z_addons` : panneaux flottants et dockables, API add-ons (`Sketchforge.addBrush`, `addCommand`…), import `.sut`.
 - `p11_main` : construction des menus (`data-cmd`), raccourcis, init, enregistrement du SW.
 
@@ -92,7 +94,7 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 
 1. **Récupérer les fonctionnalités perdues** (priorité 1). Demander à l'utilisateur la liste des changements faits après la v2.0.0 (fonctions, bugs corrigés, UI). Créer une issue ou une entrée par élément, puis implémenter et tester un élément à la fois.
 2. La section « Not yet » du README est partiellement obsolète (les outils manga, la 3D et l'audio existent désormais). À mettre à jour.
-3. Les 11 pens intégrés viennent des `.sut` de l'utilisateur. Vérifier leur licence avant toute distribution publique.
+3. Les 11 pens intégrés viennent des `.sut` de l'utilisateur, et le mesh 3D (`assets/HumanLowPolyBaseMesh.fbx`) d'un pack fourni par l'utilisateur. Vérifier leurs licences avant toute distribution publique.
 4. Il n'y a pas de tests unitaires. À envisager si le moteur de pinceau ou la timeline évoluent beaucoup.
 
 ## 8. Suivi Trello

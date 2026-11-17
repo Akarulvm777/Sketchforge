@@ -46,3 +46,8 @@ Layer -> Add 3D model: posable male / female mannequin (joint sliders, drag a bo
 
 ## 1.1: built-in Clip Studio pen set
 The Pen group now ships with the 11 pens from the user's own Clip Studio "pen" folder (G-pen, Real G-Pen, Mapping pen, Turnip pen, Calligraphy, Textured pen, Milli pen, Felt pen, Rough pen, Flat marker, Dot pen), imported from their .sut files with settings approximated. Check each brush's licence before sharing the app with others.
+
+## 2.0.x: rigged 3D mannequins
+The 3D panel's male and female mannequins are now real body meshes (from `assets/HumanLowPolyBaseMesh.fbx`), rigged with the same 16 joints as before, in grey. All poses, joint sliders, drag-to-rotate, toon shading and "Place on new layer" work as before; clicking a body part selects the joint under the cursor on the posed body.
+The rig is generated offline: `npm install` then `npm run build:models` rewrites `models3d.js` (quantized mesh + skin weights, loaded on demand like `three3d.js`, so it also works from `file://`). If `models3d.js` is missing, the old procedural mannequin is used.
+Check the licence of the base mesh before distributing the app.

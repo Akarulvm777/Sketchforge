@@ -9,11 +9,13 @@
     "start": "electron .",
     "serve": "npx serve .",
     "dist": "electron-builder",
-    "build": "python3 build.py"
+    "build": "python3 build.py",
+    "build:models": "node tools/build_models.mjs"
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "three": "0.170.0"
   },
   "build": {
     "appId": "com.example.sketchforge",
@@ -24,6 +26,7 @@
       "style.css",
       "app.js",
       "three3d.js",
+      "models3d.js",
       "sw.js",
       "manifest.json",
       "icon.svg",
