@@ -94,3 +94,9 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 2. La section « Not yet » du README est partiellement obsolète (les outils manga, la 3D et l'audio existent désormais). À mettre à jour.
 3. Les 11 pens intégrés viennent des `.sut` de l'utilisateur. Vérifier leur licence avant toute distribution publique.
 4. Il n'y a pas de tests unitaires. À envisager si le moteur de pinceau ou la timeline évoluent beaucoup.
+
+## 8. Suivi Trello
+
+- Tableau : https://trello.com/b/mU0URkCg/sketchforge (listes `ideas`, `To Do`, `Doing`, `Done`). Il n'y a pas de synchronisation automatique : c'est à toi de tenir le tableau à jour via le connecteur Trello.
+- Une carte par élément de travail. Au début d'une tâche, déplace sa carte dans `Doing` (crée-la si elle n'existe pas). Après le push, déplace-la dans `Done` et ajoute le lien du commit dans la description ou en commentaire.
+- Les idées non validées par l'utilisateur vont dans `ideas`. Ne crée pas de cartes pour des fonctionnalités perdues que l'utilisateur n'a pas décrites.
