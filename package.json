@@ -1,0 +1,44 @@
+{
+  "name": "sketchforge",
+  "version": "2.0.0",
+  "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "serve": "npx serve .",
+    "dist": "electron-builder",
+    "build": "python3 build.py"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.example.sketchforge",
+    "productName": "Sketchforge",
+    "files": [
+      "main.js",
+      "index.html",
+      "style.css",
+      "app.js",
+      "three3d.js",
+      "sw.js",
+      "manifest.json",
+      "icon.svg",
+      "icon-192.png",
+      "icon-512.png",
+      "THREE-LICENSE.txt"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

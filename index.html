@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2b2b2b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Sketchforge 2.0.0</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=2.0.0">
+</head>
+<body>
+<div id="app">
+
+  <header id="menubar">
+    <div class="logo" title="Sketchforge">S</div>
+    <nav id="menus"></nav>
+    <div class="grow"></div>
+    <button id="btnDocks" class="only-narrow" data-cmd="toggleDocks" title="Show / hide panels">Panels</button>
+  </header>
+
+  <div id="cmdbar">
+    <button data-cmd="newDoc" title="New (Ctrl+N)" data-ic="newdoc"></button>
+    <button data-cmd="open" title="Open (Ctrl+O)" data-ic="open"></button>
+    <button data-cmd="save" title="Save (Ctrl+S)" data-ic="save"></button>
+    <span class="tl-sep"></span>
+    <button data-cmd="undo" title="Undo (Ctrl+Z)" data-ic="undo"></button>
+    <button data-cmd="redo" title="Redo (Ctrl+Y)" data-ic="redo"></button>
+    <span class="tl-sep"></span>
+    <button data-cmd="selectAll" title="Select all" data-ic="selrect"></button>
+    <button data-cmd="deselect" title="Deselect (Ctrl+D)" data-ic="deselect"></button>
+    <button data-cmd="invertSel" title="Invert selection" data-ic="invert"></button>
+    <button data-cmd="fillSel" title="Fill selection" data-ic="fill"></button>
+    <button data-cmd="clearSel" title="Clear selection" data-ic="clear"></button>
+    <span class="tl-sep"></span>
+    <button data-cmd="zoomFit" title="Fit to screen" data-ic="zoom"></button>
+    <button data-cmd="flipView" title="Flip view" data-ic="flip"></button>
+    <button data-cmd="rotReset" title="Reset rotation" data-ic="rotate"></button>
+    <span class="tl-sep"></span>
+    <button data-cmd="exportAnim" title="Export animation (Ctrl+E)" data-ic="export"></button>
+    <button data-cmd="help" title="Help / shortcuts (F1)" data-ic="help"></button>
+  </div>
+
+  <div id="tabbar">
+    <div class="tab"><span id="tabName">Untitled</span><i id="tabDirty" title="Unsaved changes"></i></div>
+  </div>
+
+  <div id="workspace">
+    <nav id="toolbox" aria-label="Tools"></nav>
+
+    <aside id="leftdock">
+      <section class="pal">
+        <h4>Sub Tool</h4>
+        <div id="subtoolList"></div>
+      </section>
+      <section class="pal grow">
+        <h4>Tool Property <span id="toolName" class="muted"></span></h4>
+        <div id="propBody"></div>
+      </section>
+      <section class="pal">
+        <h4>Color</h4>
+        <div class="colorbody">
+          <canvas id="wheel" width="168" height="168" aria-label="Color wheel"></canvas>
+          <div class="colside">
+            <div id="swatchPair">
+              <button id="subSw" title="Sub color"></button>
+              <button id="mainSw" title="Main color"></button>
+            </div>
+            <button id="swapColors" title="Swap main / sub (X)" data-ic="swap"></button>
+            <input id="hexInput" maxlength="7" value="#000000" aria-label="Hex color" spellcheck="false">
+          </div>
+        </div>
+        <div id="swatches" class="swatches"></div>
+        <div id="recent" class="swatches"></div>
+      </section>
+    </aside>
+
+    <main id="center">
+      <section id="viewport">
+        <div id="stage"></div>
+        <canvas id="overlay"></canvas>
+        <div id="cursor"></div>
+        <div id="toast" role="status"></div>
+      </section>
+    </main>
+
+    <aside id="rightdock">
+      <section class="pal">
+        <h4>Navigator</h4>
+        <div class="navbox"><canvas id="navCanvas" width="224" height="112"></canvas></div>
+        <div class="navrow">
+          <button data-cmd="zoomOut" title="Zoom out (-)" data-ic="minus"></button>
+          <input type="range" id="navZoom" min="0" max="100" value="50" aria-label="Zoom">
+          <button data-cmd="zoomIn" title="Zoom in (+)" data-ic="plus"></button>
+          <output id="navZoomVal">100%</output>
+        </div>
+        <div class="navrow">
+          <button data-cmd="rotL" title="Rotate view left" data-ic="rotl"></button>
+          <input type="range" id="navRot" min="-180" max="180" value="0" aria-label="Rotation">
+          <button data-cmd="rotR" title="Rotate view right" data-ic="rotr"></button>
+          <output id="navRotVal">0°</output>
+        </div>
+        <div class="navrow tight">
+          <button data-cmd="zoomFit" title="Fit to screen (Ctrl+0)">Fit</button>
+          <button data-cmd="zoom100" title="Actual size">100%</button>
+          <button data-cmd="rotReset" title="Reset rotation">Reset</button>
+          <button data-cmd="flipView" title="Flip view horizontally">Flip</button>
+        </div>
+      </section>
+
+      <section class="pal phidden" id="m3dPanel">
+        <h4>3D Model</h4>
+        <div id="m3dBody"></div>
+      </section>
+
+      <section class="pal">
+        <h4>Layer Property</h4>
+        <div class="lprops">
+          <label class="select"><span>Blend</span><select id="layerBlend"></select></label>
+          <label class="slider"><span>Opacity</span><input type="range" id="layerOpacity" min="0" max="100" value="100"><output id="layerOpacityVal">100</output></label>
+        </div>
+      </section>
+
+      <section class="pal grow">
+        <h4>Layer</h4>
+        <div class="lbtns">
+          <button data-cmd="layerAdd" title="New layer" data-ic="plus"></button>
+          <button data-cmd="layerDup" title="Duplicate layer" data-ic="copy"></button>
+          <button data-cmd="layerMerge" title="Merge down" data-ic="merge"></button>
+          <button data-cmd="layerUp" title="Move up" data-ic="up"></button>
+          <button data-cmd="layerDown" title="Move down" data-ic="down"></button>
+          <button data-cmd="clearLayer" title="Clear layer on this frame" data-ic="clear"></button>
+          <button data-cmd="layerDel" title="Delete layer" data-ic="trash"></button>
+        </div>
+        <div id="layerList" class="layer-list"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div id="tlResize" title="Drag to resize"></div>
+  <section id="timeline">
+    <div class="tl-head">
+      <div class="tl-transport">
+        <button data-cmd="first" title="First frame (Home)" data-ic="first"></button>
+        <button data-cmd="prev" title="Previous frame ( , )" data-ic="prev"></button>
+        <button id="btnPlay" data-cmd="play" title="Play / pause (Enter)" data-ic="play"></button>
+        <button data-cmd="next" title="Next frame ( . )" data-ic="next"></button>
+        <button data-cmd="last" title="Last frame (End)" data-ic="last"></button>
+      </div>
+      <label class="tl-field">Frame <input type="number" id="curFrame" min="1" value="1"> / <input type="number" id="frameCount" min="1" max="500" value="24" title="Total frames"></label>
+      <label class="tl-field">FPS <input type="number" id="fps" min="1" max="60" value="12"></label>
+      <label class="check"><input type="checkbox" id="loop" checked> Loop</label>
+      <span class="tl-sep"></span>
+      <label class="check"><input type="checkbox" id="onionOn"> Onion skin</label>
+      <label class="tl-field" title="Frames shown before / after">◂ <input type="number" id="onionBefore" min="0" max="5" value="2"> ▸ <input type="number" id="onionAfter" min="0" max="5" value="1"></label>
+      <span class="tl-sep"></span>
+      <button data-cmd="keyframe" title="Insert keyframe (K / F6)">+ Key</button>
+      <button data-cmd="blankKey" title="Insert blank keyframe (Shift+K / F7)">+ Blank</button>
+      <button data-cmd="insertFrame" title="Insert frame in all layers (J / F5)">+ Frame</button>
+      <button data-cmd="removeFrame" title="Remove frame from all layers (Shift+J)">− Frame</button>
+      <button data-cmd="removeKey" title="Remove keyframe (Shift+F6)">− Key</button>
+      <span class="tl-sep"></span>
+      <button data-cmd="tween" title="Create motion tween from this keyframe to the next" class="accent">Tween</button>
+      <button data-cmd="removeTween" title="Remove motion tween">No tween</button>
+      <label class="check" title="Drawing on a held frame creates a new keyframe (copy of the held drawing)"><input type="checkbox" id="autoKey" checked> Auto-key</label>
+    </div>
+    <div id="tlScroll"><div id="tlInner"></div></div>
+  </section>
+
+  <footer id="statusbar">
+    <span id="statusText"></span>
+    <span class="grow"></span>
+    <span id="statusPos" class="muted"></span>
+    <span id="statusView"></span><span class="muted" style="margin-left:12px">Sketchforge v2.0.0</span>
+  </footer>
+</div>
+
+<input type="file" id="fileOpen" accept=".sketchforge,application/json" hidden>
+
+<dialog id="newDialog" class="csnew">
+  <form method="dialog" id="newForm">
+    <h2>New</h2>
+    <div class="nw-types" id="newTypes">
+      <button type="button" data-t="illust" class="on"><b>🖌</b>Illustration</button>
+      <button type="button" data-t="webtoon"><b>▮</b>Webtoon</button>
+      <button type="button" data-t="comic"><b>▤</b>Comic</button>
+      <button type="button" data-t="anim"><b>▶</b>Animation</button>
+    </div>
+    <div class="nw-body">
+      <label class="nw-r"><span>File name</span><input type="text" id="newName" value="Untitled"></label>
+      <label class="nw-r"><span>Preset</span><select id="newPreset"></select></label>
+      <div class="nw-r"><span>Unit</span>
+        <select id="newUnit"><option>px</option><option>mm</option><option>cm</option><option>in</option></select>
+        <button type="button" id="newOrient" title="Swap width and height">⇄</button></div>
+      <div class="nw-r"><span>Width</span><input type="number" id="newW" min="1" step="any" value="1280"></div>
+      <div class="nw-r"><span>Height</span><input type="number" id="newH" min="1" step="any" value="720"></div>
+      <label class="nw-r"><span>Resolution</span><select id="newDpi"><option>72</option><option>96</option><option>144</option><option>150</option><option>300</option><option>350</option><option>600</option></select> dpi</label>
+      <label class="nw-r"><span>Colour</span><select id="newMode"><option value="color">Color</option><option value="gray">Gray</option><option value="mono">Monochrome</option></select></label>
+      <div class="nw-r"><span>Paper</span><input type="color" id="newPaper" value="#ffffff"><label class="check"><input type="checkbox" id="newTransparent"> Transparent</label></div>
+      <fieldset id="nwComic" hidden><legend>Comic settings</legend>
+        <label class="nw-r"><span>Trim size</span><select id="newTrim"><option value="182x257">B5 (182 × 257 mm)</option><option value="210x297">A4 (210 × 297 mm)</option><option value="148x210">A5 (148 × 210 mm)</option><option value="257x364">B4 (257 × 364 mm)</option><option value="104x182">Tankobon (104 × 182 mm)</option><option value="170x260">US comic (170 × 260 mm)</option></select></label>
+        <label class="nw-r"><span>Bleed (mm)</span><input type="number" id="newBleed" min="0" max="20" value="3"></label>
+        <label class="nw-r"><span>Pages</span><input type="number" id="newPages" min="1" max="200" value="1"></label>
+        <label class="nw-r"><span>Binding</span><select id="newBind"><option value="L">Left</option><option value="R">Right</option></select></label>
+        <label class="check"><input type="checkbox" id="newGuide" checked> Draw trim / safe-area guide (draft layer)</label>
+      </fieldset>
+      <fieldset id="nwAnim" hidden><legend>Animation settings</legend>
+        <label class="nw-r"><span>Frame rate</span><input type="number" id="newFps" min="1" max="60" value="24"></label>
+        <label class="nw-r"><span>Playback time</span><input type="number" id="newSecs" min="1" max="500" value="2"> sec</label>
+        <label class="nw-r"><span>Frames</span><input type="number" id="newFrames" min="1" max="500" value="48"></label>
+        <label class="check"><input type="checkbox" id="newSafe" checked> Title-safe guide (draft layer)</label>
+      </fieldset>
+      <p class="muted small" id="newInfo"></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="newCancel">Cancel</button>
+      <button type="button" id="newCreate" class="primary">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="exportDialog">
+  <form method="dialog">
+    <h2>Export animation</h2>
+    <label class="select"><span>Format</span>
+      <select id="expFormat">
+        <option value="gif">Animated GIF</option>
+        <option value="webm">Video (WebM)</option>
+        <option value="mp4">Video (MP4, if supported)</option>
+        <option value="zip">PNG sequence (ZIP)</option>
+      </select>
+    </label>
+    <label class="select"><span>Size</span>
+      <select id="expScale">
+        <option value="1">100%</option>
+        <option value="0.75">75%</option>
+        <option value="0.5" selected>50%</option>
+        <option value="0.25">25%</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="expLoop" checked> Loop forever (GIF)</label>
+    <p id="expProgress" class="muted small"></p>
+    <div class="dialog-actions">
+      <button type="button" id="expCancel">Close</button>
+      <button type="button" id="expGo" class="primary">Export</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="promptDialog">
+  <form method="dialog" id="promptForm">
+    <h2 id="pdTitle">Name</h2>
+    <label class="select one"><input id="pdInput" maxlength="60" autocomplete="off"></label>
+    <div class="dialog-actions">
+      <button type="button" id="pdCancel">Cancel</button>
+      <button type="submit" id="pdOk" class="primary">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="textDialog">
+  <form method="dialog" id="textForm">
+    <h2>Text</h2>
+    <textarea id="textInput" rows="4" placeholder="Type your text here…" spellcheck="false"></textarea>
+    <p class="muted small">Font, size and color come from the Tool Property panel. Text is drawn as pixels on the current layer.</p>
+    <div class="dialog-actions">
+      <button type="button" id="textCancel">Cancel</button>
+      <button type="submit" id="textOk" class="primary">Place text</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="helpDialog">
+  <form method="dialog">
+    <h2>Keyboard shortcuts</h2>
+    <div id="helpBody" class="help"></div>
+    <div class="dialog-actions"><button class="primary">Close</button></div>
+  </form>
+</dialog>
+
+<script src="app.js?v=2.0.0"></script>
+</body>
+</html>

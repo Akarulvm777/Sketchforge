@@ -1,0 +1,447 @@
+/* ---------- movable / floating panels ---------- */
+const PANEL_KEY = 'sketchforge.layout.v1';
+const panels = Array.from(document.querySelectorAll('.pal'));
+panels.forEach(p => {
+  const h = p.querySelector('h4');
+  p.dataset.pid = h.childNodes[0].textContent.trim().toLowerCase().replace(/\s+/g, '-');
+  p.dataset.home = p.parentElement.id;
+  p.dataset.order = panels.indexOf(p);
+  h.title = 'Drag to move or float. Double-click to collapse.';
+});
+const docks = { leftdock: $('#leftdock'), rightdock: $('#rightdock') };
+const DEFAULT_LAYOUT = panels.map(p => ({ pid: p.dataset.pid, dock: p.dataset.home, order: +p.dataset.order }));
+
+function saveLayout() {
+  try {
+    const out = panels.map(p => {
+      const fl = p.classList.contains('float'), r = p.getBoundingClientRect();
+      return { pid: p.dataset.pid, dock: fl ? 'float' : p.parentElement.id, x: fl ? r.left : 0, y: fl ? r.top : 0,
+        w: fl ? r.width : 0, h: fl ? r.height : 0, collapsed: p.classList.contains('collapsed'), hidden: p.classList.contains('phidden'),
+        order: Array.from(p.parentElement.children).indexOf(p) };
+    });
+    localStorage.setItem(PANEL_KEY, JSON.stringify(out));
+  } catch (e) { /* storage unavailable */ }
+}
+function dockPanel(p, dockId, beforeEl) {
+  p.classList.remove('float');
+  p.style.cssText = '';
+  const d = docks[dockId];
+  if (beforeEl && beforeEl.parentElement === d) d.insertBefore(p, beforeEl); else d.appendChild(p);
+  refreshDocks();
+}
+function floatPanel(p, x, y, w, h) {
+  p.classList.add('float');
+  document.body.appendChild(p);
+  p.style.left = Math.max(0, x) + 'px'; p.style.top = Math.max(0, y) + 'px';
+  p.style.width = (w || 240) + 'px';
+  if (h) p.style.height = h + 'px';
+  refreshDocks();
+}
+function refreshDocks() {
+  for (const id in docks) docks[id].classList.toggle('empty', !docks[id].querySelector('.pal:not(.phidden)'));
+  setTimeout(() => { resizeOverlay(); syncNav(); }, 30);
+}
+function dropTarget(x, y) {
+  for (const id in docks) {
+    const r = docks[id].getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom && getComputedStyle(docks[id]).display !== 'none') return id;
+  }
+  return null;
+}
+function beforeElAt(dockId, y) {
+  for (const el of docks[dockId].querySelectorAll(':scope > .pal')) {
+    const r = el.getBoundingClientRect();
+    if (y < r.top + r.height / 2) return el;
+  }
+  return null;
+}
+let marker = null;
+panels.forEach(p => {
+  const h = p.querySelector('h4');
+  h.addEventListener('dblclick', () => { p.classList.toggle('collapsed'); saveLayout(); });
+  h.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || window.innerWidth <= 900) return;
+    const startX = e.clientX, startY = e.clientY;
+    let r0 = p.getBoundingClientRect(), dragging = p.classList.contains('float');
+    let offX = startX - r0.left, offY = startY - r0.top;
+    const move = ev => {
+      if (!dragging) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return;
+        dragging = true;
+        r0 = p.getBoundingClientRect(); offX = startX - r0.left; offY = startY - r0.top;
+        floatPanel(p, r0.left, r0.top, r0.width, 0);
+      }
+      p.style.left = (ev.clientX - offX) + 'px'; p.style.top = Math.max(0, ev.clientY - offY) + 'px';
+      const t = dropTarget(ev.clientX, ev.clientY);
+      Object.values(docks).forEach(d => d.classList.remove('drop'));
+      if (t) docks[t].classList.add('drop');
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      Object.values(docks).forEach(d => d.classList.remove('drop'));
+      if (dragging) {
+        const t = dropTarget(ev.clientX, ev.clientY);
+        if (t) dockPanel(p, t, beforeElAt(t, ev.clientY));
+        saveLayout();
+      }
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  });
+});
+new MutationObserver(() => {}).observe(document.body, { childList: true });
+window.addEventListener('pointerup', () => { if (panels.some(p => p.classList.contains('float'))) saveLayout(); });
+
+function resetLayout() {
+  panels.forEach(p => { p.classList.remove('collapsed', 'phidden'); });
+  DEFAULT_LAYOUT.slice().sort((a, b) => a.order - b.order).forEach(l => dockPanel(panels.find(p => p.dataset.pid === l.pid), l.dock));
+  saveLayout(); toast('Panel layout reset');
+}
+function restoreLayout() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(PANEL_KEY) || 'null'); } catch (e) { /* ignore */ }
+  if (!saved || window.innerWidth <= 900) return;
+  saved.sort((a, b) => a.order - b.order).forEach(l => {
+    const p = panels.find(x => x.dataset.pid === l.pid);
+    if (!p) return;
+    if (l.dock === 'float') floatPanel(p, Math.min(l.x, innerWidth - 80), Math.min(l.y, innerHeight - 60), l.w, l.h);
+    else if (docks[l.dock]) docks[l.dock].appendChild(p);
+    p.classList.toggle('collapsed', !!l.collapsed);
+    p.classList.toggle('phidden', !!l.hidden);
+  });
+  refreshDocks();
+}
+function togglePanel(pid) {
+  const p = panels.find(x => x.dataset.pid === pid);
+  if (pid === '3d-model' && p.classList.contains('phidden')) { show3D(); return; }
+  p.classList.toggle('phidden'); if (pid === '3d-model') { M3.hidden = p.classList.contains('phidden'); render3D(); } refreshDocks(); saveLayout();
+}
+
+/* ---------- add-ons: custom brush tips + script plug-ins ---------- */
+const ADDON_KEY = 'sketchforge.addons.v1';
+let addons = { brushes: [], scripts: [] };
+function saveAddons() { try { localStorage.setItem(ADDON_KEY, JSON.stringify(addons)); } catch (e) { toast('Could not save add-ons (storage full?)'); } }
+const MENU_ADDONS = ['Add-ons', [['Import Clip Studio brush (.sut)…', 'addSut'], ['Import brush tip (image)…', 'addBrushTip'], ['Install add-on script (.js)…', 'addScript'], ['Manage add-ons…', 'manageAddons'], '-']];
+
+async function registerBrush(def, persist) {
+  const id = def.id || 'custom_' + Date.now().toString(36) + Math.floor(Math.random() * 99);
+  let tipId;
+  if (def.tip) {
+    const img = await loadImage(def.tip);
+    const tip = makeCanvas(256, 256), g = tip.getContext('2d');
+    const k = Math.min(256 / img.width, 256 / img.height);
+    g.drawImage(img, (256 - img.width * k) / 2, (256 - img.height * k) / 2, img.width * k, img.height * k);
+    /* an image without transparency: dark = ink */
+    const d = g.getImageData(0, 0, 256, 256), px = d.data;
+    let opaque = true; for (let i = 3; i < px.length; i += 4) if (px[i] < 250) { opaque = false; break; }
+    if (opaque) for (let i = 0; i < px.length; i += 4) { px[i + 3] = 255 - (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11); px[i] = px[i + 1] = px[i + 2] = 0; }
+    g.putImageData(d, 0, 0);
+    customTips.set(id, tip); tipId = id;
+  }
+  const extra = { aa: def.aa ?? 2, taperIn: def.taperIn || 0, taperRatio: def.taperRatio ?? 0.3, spacing: def.spacing || 0.15, tipRot: !!def.tipRot };
+  if (tipId) extra.tipId = tipId;
+  TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: def.pen ? 'pen' : 'brush', custom: true,
+    preset: P(def.size || 40, tipId ? 1 : (def.hardness ?? 1), def.flow ?? 1, def.opacity ?? 1, def.pSize ?? true, def.pAlpha ?? false, def.smooth ?? 0.2, extra) };
+  settings[id] = { ...TOOLDEF[id].preset };
+  GROUPS.find(g2 => g2.id === (def.pen ? 'pen' : 'brush')).subs.push(id);
+  if (persist) { addons.brushes.push({ ...def, id }); saveAddons(); }
+  renderSubTools();
+  return id;
+}
+
+/* ---------- Clip Studio .sut (SQLite) reader ---------- */
+function readSqlite(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (String.fromCharCode(...u8.slice(0, 15)) !== 'SQLite format 3') throw new Error('Not a SQLite-based file');
+  let ps = dv.getUint16(16); if (ps === 1) ps = 65536;
+  const usable = ps - u8[20], dec = new TextDecoder();
+  const varint = (o) => { let v = 0n, i = 0; for (; i < 8; i++) { const b = u8[o + i]; v = (v << 7n) | BigInt(b & 127); if (!(b & 128)) return [Number(v), i + 1]; } v = (v << 8n) | BigInt(u8[o + 8]); return [Number(v), 9]; };
+  const payload = (o, P) => {
+    const maxL = usable - 35, minL = Math.floor((usable - 12) * 32 / 255) - 23;
+    if (P <= maxL) return u8.slice(o, o + P);
+    let K = minL + (P - minL) % (usable - 4); const local = K <= maxL ? K : minL;
+    const out = new Uint8Array(P); out.set(u8.slice(o, o + local)); let got = local, next = dv.getUint32(o + local);
+    while (next && got < P) { const po = (next - 1) * ps, n = Math.min(usable - 4, P - got); out.set(u8.slice(po + 4, po + 4 + n), got); got += n; next = dv.getUint32(po); }
+    return out;
+  };
+  const record = (p) => {
+    const pdv = new DataView(p.buffer, p.byteOffset, p.byteLength);
+    const vi = (o) => { let v = 0n, i = 0; for (; i < 8; i++) { const b = p[o + i]; v = (v << 7n) | BigInt(b & 127); if (!(b & 128)) return [Number(v), i + 1]; } v = (v << 8n) | BigInt(p[o + 8]); return [Number(v), 9]; };
+    const [hs, hl] = vi(0); const types = []; let o = hl;
+    while (o < hs) { const [t, l] = vi(o); types.push(t); o += l; }
+    const vals = []; let d = hs;
+    for (const t of types) {
+      if (t === 0) vals.push(null);
+      else if (t >= 1 && t <= 6) { const n = [0, 1, 2, 3, 4, 6, 8][t]; let v = 0n; for (let i = 0; i < n; i++) v = (v << 8n) | BigInt(p[d + i]); if (p[d] & 128) v -= 1n << BigInt(n * 8); vals.push(Number(v)); d += n; }
+      else if (t === 7) { vals.push(pdv.getFloat64(d)); d += 8; }
+      else if (t === 8) vals.push(0); else if (t === 9) vals.push(1);
+      else if (t >= 12 && t % 2 === 0) { const n = (t - 12) / 2; vals.push(p.slice(d, d + n)); d += n; }
+      else if (t >= 13) { const n = (t - 13) / 2; vals.push(dec.decode(p.slice(d, d + n))); d += n; }
+      else throw new Error('bad record');
+    }
+    return vals;
+  };
+  const rows = (root) => {
+    const out = [];
+    const walk = (pg) => {
+      const base = (pg - 1) * ps, h = pg === 1 ? 100 : 0, type = u8[base + h], n = dv.getUint16(base + h + 3);
+      if (type === 0x0d) {
+        for (let i = 0; i < n; i++) {
+          let o = base + dv.getUint16(base + h + 8 + i * 2);
+          const [P, l1] = varint(o); o += l1; const [rid, l2] = varint(o); o += l2;
+          out.push([rid, record(payload(o, P))]);
+        }
+      } else if (type === 0x05) {
+        for (let i = 0; i < n; i++) walk(dv.getUint32(base + dv.getUint16(base + h + 12 + i * 2)));
+        walk(dv.getUint32(base + h + 8));
+      }
+    };
+    walk(root); return out;
+  };
+  const tables = {};
+  for (const [, r] of rows(1)) {
+    if (r[0] !== 'table') continue;
+    const sql = r[4], inner = sql.slice(sql.indexOf('(') + 1, sql.lastIndexOf(')'));
+    const cols = []; let depth = 0, cur = '';
+    for (const ch of inner) { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && !depth) { cols.push(cur.trim().split(/\s+/)[0]); cur = ''; } else cur += ch; }
+    cols.push(cur.trim().split(/\s+/)[0]);
+    tables[r[1]] = rows(r[3]).map(([rid, v]) => { const o = {}; cols.forEach((c, i) => { o[c] = i === 0 && v[i] === null ? rid : v[i]; }); return o; });
+  }
+  return tables;
+}
+function findPng(blob) {
+  if (!blob || !blob.length) return null;
+  const sig = [0x89, 0x50, 0x4e, 0x47];
+  for (let i = 0; i < blob.length - 8; i++) {
+    if (blob[i] === sig[0] && blob[i + 1] === sig[1] && blob[i + 2] === sig[2] && blob[i + 3] === sig[3]) {
+      for (let j = i + 8; j < blob.length - 8; j++) if (blob[j] === 0x49 && blob[j + 1] === 0x45 && blob[j + 2] === 0x4e && blob[j + 3] === 0x44) {
+        let bin = ''; blob.slice(i, j + 8).forEach(b => { bin += String.fromCharCode(b); });
+        return 'data:image/png;base64,' + btoa(bin);
+      }
+    }
+  }
+  return null;
+}
+const effectorInputs = b => (b && b.length >= 16 ? new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(12) : 0);
+/* Convert Clip Studio sub tool data (.sut) into Sketchforge brush definitions. Only the parts that map are used. */
+function sutToDefs(buf) {
+  const t = readSqlite(buf);
+  const variants = new Map((t.Variant || []).map(v => [v.VariantID, v]));
+  const defs = [];
+  for (const n of (t.Node || [])) {
+    const v = variants.get(n.NodeVariantID);
+    if (!v || !n.NodeName) continue;
+    if (v.BrushSize == null) { defs.push({ name: n.NodeName, size: 4, hardness: 1, flow: 1, opacity: (v.Opacity ?? 100) / 100, aa: 0, smooth: 0, pSize: false, pen: true }); continue; }
+    const tip = v.BrushUsePatternImage ? findPng(v.BrushPatternImageArray) : null;
+    const sz = effectorInputs(v.BrushSizeEffector), fl = effectorInputs(v.BrushFlowEffector), op = effectorInputs(v.BrushOpacityEffector);
+    /* effector input bits (observed): 16 = pen pressure, 64 = drawing speed */
+    const rot = v.BrushRotation || 0, thick = (v.BrushThickness ?? 100) / 100;
+    defs.push({
+      name: n.NodeName, size: clamp(Math.round(v.BrushSize * 10) / 10, 0.5, 300),
+      opacity: (v.Opacity ?? 100) / 100, flow: (v.BrushFlow ?? 100) / 100, hardness: (v.BrushHardness ?? 100) / 100,
+      aa: v.AntiAlias ?? 2, smooth: clamp((v.FlickerReduction || 0) / 50, 0, 0.9),
+      pSize: !!(sz & 16), pAlpha: !!((fl & 16) || (op & 16)), speed: (sz & 64) ? 0.5 : 0,
+      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip,
+      taperIn: v.BrushUseIn ? (v.BrushInLength || 0) : 0, taperRatio: (v.BrushInRatio ?? 30) / 100,
+      nibRatio: thick < 1 ? clamp(thick, 0.05, 1) : 1, nibAngle: rot,
+      pen: !tip && (v.BrushHardness ?? 100) >= 90
+    });
+  }
+  return defs;
+}
+async function importSut(file) {
+  const defs = sutToDefs(await file.arrayBuffer());
+  if (!defs.length) throw new Error('No brushes found in that file');
+  for (const def of defs) selectTool(await registerBrush(def, true));
+  return defs.length;
+}
+/* the Clip Studio pen set that ships built in (replaces the original pens) */
+function loadBuiltinPens() {
+  const ids = { 'G-pen': 'pen', 'Real G-Pen': 'realpen', 'Mapping pen': 'mapping', 'Turnip pen': 'turnip', Calligraphy: 'callig', 'Textured pen': 'textured' };
+  const grp = GROUPS.find(g => g.id === 'pen'); const order = [];
+  for (const [name, b64] of PENSET) {
+    try {
+      const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      const def = sutToDefs(u.buffer)[0]; if (!def) continue;
+      const id = ids[name] || 'pen_' + name.toLowerCase().replace(/[^a-z]+/g, '_');
+      TOOLDEF[id] = { name: def.name || name, kind: 'brush', icon: 'pen', preset: P(def.size, def.hardness, def.flow, def.opacity, def.pSize, def.pAlpha, def.smooth,
+        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle }) };
+      settings[id] = { ...TOOLDEF[id].preset };
+      order.push(id);
+    } catch (e) { /* skip unreadable */ }
+  }
+  if (order.length) {
+    for (const old of grp.subs) if (!order.includes(old)) { delete TOOLDEF[old]; delete settings[old]; }
+    grp.subs = order;
+  }
+}
+function readFile(file, asText) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; asText ? r.readAsText(file) : r.readAsDataURL(file); });
+}
+function pickFile(accept, cb) {
+  const i = document.createElement('input'); i.type = 'file'; i.accept = accept;
+  i.onchange = () => { if (i.files[0]) cb(i.files[0]); };
+  i.click();
+}
+const API = {
+  version: 1, importSut, state, toast, setColor, activeLayer, compositeFrame, selectTool, gotoFrame,
+  addBrush: def => registerBrush(def, false),
+  addCommand(name, label, fn) {
+    CMD['addon_' + name] = fn;
+    const items = MENUS.find(m => m[0] === 'Add-ons')[1];
+    items.push([label, 'addon_' + name]);
+    buildMenus();
+  }
+};
+window.Sketchforge = API;
+function runScript(text, name) {
+  try { new Function('Sketchforge', text)(API); return true; }
+  catch (e) { toast(`Add-on "${name}" failed: ${e.message}`); return false; }
+}
+function installAddonUI() {
+buildSubBar();
+CMD.addBrushTip = () => pickFile('image/*', async f => {
+  try {
+    const url = await readFile(f);
+    const id = await registerBrush({ name: f.name.replace(/\.[^.]+$/, ''), tip: url }, true);
+    selectTool(id); toast('Brush added to the Brush group');
+  } catch (e) { toast('Could not read that image'); }
+});
+CMD.addSut = () => pickFile('.sut', async f => {
+  try { const n = await importSut(f); toast('Imported ' + n + ' brush' + (n > 1 ? 'es' : '') + ' from ' + f.name + ' (settings approximated)'); }
+  catch (e) { toast('Could not import: ' + e.message); }
+});
+CMD.addScript = () => pickFile('.js,text/javascript', async f => {
+  if (!confirm('Add-on scripts can do anything in this app. Only install scripts you trust.\n\nInstall "' + f.name + '"?')) return;
+  const text = await readFile(f, true);
+  if (runScript(text, f.name)) { addons.scripts.push({ name: f.name, text }); saveAddons(); toast('Installed ' + f.name); }
+});
+CMD.manageAddons = () => {
+  const list = [...addons.brushes.map(b => ['brush', b.id, b.name]), ...addons.scripts.map((s, i) => ['script', i, s.name])];
+  if (!list.length) { toast('No add-ons installed yet'); return; }
+  const d = $('#helpDialog');
+  $('#helpBody').innerHTML = '<h5>Installed add-ons</h5>' + list.map(([t, id, n]) =>
+    `<div><span>${t === 'brush' ? '🖌' : '⚙'} ${n.replace(/[<>&]/g, '')}</span><button data-rm="${t}:${id}">Remove</button></div>`).join('') +
+    '<div style="grid-column:1/-1;display:block;color:#aaa">Removing takes effect after reloading the page.</div>';
+  $('#helpBody').onclick = e => {
+    const rm = e.target.dataset && e.target.dataset.rm; if (!rm) return;
+    const [t, id] = rm.split(':');
+    if (t === 'brush') addons.brushes = addons.brushes.filter(b => b.id !== id); else addons.scripts.splice(+id, 1);
+    saveAddons(); e.target.closest('div').remove();
+  };
+  d.showModal();
+};
+CMD.resetLayout = resetLayout;
+CMD.show3d = show3D;
+panels.forEach(p => { CMD['panel_' + p.dataset.pid] = () => togglePanel(p.dataset.pid); });
+MENUS.push(MENU_ADDONS);
+MENUS.splice(MENUS.length - 2, 0, ['Window', [['Reset panel layout', 'resetLayout'], '-',
+  ...panels.map(p => [p.querySelector('h4').childNodes[0].textContent.trim() + ' (show / hide)', 'panel_' + p.dataset.pid])]]);
+/* keep Help last */
+MENUS.push(MENUS.splice(MENUS.findIndex(m => m[0] === 'Help'), 1)[0]);
+
+}
+
+async function loadAddons() {
+  try { addons = { brushes: [], scripts: [], ...JSON.parse(localStorage.getItem(ADDON_KEY) || '{}') }; } catch (e) { /* ignore */ }
+  for (const b of addons.brushes) { try { await registerBrush({ ...b }, false); } catch (e) { /* skip broken */ } }
+  for (const s of addons.scripts) runScript(s.text, s.name);
+}
+
+
+/* ---------- pen pressure & touch settings (Apple Pencil / tablet) ---------- */
+function openPenDialog() {
+  let d = $('#penDialog');
+  if (!d) {
+    d = document.createElement('dialog'); d.id = 'penDialog';
+    d.innerHTML = `<form method="dialog"><h2>Pen pressure & touch</h2>
+      <p class="muted small" id="penStatus">Draw on the test pad with your pen (Apple Pencil, Wacom, Surface pen…) to see the response.</p>
+      <canvas id="penPad" width="520" height="150" style="width:100%;background:#2a2a2a;border:1px solid #1c1c1c;touch-action:none;border-radius:4px"></canvas>
+      <label class="slider"><span>Sensitivity</span><input type="range" id="penGamma" min="30" max="300" step="5"><output id="penGammaV"></output></label>
+      <p class="muted small" style="margin:0 0 6px">Left = soft (light pressure already gives thick lines), right = firm (you must press harder).</p>
+      <label class="slider"><span>Min. pressure</span><input type="range" id="penMin" min="0" max="50" step="1"><output id="penMinV"></output></label>
+      <label class="slider"><span>Max. pressure</span><input type="range" id="penMax" min="50" max="100" step="1"><output id="penMaxV"></output></label>
+      <label class="check"><input type="checkbox" id="penPalm"> Palm rejection: once a pen is used, fingers only pan / zoom</label>
+      <label class="check"><input type="checkbox" id="penUndo"> Two-finger tap = undo</label>
+      <div class="dialog-actions"><button type="button" id="penReset">Reset</button><button type="button" id="penClose" class="primary">Done</button></div></form>`;
+    document.body.appendChild(d);
+    const pad = $('#penPad'), g = pad.getContext('2d');
+    const sync = () => {
+      $('#penGamma').value = Math.round(penCfg.gamma * 100); $('#penGammaV').textContent = penCfg.gamma.toFixed(2);
+      $('#penMin').value = Math.round(penCfg.min * 100); $('#penMinV').textContent = Math.round(penCfg.min * 100) + '%';
+      $('#penMax').value = Math.round(penCfg.max * 100); $('#penMaxV').textContent = Math.round(penCfg.max * 100) + '%';
+      $('#penPalm').checked = penCfg.palm; $('#penUndo').checked = penCfg.twoTapUndo;
+      drawCurve();
+    };
+    const save = () => { try { localStorage.setItem('sketchforge.pen', JSON.stringify(penCfg)); } catch (e) { /* ignore */ } };
+    const drawCurve = () => {
+      g.clearRect(0, 0, pad.width, pad.height);
+      g.strokeStyle = '#555'; g.strokeRect(0.5, 0.5, 130, 140);
+      g.strokeStyle = '#8aa4d6'; g.lineWidth = 2; g.beginPath();
+      for (let i = 0; i <= 100; i++) { const y = shapePressure(i / 100); const X = 4 + i * 1.22, Y = 136 - (y - 0.01) * 130; i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+      g.stroke(); g.lineWidth = 1;
+      g.fillStyle = '#888'; g.font = '10px sans-serif'; g.fillText('pressure curve', 140, 14);
+    };
+    $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; sync(); save(); };
+    $('#penMin').oninput = e => { penCfg.min = e.target.value / 100; sync(); save(); };
+    $('#penMax').oninput = e => { penCfg.max = e.target.value / 100; sync(); save(); };
+    $('#penPalm').onchange = e => { penCfg.palm = e.target.checked; save(); };
+    $('#penUndo').onchange = e => { penCfg.twoTapUndo = e.target.checked; save(); };
+    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true }); sync(); save(); };
+    $('#penClose').onclick = () => d.close();
+    let last = null;
+    pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); last = null; padMove(e); });
+    pad.addEventListener('pointermove', e => { if (e.buttons) padMove(e); });
+    pad.addEventListener('pointerup', () => { last = null; });
+    function padMove(e) {
+      const r = pad.getBoundingClientRect(), k = pad.width / r.width;
+      const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+      const raw = e.pointerType === 'pen' ? e.pressure : 0.5, p = e.pointerType === 'pen' ? shapePressure(raw) : 0.5;
+      $('#penStatus').textContent = `${e.pointerType}  ·  raw pressure ${raw.toFixed(2)}  →  used ${p.toFixed(2)}`;
+      if (x > 145 || true) { g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 1 + p * 9, 0, 7); g.fill(); }
+      last = [x, y];
+    }
+    d.sync = sync;
+  }
+  d.sync(); d.showModal();
+}
+
+/* ---------- Sub Tool panel footer: add / duplicate / delete brushes ---------- */
+async function importAnyFile(f) {
+  try {
+    if (/\.sut$/i.test(f.name)) { const n = await importSut(f); toast('Imported ' + n + ' brush' + (n > 1 ? 'es' : '') + ' (settings approximated)'); }
+    else if (/^image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name)) {
+      const id = await registerBrush({ name: f.name.replace(/\.[^.]+$/, ''), tip: await readFile(f) }, true); selectTool(id); toast('Brush added');
+    } else toast('Drop a .sut brush or an image');
+  } catch (e) { toast('Could not import: ' + e.message); }
+}
+function duplicateBrush() {
+  const id = state.tool, def0 = TOOLDEF[id];
+  if (kindOf(id) !== 'brush') { toast('Pick a brush or pen first'); return; }
+  const s = settings[id], orig = addons.brushes.find(b => b.id === id);
+  registerBrush({ name: def0.name + ' copy', size: s.size, hardness: s.hardness, flow: s.flow, opacity: s.opacity, pSize: s.pSize, pAlpha: s.pAlpha,
+    smooth: s.smooth, aa: s.aa, spacing: s.spacing, taperIn: s.taperIn, taperRatio: s.taperRatio, tip: orig && orig.tip, tipRot: s.tipRot,
+    pen: groupOf(id).id === 'pen' }, true).then(nid => { selectTool(nid); toast('Duplicated'); });
+}
+function deleteBrush() {
+  const id = state.tool;
+  if (!TOOLDEF[id].custom) { toast('Built-in tools cannot be deleted. Only imported or duplicated ones.'); return; }
+  if (!confirm('Delete "' + TOOLDEF[id].name + '"?')) return;
+  const g = groupOf(id); g.subs.splice(g.subs.indexOf(id), 1);
+  delete TOOLDEF[id]; delete settings[id]; customTips.delete(id);
+  addons.brushes = addons.brushes.filter(b => b.id !== id); saveAddons();
+  selectTool(g.subs[0]);
+}
+function buildSubBar() {
+  const list = $('#subtoolList');
+  const bar = document.createElement('div'); bar.id = 'subtoolBar';
+  const mk = (ic, title, fn) => { const b = document.createElement('button'); b.innerHTML = icon(ic); b.title = title; b.onclick = fn; bar.appendChild(b); };
+  mk('plus', 'Add brush: import a Clip Studio .sut file or an image', () => pickFile('.sut,image/*', importAnyFile));
+  mk('copy', 'Duplicate this sub tool', duplicateBrush);
+  mk('trash', 'Delete this sub tool (imported / duplicated only)', deleteBrush);
+  const hintEl = document.createElement('span'); hintEl.textContent = 'Drop a .sut file here'; bar.appendChild(hintEl);
+  list.after(bar);
+  const sec = list.closest('.pal');
+  sec.addEventListener('dragover', e => { e.preventDefault(); sec.classList.add('dropfile'); });
+  sec.addEventListener('dragleave', () => sec.classList.remove('dropfile'));
+  sec.addEventListener('drop', e => { e.preventDefault(); sec.classList.remove('dropfile'); for (const f of e.dataTransfer.files) importAnyFile(f); });
+}
