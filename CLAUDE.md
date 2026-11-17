@@ -52,6 +52,7 @@ Modules dans `parts/` :
 - `p10q_filters` : courbe de tons, balance des couleurs, gradient map, flou radial, Liquify.
 - `p10r_pro` : règles, cases de manga, bulles, effets manga.
 - `p10s_masks` : masques de calque.
+- `p10t_symmetry` : bouton / popup / menu Symétrie (miroir, 4 axes, radial, kaléidoscope). La géométrie (`symMats`, `symLocal`) est dans `p10r_pro`, l'application aux traits et formes dans `p04_brush` (`stampAt`, `drawShapePreview`).
 - `p10u_timelapse` : enregistrement time-lapse.
 - `p10v_workspace` : espaces de travail Dessin et Animation.
 - `p10w_csfeatures` : clipping, verrou de transparence, calques référence et brouillon, menu Filtre, Select expand/shrink.
@@ -60,7 +61,7 @@ Modules dans `parts/` :
 - `p10z_addons` : panneaux flottants et dockables, API add-ons (`Sketchforge.addBrush`, `addCommand`…), import `.sut`.
 - `p11_main` : construction des menus (`data-cmd`), raccourcis, init, enregistrement du SW.
 
-Il manque des numéros dans la séquence (pas de p01, p10a–o ni p10t). C'est normal : l'ordre alphabétique suffit. Pour un nouveau module, choisis un nom qui le place après ses dépendances (ex. `p10t_xxx.js` se charge avant `p10u`).
+Il manque des numéros dans la séquence (pas de p01 ni p10a–o). C'est normal : l'ordre alphabétique suffit. Pour un nouveau module, choisis un nom qui le place après ses dépendances (ex. `p10t_xxx.js` se charge avant `p10u`).
 
 Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `tools2`, `layout.v1`…). Si un format change, bumpe le suffixe de la clé plutôt que de casser les données existantes.
 

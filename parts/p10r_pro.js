@@ -78,17 +78,33 @@ function rulerApply(lock, d) {
   }
   return d;
 }
-function symOn() { return ruler.sym && ruler.snap.sym; }
-function symPoints(x, y) {
+function symOn() { return !!(ruler.sym && ruler.snap.sym); }
+/* Symmetry as affine matrices [a,b,c,d,e,f] in document space, one per extra copy (identity excluded).
+   Modes: mirror (one axis), quad (axis + perpendicular), rot (n-fold rotation), kaleido (n-fold rotation + mirrors). */
+function symMats() {
   const a = ruler.sym; if (!a) return [];
-  const out = [];
-  if (ruler.symMode === 'mirror') {
-    const p = projLine(a, x, y); out.push([2 * p.x - x, 2 * p.y - y]);
-  } else {
-    const cx = (a.x0 + a.x1) / 2, cy = (a.y0 + a.y1) / 2, n = ruler.symCount;
-    for (let i = 1; i < n; i++) { const ang = i * 2 * Math.PI / n, c = Math.cos(ang), s = Math.sin(ang), dx = x - cx, dy = y - cy; out.push([cx + dx * c - dy * s, cy + dx * s + dy * c]); }
+  const cx = (a.x0 + a.x1) / 2, cy = (a.y0 + a.y1) / 2, th = Math.atan2(a.y1 - a.y0, a.x1 - a.x0), n = Math.max(2, ruler.symCount | 0);
+  const about = m => { m[4] = cx - (m[0] * cx + m[2] * cy); m[5] = cy - (m[1] * cx + m[3] * cy); return m; };
+  const refl = t => { const c = Math.cos(2 * t), s = Math.sin(2 * t); return about([c, s, s, -c, 0, 0]); };
+  const rot = t => { const c = Math.cos(t), s = Math.sin(t); return about([c, s, -s, c, 0, 0]); };
+  const m = ruler.symMode;
+  if (m === 'quad') return [refl(th), refl(th + Math.PI / 2), rot(Math.PI)];
+  if (m === 'rot' || m === 'kaleido') {
+    const out = [];
+    for (let i = 1; i < n; i++) out.push(rot(i * 2 * Math.PI / n));
+    if (m === 'kaleido') for (let i = 0; i < n; i++) out.push(refl(th + i * Math.PI / n));
+    return out;
   }
-  return out;
+  return [refl(th)];
+}
+function symPoints(x, y) { return symMats().map(m => applyMat(m, x, y)); }
+const mulMat = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+/* Symmetry matrices expressed in a layer's own pixel space (fwd = layer -> document matrix, or null if untransformed). */
+function symLocal(fwd) {
+  const ms = symMats(); if (!fwd) return ms;
+  const inv = invMat(fwd); if (!inv) return ms;
+  return ms.map(m => mulMat(inv, mulMat(m, fwd)));
 }
 function drawRulers(g, S) {
   if (!ruler.show) return;
@@ -98,7 +114,15 @@ function drawRulers(g, S) {
   const ext = (r, col, dash) => { const dx = r.x1 - r.x0, dy = r.y1 - r.y0, L = Math.hypot(dx, dy) || 1, k = 20000 / L; line(r.x0 - dx * k, r.y0 - dy * k, r.x1 + dx * k, r.y1 + dy * k, col, dash); };
   const handle = (x, y, col) => { const p = S(x, y); g.fillStyle = col; g.beginPath(); g.arc(p[0], p[1], 4, 0, 7); g.fill(); };
   if (ruler.line) { ext(ruler.line, ruler.snap.line ? '#2fd0ff' : '#6a8794'); handle(ruler.line.x0, ruler.line.y0, '#2fd0ff'); handle(ruler.line.x1, ruler.line.y1, '#2fd0ff'); }
-  if (ruler.sym) { ext(ruler.sym, ruler.snap.sym ? '#ff5fd2' : '#8a6a82', [8, 5]); if (ruler.symMode !== 'mirror') handle((ruler.sym.x0 + ruler.sym.x1) / 2, (ruler.sym.y0 + ruler.sym.y1) / 2, '#ff5fd2'); }
+  if (ruler.sym) {
+    const r = ruler.sym, col = ruler.snap.sym ? '#ff5fd2' : '#8a6a82', cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, th = Math.atan2(r.y1 - r.y0, r.x1 - r.x0);
+    const axis = t => ext({ x0: cx, y0: cy, x1: cx + Math.cos(t), y1: cy + Math.sin(t) }, col, [8, 5]);
+    const m = ruler.symMode, n = Math.max(2, ruler.symCount | 0);
+    if (m === 'quad') { axis(th); axis(th + Math.PI / 2); }
+    else if (m === 'rot' || m === 'kaleido') { for (let i = 0; i < n; i++) axis(th + i * Math.PI / n); }
+    else axis(th);
+    if (m !== 'mirror') handle(cx, cy, '#ff5fd2');
+  }
   if (ruler.persp) {
     const P = ruler.persp, col = ruler.snap.persp ? 'rgba(255,190,60,.55)' : 'rgba(150,130,90,.4)';
     for (let i = 0; i < 48; i++) { const a = i * Math.PI / 24; line(P.x - Math.cos(a) * 20000, P.y - Math.sin(a) * 20000, P.x + Math.cos(a) * 20000, P.y + Math.sin(a) * 20000, col); }
@@ -361,8 +385,8 @@ function proProps(body, id) {
     chk('Perspective ruler' + (ruler.persp ? '' : ' (not set)'), () => ruler.snap.persp, v => ruler.snap.persp = v);
     chk('Figure ruler' + (ruler.ell ? '' : ' (not set)'), () => ruler.snap.ell, v => ruler.snap.ell = v);
     chk('Symmetry ruler' + (ruler.sym ? '' : ' (not set)'), () => ruler.snap.sym, v => ruler.snap.sym = v);
-    sel2('Symmetry', [['mirror', 'Mirror'], ['rot', 'Rotational']], () => ruler.symMode, v => { ruler.symMode = v; refreshProps(); });
-    if (ruler.symMode === 'rot') slider(body, 'Segments', 2, 16, 1, ruler.symCount, v => v, v => ruler.symCount = v);
+    sel2('Symmetry', SYM_MODES, () => ruler.symMode, v => { ruler.symMode = v; refreshProps(); symChanged(); });
+    if (ruler.symMode === 'rot' || ruler.symMode === 'kaleido') slider(body, 'Segments', 2, 16, 1, ruler.symCount, v => v, v => ruler.symCount = v);
     const hint = document.createElement('p'); hint.className = 'muted small';
     hint.textContent = id === 'rl_line' ? 'Drag to draw a straight guide. Strokes that start near it follow it.' : id === 'rl_persp' ? 'Click where the vanishing point should be. Strokes radiate from it.' : id === 'rl_sym' ? 'Drag an axis (click = vertical). Everything you draw is mirrored.' : 'Drag a box to set an ellipse / circle (Shift = circle). Strokes near it follow the curve.';
     body.appendChild(hint);

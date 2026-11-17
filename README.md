@@ -51,3 +51,6 @@ The Pen group now ships with the 11 pens from the user's own Clip Studio "pen" f
 The 3D panel's male and female mannequins are now real body meshes (from `assets/HumanLowPolyBaseMesh.fbx`), rigged with the same 16 joints as before, in grey. All poses, joint sliders, drag-to-rotate, toon shading and "Place on new layer" work as before; clicking a body part selects the joint under the cursor on the posed body.
 The rig is generated offline: `npm install` then `npm run build:models` rewrites `models3d.js` (quantized mesh + skin weights, loaded on demand like `three3d.js`, so it also works from `file://`). If `models3d.js` is missing, the old procedural mannequin is used.
 Check the licence of the base mesh before distributing the app.
+
+## 2.0.x: symmetry drawing
+"Symmetry" button in the top bar (or View menu, or Shift+M) mirrors everything you draw. The ▾ opens options: mirror, 4-way mirror, radial and kaleidoscope (2–24 segments), with a vertical or horizontal axis through the canvas centre. Pens, brushes, erasers and figure shapes are mirrored exactly (tips, nib angles and paper texture included), also on moved / rotated layers, and one undo removes the whole stroke. For an axis at any position or angle, use Ruler → Symmetry ruler.

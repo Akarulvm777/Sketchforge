@@ -606,3 +606,18 @@ body.tools2 #toolbox .tsep { grid-column:1 / -1; }
 #cmdbar #pageBar span { padding:0 4px; }
 body.tools2 #toolbox { display:flex !important; flex-direction:row; flex-wrap:wrap; width:84px !important; flex:0 0 84px !important; align-content:flex-start; gap:2px; padding:4px; box-sizing:border-box; overflow-y:auto; }
 body.tools2 #toolbox .tsep { flex:0 0 100%; }
+
+/* symmetry button + popup */
+#symBtn { white-space:nowrap; flex:0 0 auto; background:#3a3a3a; color:#ddd; border:1px solid #2a2a2a; border-radius:3px; font-size:12px; cursor:pointer; margin-left:8px; display:inline-flex; align-items:center; gap:6px; }
+#cmdbar #symBtn { width:auto !important; min-width:0 !important; height:24px; padding:0 0 0 10px; line-height:22px; display:inline-flex !important; flex-direction:row; align-items:stretch; overflow:hidden; }
+#cmdbar #symBtn .lbl { display:flex; align-items:center; }
+#symBtn.on { background:#5a2f52; color:#ffd2f4; border-color:#ff5fd2; }
+#symBtn .caret { padding:0 7px; border-left:1px solid rgba(0,0,0,.35); align-self:stretch; display:flex; align-items:center; }
+#symBtn .caret:hover { background:rgba(255,255,255,.08); }
+.popover { position:fixed; z-index:20000; width:260px; background:#2f3134; color:#ddd; border:1px solid #1d1f21; border-radius:8px; padding:10px 12px; box-shadow:0 8px 24px rgba(0,0,0,.45); font-size:12px; }
+.popover .grp { margin:8px 0 4px; text-transform:uppercase; font-size:10px; letter-spacing:.06em; color:#999; }
+.symModes { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.symModes button, .popover .btnrow button { background:#3a3c40; color:#ddd; border:1px solid #232527; border-radius:4px; padding:5px 6px; cursor:pointer; font-size:12px; }
+.symModes button.on { background:#5a2f52; border-color:#ff5fd2; color:#fff; }
+.popover .btnrow { display:flex; gap:4px; } .popover .btnrow button { flex:1; }
+.popover .small { font-size:11px; line-height:1.4; margin:8px 0 0; }

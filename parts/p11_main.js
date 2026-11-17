@@ -264,6 +264,7 @@ document.addEventListener('keydown', e => {
   if (e.key === '+' || e.key === '=') { CMD.zoomIn(); return; }
   if (e.key === '-') { CMD.zoomOut(); return; }
   if (k === 'g') { const cur = state.group; selectGroup(cur === 'fill' ? 'gradient' : 'fill'); return; }
+  if (k === 'm' && e.shiftKey) { CMD.symToggle(); return; }
   if (TOOL_KEYS[k]) selectGroup(TOOL_KEYS[k]);
 });
 document.addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; viewport.style.cursor = ''; } });
@@ -272,7 +273,7 @@ document.addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false
 function buildHelp() {
   const sec = (t, rows) => `<h5>${t}</h5>` + rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('#helpBody').innerHTML =
-    sec('Tools', [['Pen / Pencil / Brush / Eraser', 'P N B E'], ['Fill ↔ Gradient', 'G'], ['Eyedropper (Alt = sub colour)', 'I'], ['Selection', 'M'], ['Move / transform', 'V'], ['Figure', 'U'], ['Text', 'T'], ['Navigate', 'H / Space']]) +
+    sec('Tools', [['Pen / Pencil / Brush / Eraser', 'P N B E'], ['Fill ↔ Gradient', 'G'], ['Eyedropper (Alt = sub colour)', 'I'], ['Selection', 'M'], ['Move / transform', 'V'], ['Figure', 'U'], ['Text', 'T'], ['Navigate', 'H / Space'], ['Symmetry on / off', 'Shift+M']]) +
     sec('Animation', [['Play / pause', 'Enter'], ['Prev / next frame', ', .  or ← →'], ['Keyframe / blank', 'K F6 / Shift+K F7'], ['Insert / remove frame', 'J F5 / Shift+J'], ['Remove keyframe', 'Shift+F6'], ['Onion skin', 'O'],
       ['Motion tween', 'Timeline → Tween']]) +
     sec('View', [['Zoom', 'Wheel, + −, pinch'], ['Rotate view', '[ ]  or two-finger twist'], ['Fit', 'Ctrl+0'], ['Pan', 'Space+drag, middle mouse']]) +
@@ -284,7 +285,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); applyIcons(); installCsFeatures(); installAddonUI(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installUiExtras(); installTimelapse(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); applyIcons(); installCsFeatures(); installAddonUI(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

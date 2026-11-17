@@ -243,7 +243,16 @@ function drawOne(st, x, y, d, a) {
 }
 function stampAt(st, x, y, pr) {
   stampAt1(st, x, y, pr);
-  if (symOn() && !st.isShape) for (const q of symPoints(x, y)) stampAt1(st, q[0], q[1], pr);
+  if (!st.sym) return;
+  // Each copy is drawn through its mirror / rotation matrix, so tips, nib angles and textures mirror exactly.
+  for (const m of st.sym) {
+    const [qx, qy] = applyMat(m, x, y);
+    if (st.direct) { stampAt1(st, qx, qy, pr); continue; } // smudge / blend read pixels, so they work on points
+    st.ctx.save(); st.ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    stampAt1(st, x, y, pr);
+    st.ctx.restore();
+    growBox(st, qx, qy, diameterAt(st, pr) * (1 + 2 * (st.s.scatter || 0)));
+  }
 }
 function stampAt1(st, x, y, pr) {
   const s = st.s;
@@ -387,6 +396,14 @@ function drawShapePreview(st) {
   const prev = st.box;
   st.ctx.clearRect(0, 0, state.w, state.h);
   st.box = drawShape(st.ctx, st);
+  if (st.sym) for (const m of st.sym) {
+    st.ctx.save(); st.ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    const b = drawShape(st.ctx, st);
+    st.ctx.restore();
+    for (const [x, y] of [[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]].map(p => applyMat(m, p[0], p[1]))) {
+      st.box.x0 = Math.min(st.box.x0, x); st.box.y0 = Math.min(st.box.y0, y); st.box.x1 = Math.max(st.box.x1, x); st.box.y1 = Math.max(st.box.y1, y);
+    }
+  }
   if (st.clip) {
     const b = clampBox(Math.min(prev.x0, st.box.x0), Math.min(prev.y0, st.box.y0),
       Math.max(prev.x1, st.box.x1), Math.max(prev.y1, st.box.y1));
@@ -414,9 +431,9 @@ function prepBuffer(layer, p, opacity, hide) {
 /* Returns {ident, map(x,y)} mapping document points to the layer's own pixels. */
 function localMapper(layer) {
   const fp = frameParams(layer, state.frame);
-  if (!fp || isIdentP(fp.p)) return { fp, ident: true, map: (x, y) => [x, y] };
-  const inv = invMat(xfMatrix(fp.p, layer));
-  return { fp, ident: false, map: inv ? (x, y) => applyMat(inv, x, y) : (x, y) => [x, y] };
+  if (!fp || isIdentP(fp.p)) return { fp, ident: true, fwd: null, map: (x, y) => [x, y] };
+  const fwd = xfMatrix(fp.p, layer), inv = invMat(fwd);
+  return { fp, ident: false, fwd, map: inv ? (x, y) => applyMat(inv, x, y) : (x, y) => [x, y] };
 }
 
 function beginStroke(e) {
@@ -445,7 +462,8 @@ function beginStroke(e) {
     sx: x0, sy: y0, sp: pr, rx: x0, ry: y0, rp: pr,
     lx: x0, ly: y0, lp: pr, next: 0,
     startX: x0, startY: y0, cx: x0, cy: y0, shift: e.shiftKey,
-    pointerId: e.pointerId, rlock
+    pointerId: e.pointerId, rlock,
+    sym: symOn() ? symLocal(lm.fwd) : null
   };
   prepBuffer(layer, lm.fp && lm.fp.p, s.opacity, erase || direct);
   if (layer.isMask) { Object.assign(bufCanvas.style, { opacity: erase ? '0' : '0.5', zIndex: 9999, mixBlendMode: 'normal', transform: 'none' }); }
