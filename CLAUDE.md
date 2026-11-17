@@ -6,7 +6,7 @@ Instructions de passation pour Claude Code. À lire avant toute modification.
 
 - Sketchforge est une application de dessin et d'animation (inspirée de Clip Studio et d'Adobe Animate, avec du code 100 % original). Elle tourne dans le navigateur ou en PWA, avec Electron pour le bureau.
 - **Restauration du 17/11/2026** : ce dépôt part du dernier instantané disponible, **v2.0.0 (17/11/2026, 02:36)**. Une version plus récente, développée dans une session Claude, a été perdue. Son contenu est **inconnu** : il ne faut **pas** inventer ces fonctionnalités. Elles seront redécrites par l'utilisateur et réimplémentées une par une (voir § 7).
-- L'utilisateur est francophone : réponses en français, code et commentaires en anglais.
+- L'utilisateur est francophone mais souhaite des réponses en anglais. Code et commentaires en anglais.
 
 ## 2. Lancer
 
