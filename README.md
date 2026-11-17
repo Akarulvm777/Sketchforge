@@ -54,3 +54,6 @@ Check the licence of the base mesh before distributing the app.
 
 ## 2.0.x: symmetry drawing
 "Symmetry" button in the top bar (or View menu, or Shift+M) mirrors everything you draw. The ▾ opens options: mirror, 4-way mirror, radial and kaleidoscope (2–24 segments), with a vertical or horizontal axis through the canvas centre. Pens, brushes, erasers and figure shapes are mirrored exactly (tips, nib angles and paper texture included), also on moved / rotated layers, and one undo removes the whole stroke. For an axis at any position or angle, use Ruler → Symmetry ruler.
+
+## 2.0.x: 🎨 Custom P menu
+New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light, Paper, Sakura, Forest, Ocean, Purple night, Sepia, High contrast, or "My colours" (background, panels, text, accent and canvas area, applied live). Icons: replace any icon with any image file the browser can open (PNG, JPG, GIF, WebP, SVG, BMP, ICO…); it is resized to icon size automatically, and × restores the original. "Reset to default" puts colours and icons back. Settings are remembered on this device.

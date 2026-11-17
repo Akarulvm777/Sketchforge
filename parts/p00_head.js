@@ -83,7 +83,9 @@ const IC = {
   lock: '<rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
 };
 const FILLED_ICONS = new Set(['play', 'prev', 'next', 'first', 'last']);
+const customIcons = {}; /* name -> image data URL, set from the Custom P menu (p10zz_customp) */
 function icon(n) {
+  if (customIcons[n]) return `<svg viewBox="0 0 24 24" class="cicon"><image href="${customIcons[n]}" x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg>`;
   const fill = FILLED_ICONS.has(n) ? 'currentColor' : 'none';
   return `<svg viewBox="0 0 24 24" fill="${fill}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[n] || ''}</svg>`;
 }

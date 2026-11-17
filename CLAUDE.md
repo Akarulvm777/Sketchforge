@@ -59,6 +59,7 @@ Modules dans `parts/` :
 - `p10x_penset` : les 11 pens intégrés, avec des tips en base64 (lignes très longues : ne pas l'ouvrir en entier).
 - `p10y_3d` : panneau 3D (mannequins riggés de `models3d.js`, repli sur un mannequin procédural, primitives, glTF et OBJ).
 - `p10z_addons` : panneaux flottants et dockables, API add-ons (`Sketchforge.addBrush`, `addCommand`…), import `.sut`.
+- `p10zz_customp` : menu « 🎨 Custom P » : thèmes de couleur (préréglages + couleurs perso, repeint toutes les couleurs de `style.css` via le CSSOM), icônes personnalisées (hook `customIcons` dans `icon()` de p00), reset. Clé `sketchforge.customp.v1`. Si tu ajoutes des couleurs en dur dans le CSS, elles sont repeintes automatiquement (gris → rampe du thème, cuivre / bleu ardoise → accent).
 - `p11_main` : construction des menus (`data-cmd`), raccourcis, init, enregistrement du SW.
 
 Il manque des numéros dans la séquence (pas de p01 ni p10a–o). C'est normal : l'ordre alphabétique suffit. Pour un nouveau module, choisis un nom qui le place après ses dépendances (ex. `p10t_xxx.js` se charge avant `p10u`).

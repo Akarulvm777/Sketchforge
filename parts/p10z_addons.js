@@ -434,7 +434,7 @@ function deleteBrush() {
 function buildSubBar() {
   const list = $('#subtoolList');
   const bar = document.createElement('div'); bar.id = 'subtoolBar';
-  const mk = (ic, title, fn) => { const b = document.createElement('button'); b.innerHTML = icon(ic); b.title = title; b.onclick = fn; bar.appendChild(b); };
+  const mk = (ic, title, fn) => { const b = document.createElement('button'); b.dataset.ic = ic; b.innerHTML = icon(ic); b.title = title; b.onclick = fn; bar.appendChild(b); };
   mk('plus', 'Add brush: import a Clip Studio .sut file or an image', () => pickFile('.sut,image/*', importAnyFile));
   mk('copy', 'Duplicate this sub tool', duplicateBrush);
   mk('trash', 'Delete this sub tool (imported / duplicated only)', deleteBrush);

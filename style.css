@@ -621,3 +621,28 @@ body.tools2 #toolbox .tsep { flex:0 0 100%; }
 .symModes button.on { background:#5a2f52; border-color:#ff5fd2; color:#fff; }
 .popover .btnrow { display:flex; gap:4px; } .popover .btnrow button { flex:1; }
 .popover .small { font-size:11px; line-height:1.4; margin:8px 0 0; }
+
+/* Custom P dialog */
+.cpdlg { width: min(94vw, 620px); }
+.cpdlg h5 { margin: 0 0 10px; font-size: 15px; }
+.cpTabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.cpTabs button { flex: 0 0 auto; padding: 5px 14px; border-radius: 6px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); cursor: pointer; }
+.cpTabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.cpBody { max-height: min(62vh, 520px); overflow: auto; padding-right: 4px; }
+.cpBody .grp { margin: 10px 0 6px; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; color: var(--muted); }
+.cpPresets { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.cpPresets button { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px; border-radius: 6px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); cursor: pointer; text-align: left; font-size: 12px; }
+.cpPresets button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cpsw { display: flex; height: 18px; border-radius: 4px; overflow: hidden; border: 1px solid rgba(0,0,0,.4); }
+.cpsw i { flex: 1; }
+.cpPickers { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; align-items: center; }
+.cpPickers label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.cpPickers input[type=color] { width: 38px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+.cpIcons { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.cpIcon { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); }
+.cpIcon.custom { border-color: var(--accent); }
+.cpIcon .cpPick { width: 40px; height: 40px; display: grid; place-items: center; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.cpIcon .cpPick svg { width: 24px; height: 24px; }
+.cpIcon span { font-size: 10px; color: var(--muted); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.cpIcon .cpX { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; line-height: 14px; padding: 0; border-radius: 50%; border: 0; background: var(--line); color: var(--text); cursor: pointer; }
+svg.cicon { overflow: visible; }
