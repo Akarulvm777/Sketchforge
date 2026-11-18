@@ -106,3 +106,15 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - Fixed: brush textures washed out to solid colour (Chalk, Oil paint, Impasto, Dry ink, canvas / bristle papers). Textures are now applied to the whole stroke, so the grain stays visible however much you go over it; textured erasers erase in patches.
 - New: Tool Property › Paper › Load image… turns any image into a paper texture. Imported Clip Studio brushes (.sut) keep their texture image, density, scale and invert settings.
 - Tests: `bash tools/e2e/run_all.sh` runs the whole browser test suite.
+
+## 2.1: 🎨 Custom P studio — customise everything
+Custom P is now a full studio with 8 sections, all applied live:
+- **Themes**: 16 colour themes, 4 layout styles (compact, big touch-friendly, soft rounded, classic square), 🎲 Surprise me, save your own themes, export / import theme files (.sftheme).
+- **Colours**: base colours plus every area on its own (menu bar, command bar, tabs, tool palette, tool buttons, selected tool, side panels, panel titles, sub tools & layers, selected layer, timeline, frames, tweens, status bar, buttons, main buttons, text boxes, dialogs & menus, messages) and text, keyframe dots, borders, sliders, scrollbars. Text stays readable automatically.
+- **Text & fonts**: 10 fonts or your own font file, text size, bold, letter spacing, panel title style.
+- **Layout & size**: interface scale, roundness, border thickness, spacing, icon size, 1–3 tool columns, panel widths, timeline height, tool palette left / right, swap panels, command bar top / bottom, timeline above / below, hide status bar / tabs / command bar.
+- **Icons**: colour, selected-tool colour, line thickness, size, replace any icon with any image.
+- **Canvas area**: theme / solid / gradient / radial / checkerboard / dots / grid / your image, sheet shadow and border.
+- **Cursor**: colour, thickness, centre cross, outline.
+- **Effects**: wallpaper behind the app, see-through panels with glass blur, shadows, animations, glow.
+- ↺ on every option, "Reset this section" and "Reset everything".
