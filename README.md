@@ -1,4 +1,4 @@
-# Sketchforge 2.3 — drawing + animation studio
+# Sketchforge 2.4 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -138,3 +138,23 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - Features: Symmetry, time-lapse, 3D, multiple files, Photoshop / Clip Studio files, video & sound reference, remembered work.
 - Animation & rigging: Make an animation, Motion tweens, Rig a character (bones), Bend a drawing (puppet pins), Reuse drawings.
 - Customise: Custom P (walks through every tab), Install the app.
+
+## 2.4: animation on one layer
+- Draw a whole animation on one layer: drawing on a frame without its own drawing makes a new blank drawing (or a copy, or edits the held one — "Empty frame" in the timeline). Onion skin turns on by itself.
+- ＋ New drawing (Shift+→) on 1s / 2s / 3s / 4s; right-click any frame for the timeline menu (new / copy / delete / clear drawing, hold longer / shorter, copy / paste, reverse, tween + ease in / out, insert / delete frame, play range); drag the selected drawing to move it (Alt = copy); double-click an empty frame.
+- Play range (shown on the ruler), ping-pong; onion skin settings (drawings or frames, this layer or all, colours, strength).
+- Export: sprite sheet, transparent background, play range only.
+- The first time you open the Animation workspace Sketchforge asks if it's your first time and offers the animation tutorials (new: "Every animation tool"), with a "Don't ask me again" tick.
+
+## 2.4: 3D model fingers, drag to move, body shape
+- 3 bones in every finger: hand poses (relaxed, open, fist, point, peace, thumbs up, grip) and a curl slider per finger.
+- Drag a hand, foot or any part and the body follows (elbows and knees bend the right way); "Drag: Rotate joint" keeps the old behaviour.
+- Body shape: head, build, shoulders, hips, torso / arm / leg length, hands, feet. Zoom slider, pinch to zoom, size 20–300 %.
+
+## 2.4: updates itself
+- The browser / iPad version shows "New version — Reload"; the Windows / Mac app downloads new versions in the background and switches with one click (falls back to the built-in version if an update fails to start); the Android app downloads them into the app. Help › Check for updates.
+
+## 2.4: account, cloud and AI helper
+- Sign in with Google or GitHub (☁ Account or the button top right): save / open drawings in the cloud, settings sync between devices, a community library of brushes (.sut) and themes to add or share.
+- ✨ Ask: the AI helper finds tools and answers questions with buttons that take you there. It never draws for you — AI is not supposed to steal your job.
+- Official website with downloads, features, account page. Setup: docs/ONLINE-SETUP.md.

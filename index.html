@@ -9,10 +9,20 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sketchforge">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Sketchforge 2.3.0</title>
+<title>Sketchforge 2.4.0</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=2.3.0">
+<link rel="stylesheet" href="style.css?v=2.4.0">
+<script>/* Android app: open a newer downloaded copy of the app files (live update), unless it failed to start last time */
+(function () { try {
+  var C = window.Capacitor; if (!C || !C.isNativePlatform || !C.isNativePlatform() || location.pathname.indexOf('/_capacitor_file_/') >= 0) return;
+  var K = 'sketchforge.live.v1', L = JSON.parse(localStorage.getItem(K) || 'null'); if (!L || !L.url) return;
+  var mine = (document.title.match(/\d+\.\d+\.\d+/) || ['0'])[0].split('.').map(Number), his = String(L.version).split('.').map(Number);
+  var newer = his[0] - mine[0] || his[1] - mine[1] || his[2] - mine[2];
+  if (newer <= 0 || L.bad === L.version) return;
+  if (L.trying === L.version && L.ok !== L.version) { L.bad = L.version; localStorage.setItem(K, JSON.stringify(L)); return; }
+  L.trying = L.version; localStorage.setItem(K, JSON.stringify(L)); location.replace(L.url + location.hash);
+} catch (e) { /* use the built-in app */ } })();</script>
 </head>
 <body>
 <div id="app">
@@ -176,7 +186,7 @@
     <span id="statusText"></span>
     <span class="grow"></span>
     <span id="statusPos" class="muted"></span>
-    <span id="statusView"></span><span class="muted" style="margin-left:12px">Sketchforge v2.3.0</span>
+    <span id="statusView"></span><span class="muted" style="margin-left:12px">Sketchforge v2.4.0</span>
   </footer>
 </div>
 
@@ -283,6 +293,8 @@
   </form>
 </dialog>
 
-<script src="app.js?v=2.3.0"></script>
+<script src="cloud-config.js?v=2.4.0"></script>
+<script src="cloud-lib.js?v=2.4.0"></script>
+<script src="app.js?v=2.4.0"></script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+# Netlify builds the website + web app (dist-site/) from this repository.
+# New versions go live only when a commit with [release] in its message is pushed (see tools/netlify_ignore.sh).
+[build]
+  command = "node tools/build_site.mjs"
+  publish = "dist-site"
+  ignore = "bash tools/netlify_ignore.sh"
+[build.environment]
+  NODE_VERSION = "22"

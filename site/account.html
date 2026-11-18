@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your account — Sketchforge</title>
+<meta name="theme-color" content="#1c1d20">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="./"><span class="logo">S</span>Sketchforge</a>
+  <nav><a href="./#features">Features</a><a href="./#download">Download</a><a href="app/">Open the app</a></nav>
+  <a class="btn ghost" id="navAccount" href="account.html">Sign in</a>
+</header>
+<main class="page">
+  <section id="signedOut" class="card narrow" hidden>
+    <h1>Sign in or sign up</h1>
+    <p class="muted">Use your Google or GitHub account. The first time creates your Sketchforge account.</p>
+    <div class="providers"><button class="prov google" data-p="google">Continue with Google</button><button class="prov github" data-p="github">Continue with GitHub</button></div>
+    <p class="small muted">With an account: drawings in the cloud, the same settings on all your devices, sharing brushes and themes, and the AI helper.</p>
+  </section>
+  <section id="notSetUp" class="card narrow" hidden><h1>Accounts are coming soon</h1><p class="muted">Online features are not switched on for this website yet.</p></section>
+  <div id="signedIn" hidden>
+    <section class="card me"><img id="meAvatar" alt=""><div><h1 id="meName"></h1><p class="muted" id="meEmail"></p></div><button class="btn" id="signOut">Sign out</button></section>
+    <section class="card"><h2>☁ My cloud drawings</h2><p class="muted small">Saved from the app with File › Save to cloud.</p><div class="cgrid" id="myFiles"><p class="muted small">Loading…</p></div></section>
+    <section class="card"><h2>🖌 What I share</h2><div class="cgrid" id="myShared"><p class="muted small">Loading…</p></div></section>
+    <section class="card"><h2>⚙ Settings sync</h2><p id="syncInfo" class="muted">Loading…</p></section>
+    <section class="card"><h2>✨ Ask the helper</h2><p class="muted small">Questions about Sketchforge: where a tool is, what a setting does, how to do something. It doesn't draw for you.</p>
+      <div id="aiLog" class="ailog"></div><form id="aiForm" class="aiform"><input id="aiQ" placeholder="e.g. How do I make my animation loop back and forth?" autocomplete="off"><button class="btn primary">Ask</button></form></section>
+  </div>
+</main>
+<footer class="foot"><span><span class="logo sm">S</span> Sketchforge</span><a href="./">Home</a><a href="app/">Open the app</a></footer>
+<script src="cloud-config.js"></script>
+<script src="cloud-lib.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

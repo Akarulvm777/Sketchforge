@@ -107,10 +107,14 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || inputs.release || contains(github.event.head_commit.message, '[release]')
     needs: [desktop, android, web]
     runs-on: ubuntu-latest
+    env:
+      HAS_RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - id: ver
-        run: echo "v=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "v=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "repo=$(node -p "(require('./package.json').sketchforge || {}).releasesRepo || ''")" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with: { path: files, merge-multiple: true }
       - uses: softprops/action-gh-release@v2
@@ -131,3 +135,33 @@ jobs:
             **Android**: download the `.apk` on the phone / tablet and open it (allow "install unknown apps" when asked).
             **Linux**: the `.AppImage` (make it executable, then run it).
             **iPad / iPhone**: open the web link in Safari → Share → Add to Home Screen.
+      # Public downloads (the website links here, so people can download without access to this private repository).
+      # Needs package.json "sketchforge.releasesRepo" (an empty public repository) and the secret RELEASES_TOKEN
+      # (a fine-grained token with Contents: read and write on that repository). See docs/ONLINE-SETUP.md.
+      - if: steps.ver.outputs.repo != '' && env.HAS_RELEASES_TOKEN == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: ${{ steps.ver.outputs.repo }}
+          token: ${{ secrets.RELEASES_TOKEN }}
+          name: Sketchforge ${{ steps.ver.outputs.v }}
+          tag_name: ${{ steps.ver.outputs.v }}
+          make_latest: true
+          files: |
+            files/*.exe
+            files/*.dmg
+            files/*.AppImage
+            files/*.apk
+          body: Sketchforge ${{ steps.ver.outputs.v }}. Install instructions on the Sketchforge website.
+  backend:
+    # Deploys the AI helper (Supabase Edge Function "ask") on releases, when the secret SUPABASE_ACCESS_TOKEN and
+    # package.json "sketchforge.supabaseProject" (the project ref) are set. Otherwise deploy it by hand (docs/ONLINE-SETUP.md).
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release || contains(github.event.head_commit.message, '[release]')
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ref
+        run: echo "ref=$(node -p "(require('./package.json').sketchforge || {}).supabaseProject || ''")" >> "$GITHUB_OUTPUT"
+      - if: steps.ref.outputs.ref != '' && env.SUPABASE_ACCESS_TOKEN != ''
+        run: npx --yes supabase@latest functions deploy ask --project-ref "${{ steps.ref.outputs.ref }}"

@@ -182,7 +182,10 @@ const TUTORIALS = [
   { id: 'apps', cat: 'Customise', icon: '📲', title: 'Install the app', desc: 'Windows, Mac, Android, iPad / iPhone.', steps: [
     { t: 'Sketchforge everywhere', x: '<b>Windows</b>: Sketchforge-Setup .exe. <b>Mac</b>: the .dmg (arm64 for Apple Silicon, x64 for Intel). <b>Android</b>: the .apk. All are on the project\'s Releases page.' },
     { t: 'iPad & iPhone', x: 'Open the web link in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline.' },
-    { t: 'Your files', x: 'Save .sketchforge files to keep your work; open them on any device. Your last work also reopens automatically on the same device.' }
+    { t: 'Your files', x: 'Save .sketchforge files to keep your work; open them on any device. Your last work also reopens automatically on the same device.' },
+    { el: '#acctBtn', pre: tutNoDock, t: 'Account & cloud (optional)', x: '<b>Sign in</b> with Google or GitHub to save drawings in the cloud, keep your settings on all your devices and share brushes and themes (☁ Account menu).' },
+    { el: ['#aiBtn', '#acctBtn'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or ☁ Account › Ask the AI helper on phones); it answers with buttons that take you there. It never draws for you.' },
+    { el: menuEl('Help'), t: 'Updates', x: 'Sketchforge updates itself: you get a small card when a new version is ready. <b>Help › Check for updates</b> checks right away.' }
   ] }
 ];
 
