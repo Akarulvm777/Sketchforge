@@ -98,8 +98,6 @@ function symMats() {
   return [refl(th)];
 }
 function symPoints(x, y) { return symMats().map(m => applyMat(m, x, y)); }
-const mulMat = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
-  m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
 /* Symmetry matrices expressed in a layer's own pixel space (fwd = layer -> document matrix, or null if untransformed). */
 function symLocal(fwd) {
   const ms = symMats(); if (!fwd) return ms;

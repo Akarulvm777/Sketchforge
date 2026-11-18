@@ -126,6 +126,7 @@ async function buildDocObject() {
     layers: state.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
       active: l.id === state.activeId,
+      parent: l.parent ? state.layers.findIndex(x => x.id === l.parent) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : c.toDataURL('image/png') })) } : null,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null,
@@ -178,6 +179,7 @@ async function openDocumentFile(file) {
       state.layers.push(l);
       if (ld.active) state.activeId = l.id;
     }
+    doc.layers.forEach((ld, i) => { if (ld.parent >= 0 && state.layers[ld.parent] && ld.parent !== i) state.layers[i].parent = state.layers[ld.parent].id; });
     if (!state.layers.find(l => l.id === state.activeId)) state.activeId = state.layers[state.layers.length - 1].id;
     history.undo.length = 0; history.redo.length = 0;
     resetSelection();

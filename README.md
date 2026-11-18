@@ -91,3 +91,7 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - Animation → Copy drawing / Paste drawing here (Alt+C / Alt+V): copy one layer's drawing to another frame, layer or document as a new keyframe — no redrawing.
 - Animation → Repeat frames (cycle)…: repeat a frame range N times (walk / run cycles), on all layers or only the active one.
 - Animation (or Window) → Drawing library: save a drawing or a selection once; click it (or drag it onto the canvas) to place it again on any frame, in any document. The library is kept in the browser between sessions.
+
+## 2.0.x: bone rig (cut-out animation)
+- Layer → Bone rig: set parent…: a layer follows its parent layer. Draw each body part on its own layer, link forearm → upper arm → body, and Alt+drag each part's orange pivot dot (Move tool) onto its joint.
+- Rotating / moving a part with the Move tool carries all its children; keyframes and motion tweens animate the whole limb. Bones are drawn over the canvas in the Move tool. Parent links are saved in the file. Layer → How to rig a character… explains the steps.

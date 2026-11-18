@@ -119,6 +119,22 @@ function matFrom(p, px, py) {
   return [a, b, c, d, p.x + px - (a * px + c * py), p.y + py - (b * px + d * py)];
 }
 function xfMatrix(p, l) { const [px, py] = pivotOf(l); return matFrom(p, px, py); }
+const mulMat = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+/* Bone rig: a layer can follow a parent layer (l.parent = parent id). The layer's full matrix on frame f is
+   parent's full matrix × its own keyframe transform. Returns null when the result is the identity. */
+function layerParent(l) { return l && l.parent ? state.layers.find(x => x.id === l.parent && x !== l) || null : null; }
+function withParent(own, l, f, depth = 0) {
+  const par = depth < 16 ? layerParent(l) : null;
+  if (!par) return own;
+  const pm = layerMat(par, f, depth + 1);
+  if (!pm) return own;
+  return own ? mulMat(pm, own) : pm;
+}
+function layerMat(l, f = state.frame, depth = 0) {
+  const fp = frameParams(l, f);
+  return withParent(fp && !isIdentP(fp.p) ? xfMatrix(fp.p, l) : null, l, f, depth);
+}
 function invMat(m) {
   const [a, b, c, d, e, f] = m;
   const det = a * d - b * c;
@@ -128,6 +144,7 @@ function invMat(m) {
 }
 const applyMat = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 function xfCss(p, l) {
+  if (l && l.parent) { const m = withParent(p && !isIdentP(p) ? xfMatrix(p, l) : null, l, state.frame); return m ? `matrix(${m.join(',')})` : 'none'; }
   if (!p || isIdentP(p)) return 'none';
   const [px, py] = pivotOf(l);
   return `translate(${p.x}px,${p.y}px) translate(${px}px,${py}px) rotate(${p.rot}deg) scale(${p.sx},${p.sy}) translate(${-px}px,${-py}px)`;

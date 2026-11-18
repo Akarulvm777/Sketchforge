@@ -51,7 +51,7 @@ function handlesOf(layer) {
   const fp = frameParams(layer, state.frame);
   const bb = celBBox(fp.cel);
   if (!bb) return null;
-  const M = xfMatrix(fp.p, layer);
+  const M = layerMat(layer, state.frame) || [1, 0, 0, 1, 0, 0];
   const corners = [[bb.x, bb.y], [bb.x + bb.w, bb.y], [bb.x + bb.w, bb.y + bb.h], [bb.x, bb.y + bb.h]]
     .map(([x, y]) => docToScreen(...applyMat(M, x, y)));
   const top = [(corners[0][0] + corners[1][0]) / 2, (corners[0][1] + corners[1][1]) / 2];
@@ -60,7 +60,7 @@ function handlesOf(layer) {
   const len = Math.hypot(vx, vy) || 1;
   const rot = [top[0] + vx / len * 28, top[1] + vy / len * 28];
   const [px, py] = pivotOf(layer);
-  const pv = docToScreen(px + fp.p.x, py + fp.p.y);
+  const pv = docToScreen(...applyMat(M, px, py));
   return { corners, top, rot, pv, fp, M };
 }
 function hitHandle(e) {
@@ -111,6 +111,7 @@ function moveMove(e) {
     const d = toDoc(e);
     let dx = d.x - a.d0.x, dy = d.y - a.d0.y;
     if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+    [dx, dy] = toParentSpace(a.layer, dx, dy);
     a.x.x = a.x0 + dx; a.x.y = a.y0 + dy;
   } else if (a.mode === 'rot') {
     let da = (Math.atan2(Y - a.pv[1], X - a.pv[0]) - a.a0) / DEG * (view.flip ? -1 : 1);
@@ -121,21 +122,28 @@ function moveMove(e) {
     const d = toDoc(e);
     const l = a.layer, fp = frameParams(l, state.frame);
     /* move pivot in layer space while keeping the picture where it is */
-    const oldM = xfMatrix(fp.p, l);
-    const inv = invMat(matFrom({ x: 0, y: 0, rot: 0, sx: 1, sy: 1 }, 0, 0));
-    const [lx, ly] = applyMat(invMat(oldM), d.x, d.y);
+    const I = [1, 0, 0, 1, 0, 0];
+    const oldM = layerMat(l, state.frame) || I;
+    const [lx, ly] = applyMat(invMat(oldM) || I, d.x, d.y);
     const keep = applyMat(oldM, 0, 0);
     l.px = lx; l.py = ly;
-    const newM = xfMatrix(fp.p, l);
+    const newM = layerMat(l, state.frame) || I;
     const k2 = applyMat(newM, 0, 0);
-    a.x.x += keep[0] - k2[0]; a.x.y += keep[1] - k2[1];
-    void inv;
+    const [ddx, ddy] = toParentSpace(l, keep[0] - k2[0], keep[1] - k2[1]);
+    a.x.x += ddx; a.x.y += ddy;
   } else {
     let k = (Math.hypot(X - a.pv[0], Y - a.pv[1]) || 1) / a.r0;
     if (e.shiftKey) { a.x.sx = a.sx0 * k; a.x.sy = a.sy0 * k; }
     else { a.x.sx = a.sx0 * k; a.x.sy = a.sy0 * k; }
   }
   refreshStage(); drawOverlay(); syncTimelineFields();
+}
+/* a movement in document space → the same movement in the parent layer's space (bone rig) */
+function toParentSpace(l, dx, dy) {
+  const par = layerParent(l), pm = par ? layerMat(par, state.frame) : null;
+  if (!pm) return [dx, dy];
+  const inv = invMat([pm[0], pm[1], pm[2], pm[3], 0, 0]);
+  return inv ? applyMat(inv, dx, dy) : [dx, dy];
 }
 function moveUp() {
   const a = active; active = null;
@@ -330,6 +338,7 @@ function drawOverlay() {
   drawPolyOverlay(g, S);
   drawRulers(g, S); drawDDOverlay(g, S);
   if (state.tool === 'move' && !sel.active && !(a && a.type === 'pixmove')) {
+    drawBones(g, S);
     const h = handlesOf(activeLayer());
     if (h) {
       g.strokeStyle = '#4da3ff'; g.fillStyle = '#fff'; g.lineWidth = 1.5;

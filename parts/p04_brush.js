@@ -432,8 +432,9 @@ function prepBuffer(layer, p, opacity, hide) {
 /* Returns {ident, map(x,y)} mapping document points to the layer's own pixels. */
 function localMapper(layer) {
   const fp = frameParams(layer, state.frame);
-  if (!fp || isIdentP(fp.p)) return { fp, ident: true, fwd: null, map: (x, y) => [x, y] };
-  const fwd = xfMatrix(fp.p, layer), inv = invMat(fwd);
+  const fwd = fp ? layerMat(layer, state.frame) : null;
+  if (!fwd) return { fp, ident: true, fwd: null, map: (x, y) => [x, y] };
+  const inv = invMat(fwd);
   return { fp, ident: false, fwd, map: inv ? (x, y) => applyMat(inv, x, y) : (x, y) => [x, y] };
 }
 
@@ -616,7 +617,7 @@ function compositeFrame(f, opts = {}) {
       if (base) clipToBase(lc, base, f);
       g.drawImage(lc, 0, 0);
     } else {
-      if (!isIdentP(fp.p)) g.transform(...xfMatrix(fp.p, l));
+      { const m = layerMat(l, f); if (m) g.transform(...m); }
       g.drawImage(fp.cel, 0, 0);
     }
     g.restore();
@@ -637,7 +638,7 @@ function sampleColor(x, y) {
     pickCtx.globalAlpha = l.opacity * fp.p.alpha;
     pickCtx.globalCompositeOperation = canvasBlend(l.blend);
     pickCtx.translate(-x, -y);
-    if (!isIdentP(fp.p)) pickCtx.transform(...xfMatrix(fp.p, l));
+    { const m = layerMat(l, state.frame); if (m) pickCtx.transform(...m); }
     pickCtx.drawImage(fp.cel, 0, 0);
     pickCtx.restore();
   }

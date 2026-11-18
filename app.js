@@ -368,6 +368,22 @@ function matFrom(p, px, py) {
   return [a, b, c, d, p.x + px - (a * px + c * py), p.y + py - (b * px + d * py)];
 }
 function xfMatrix(p, l) { const [px, py] = pivotOf(l); return matFrom(p, px, py); }
+const mulMat = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+/* Bone rig: a layer can follow a parent layer (l.parent = parent id). The layer's full matrix on frame f is
+   parent's full matrix × its own keyframe transform. Returns null when the result is the identity. */
+function layerParent(l) { return l && l.parent ? state.layers.find(x => x.id === l.parent && x !== l) || null : null; }
+function withParent(own, l, f, depth = 0) {
+  const par = depth < 16 ? layerParent(l) : null;
+  if (!par) return own;
+  const pm = layerMat(par, f, depth + 1);
+  if (!pm) return own;
+  return own ? mulMat(pm, own) : pm;
+}
+function layerMat(l, f = state.frame, depth = 0) {
+  const fp = frameParams(l, f);
+  return withParent(fp && !isIdentP(fp.p) ? xfMatrix(fp.p, l) : null, l, f, depth);
+}
 function invMat(m) {
   const [a, b, c, d, e, f] = m;
   const det = a * d - b * c;
@@ -377,6 +393,7 @@ function invMat(m) {
 }
 const applyMat = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 function xfCss(p, l) {
+  if (l && l.parent) { const m = withParent(p && !isIdentP(p) ? xfMatrix(p, l) : null, l, state.frame); return m ? `matrix(${m.join(',')})` : 'none'; }
   if (!p || isIdentP(p)) return 'none';
   const [px, py] = pivotOf(l);
   return `translate(${p.x}px,${p.y}px) translate(${px}px,${py}px) rotate(${p.rot}deg) scale(${p.sx},${p.sy}) translate(${-px}px,${-py}px)`;
@@ -1129,8 +1146,9 @@ function prepBuffer(layer, p, opacity, hide) {
 /* Returns {ident, map(x,y)} mapping document points to the layer's own pixels. */
 function localMapper(layer) {
   const fp = frameParams(layer, state.frame);
-  if (!fp || isIdentP(fp.p)) return { fp, ident: true, fwd: null, map: (x, y) => [x, y] };
-  const fwd = xfMatrix(fp.p, layer), inv = invMat(fwd);
+  const fwd = fp ? layerMat(layer, state.frame) : null;
+  if (!fwd) return { fp, ident: true, fwd: null, map: (x, y) => [x, y] };
+  const inv = invMat(fwd);
   return { fp, ident: false, fwd, map: inv ? (x, y) => applyMat(inv, x, y) : (x, y) => [x, y] };
 }
 
@@ -1313,7 +1331,7 @@ function compositeFrame(f, opts = {}) {
       if (base) clipToBase(lc, base, f);
       g.drawImage(lc, 0, 0);
     } else {
-      if (!isIdentP(fp.p)) g.transform(...xfMatrix(fp.p, l));
+      { const m = layerMat(l, f); if (m) g.transform(...m); }
       g.drawImage(fp.cel, 0, 0);
     }
     g.restore();
@@ -1334,7 +1352,7 @@ function sampleColor(x, y) {
     pickCtx.globalAlpha = l.opacity * fp.p.alpha;
     pickCtx.globalCompositeOperation = canvasBlend(l.blend);
     pickCtx.translate(-x, -y);
-    if (!isIdentP(fp.p)) pickCtx.transform(...xfMatrix(fp.p, l));
+    { const m = layerMat(l, state.frame); if (m) pickCtx.transform(...m); }
     pickCtx.drawImage(fp.cel, 0, 0);
     pickCtx.restore();
   }
@@ -1797,7 +1815,7 @@ function handlesOf(layer) {
   const fp = frameParams(layer, state.frame);
   const bb = celBBox(fp.cel);
   if (!bb) return null;
-  const M = xfMatrix(fp.p, layer);
+  const M = layerMat(layer, state.frame) || [1, 0, 0, 1, 0, 0];
   const corners = [[bb.x, bb.y], [bb.x + bb.w, bb.y], [bb.x + bb.w, bb.y + bb.h], [bb.x, bb.y + bb.h]]
     .map(([x, y]) => docToScreen(...applyMat(M, x, y)));
   const top = [(corners[0][0] + corners[1][0]) / 2, (corners[0][1] + corners[1][1]) / 2];
@@ -1806,7 +1824,7 @@ function handlesOf(layer) {
   const len = Math.hypot(vx, vy) || 1;
   const rot = [top[0] + vx / len * 28, top[1] + vy / len * 28];
   const [px, py] = pivotOf(layer);
-  const pv = docToScreen(px + fp.p.x, py + fp.p.y);
+  const pv = docToScreen(...applyMat(M, px, py));
   return { corners, top, rot, pv, fp, M };
 }
 function hitHandle(e) {
@@ -1857,6 +1875,7 @@ function moveMove(e) {
     const d = toDoc(e);
     let dx = d.x - a.d0.x, dy = d.y - a.d0.y;
     if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+    [dx, dy] = toParentSpace(a.layer, dx, dy);
     a.x.x = a.x0 + dx; a.x.y = a.y0 + dy;
   } else if (a.mode === 'rot') {
     let da = (Math.atan2(Y - a.pv[1], X - a.pv[0]) - a.a0) / DEG * (view.flip ? -1 : 1);
@@ -1867,21 +1886,28 @@ function moveMove(e) {
     const d = toDoc(e);
     const l = a.layer, fp = frameParams(l, state.frame);
     /* move pivot in layer space while keeping the picture where it is */
-    const oldM = xfMatrix(fp.p, l);
-    const inv = invMat(matFrom({ x: 0, y: 0, rot: 0, sx: 1, sy: 1 }, 0, 0));
-    const [lx, ly] = applyMat(invMat(oldM), d.x, d.y);
+    const I = [1, 0, 0, 1, 0, 0];
+    const oldM = layerMat(l, state.frame) || I;
+    const [lx, ly] = applyMat(invMat(oldM) || I, d.x, d.y);
     const keep = applyMat(oldM, 0, 0);
     l.px = lx; l.py = ly;
-    const newM = xfMatrix(fp.p, l);
+    const newM = layerMat(l, state.frame) || I;
     const k2 = applyMat(newM, 0, 0);
-    a.x.x += keep[0] - k2[0]; a.x.y += keep[1] - k2[1];
-    void inv;
+    const [ddx, ddy] = toParentSpace(l, keep[0] - k2[0], keep[1] - k2[1]);
+    a.x.x += ddx; a.x.y += ddy;
   } else {
     let k = (Math.hypot(X - a.pv[0], Y - a.pv[1]) || 1) / a.r0;
     if (e.shiftKey) { a.x.sx = a.sx0 * k; a.x.sy = a.sy0 * k; }
     else { a.x.sx = a.sx0 * k; a.x.sy = a.sy0 * k; }
   }
   refreshStage(); drawOverlay(); syncTimelineFields();
+}
+/* a movement in document space → the same movement in the parent layer's space (bone rig) */
+function toParentSpace(l, dx, dy) {
+  const par = layerParent(l), pm = par ? layerMat(par, state.frame) : null;
+  if (!pm) return [dx, dy];
+  const inv = invMat([pm[0], pm[1], pm[2], pm[3], 0, 0]);
+  return inv ? applyMat(inv, dx, dy) : [dx, dy];
 }
 function moveUp() {
   const a = active; active = null;
@@ -2076,6 +2102,7 @@ function drawOverlay() {
   drawPolyOverlay(g, S);
   drawRulers(g, S); drawDDOverlay(g, S);
   if (state.tool === 'move' && !sel.active && !(a && a.type === 'pixmove')) {
+    drawBones(g, S);
     const h = handlesOf(activeLayer());
     if (h) {
       g.strokeStyle = '#4da3ff'; g.fillStyle = '#fff'; g.lineWidth = 1.5;
@@ -2569,7 +2596,7 @@ function snapshotTimeline() {
     frameCount: state.frameCount, frame: state.frame, activeId: state.activeId,
     layers: state.layers.map(l => ({
       l, name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked,
-      paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null,
+      paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null,
       cels: Array.from(l.cels.entries()).map(([k, c]) => [k, c, c._xf ? { ...c._xf } : null])
     }))
   };
@@ -2579,7 +2606,7 @@ function applyTimeline(s) {
   state.activeId = s.activeId;
   state.layers = s.layers.map(e => {
     const l = e.l;
-    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null });
+    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null });
     l.cels = new Map(e.cels.map(([k, c, xf]) => { c._xf = xf ? { ...xf } : undefined; return [k, c]; }));
     return l;
   });
@@ -3090,6 +3117,7 @@ async function buildDocObject() {
     layers: state.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
       active: l.id === state.activeId,
+      parent: l.parent ? state.layers.findIndex(x => x.id === l.parent) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : c.toDataURL('image/png') })) } : null,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null,
@@ -3142,6 +3170,7 @@ async function openDocumentFile(file) {
       state.layers.push(l);
       if (ld.active) state.activeId = l.id;
     }
+    doc.layers.forEach((ld, i) => { if (ld.parent >= 0 && state.layers[ld.parent] && ld.parent !== i) state.layers[i].parent = state.layers[ld.parent].id; });
     if (!state.layers.find(l => l.id === state.activeId)) state.activeId = state.layers[state.layers.length - 1].id;
     history.undo.length = 0; history.redo.length = 0;
     resetSelection();
@@ -4083,6 +4112,88 @@ function installReuse() {
   });
 }
 
+/* ---------- Rigging: bone rig (layer parenting) and puppet warp ----------
+   Bone rig (Animate-style cut-out animation): each body part is a layer; a layer can follow a parent layer
+   (l.parent). Its pivot is the joint. Moving / rotating / scaling a parent with the Move tool carries every
+   child with it, on keyframes and through motion tweens (layerMat in p02 composes the matrices). */
+
+function rigDescendants(l) {
+  const out = new Set(), walk = p => { for (const c of state.layers) if (c.parent === p.id && !out.has(c)) { out.add(c); walk(c); } };
+  walk(l); return out;
+}
+function setParentDialog() {
+  const l = activeLayer(); if (!l) return;
+  const bad = rigDescendants(l);
+  const opts = [['', '— none (free layer) —']].concat(state.layers.filter(x => x !== l && !bad.has(x) && !x.paper && !x.vref).reverse().map(x => [String(x.id), x.name]));
+  proDialog(`Bone rig: parent of "${l.name}"`, [{ k: 'parent', label: 'Follows', type: 'select', val: String(l.parent || ''), options: opts }], p => {
+    const pid = p.parent ? +p.parent : null;
+    timelineOp(() => { setLayerParent(l, pid); });
+    toast(pid ? `"${l.name}" now follows "${layerParent(l).name}". Alt+drag its orange dot (Move tool) onto the joint.` : `"${l.name}" is free again`, 6000);
+  }, 'Set');
+}
+/* Re-parent without the picture jumping: every keyframe keeps its on-screen placement. */
+function setLayerParent(l, pid) {
+  const I = [1, 0, 0, 1, 0, 0], keys = [...l.cels.keys()];
+  const before = new Map(keys.map(k => [k, layerMat(l, k) || I]));
+  l.parent = pid;
+  const par = layerParent(l);
+  for (const k of keys) {
+    const inv = invMat(par ? layerMat(par, k) || I : I); if (!inv) continue;
+    rigDecompose(mulMat(inv, before.get(k)), ensureXf(l.cels.get(k)), l);
+  }
+}
+/* matrix → x, y, rot, sx, sy (around the layer pivot) */
+function rigDecompose(m, x, l) {
+  const [px, py] = pivotOf(l);
+  const sx = Math.hypot(m[0], m[1]) || 1, rot = Math.atan2(m[1], m[0]) / DEG, det = m[0] * m[3] - m[1] * m[2], sy = det / sx;
+  x.rot = rot; x.sx = sx; x.sy = sy;
+  const base = matFrom({ x: 0, y: 0, rot, sx, sy }, px, py);
+  x.x = m[4] - base[4]; x.y = m[5] - base[5];
+}
+function drawBones(g, S) {
+  const rigged = state.layers.filter(l => l.visible && layerParent(l));
+  if (!rigged.length) return;
+  const act = activeLayer(), chain = new Set(); for (let l = act; l; l = layerParent(l)) { chain.add(l); if (chain.size > 20) break; }
+  const joint = l => { const m = layerMat(l, state.frame) || [1, 0, 0, 1, 0, 0], [px, py] = pivotOf(l); return S(...applyMat(m, px, py)); };
+  g.save();
+  for (const l of rigged) {
+    const a = joint(layerParent(l)), b = joint(l), on = chain.has(l);
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), len = Math.hypot(b[0] - a[0], b[1] - a[1]), w = Math.min(9, Math.max(4, len * 0.09));
+    g.fillStyle = on ? 'rgba(255,170,60,.55)' : 'rgba(120,200,255,.35)'; g.strokeStyle = on ? '#ffaa3c' : '#78c8ff'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(a[0], a[1]);
+    g.lineTo(a[0] + Math.cos(ang + 1.2) * w, a[1] + Math.sin(ang + 1.2) * w); g.lineTo(b[0], b[1]);
+    g.lineTo(a[0] + Math.cos(ang - 1.2) * w, a[1] + Math.sin(ang - 1.2) * w); g.closePath(); g.fill(); g.stroke();
+    for (const p of [a, b]) { g.beginPath(); g.arc(p[0], p[1], 4, 0, 7); g.fillStyle = '#fff'; g.fill(); g.stroke(); }
+  }
+  g.restore();
+}
+function rigHelp() {
+  let d = $('#rigHelp');
+  if (!d) {
+    d = document.createElement('dialog'); d.id = 'rigHelp'; d.className = 'csdlg';
+    d.innerHTML = `<form method="dialog"><h5>Rigging a character</h5><div class="small" style="line-height:1.55">
+      <p><b>Bone rig (cut-out animation)</b></p>
+      <ol style="margin:0 0 8px 18px;padding:0"><li>Draw each body part on its own layer (body, upper arm, forearm, hand…).</li>
+      <li>Select a part and use <i>Layer › Bone rig: set parent…</i> — forearm follows upper arm, upper arm follows body…</li>
+      <li>With the <i>Move</i> tool, <b>Alt+drag the orange dot</b> of each part onto its joint (shoulder, elbow…).</li>
+      <li>Rotate parts with the Move tool's round handle. Children follow. Make keyframes and press <b>Tween</b>: the whole limb animates.</li></ol>
+      <p><b>Puppet warp (bend one drawing)</b></p>
+      <ol style="margin:0 0 8px 18px;padding:0"><li>Choose the <i>Puppet warp</i> sub-tool (Move group) and click on the drawing to place pins (shoulder, elbow, wrist…).</li>
+      <li>Drag a pin: the drawing bends smoothly around the other pins. Keep a pin still to hold that part in place.</li>
+      <li>Pose it on two keyframes, then <i>Animation › Puppet: create in-betweens</i> fills the frames between.</li></ol></div>
+      <div class="dialog-actions"><button value="ok" class="primary">OK</button></div></form>`;
+    document.body.appendChild(d);
+  }
+  d.showModal();
+}
+function installRig() {
+  Object.assign(CMD, { rigParent: setParentDialog, rigFree: () => { const l = activeLayer(); if (l && l.parent) timelineOp(() => setLayerParent(l, null)); }, rigHelp });
+  const LY = MENUS.find(m => m[0] === 'Layer')[1];
+  LY.push('-', ['Bone rig: set parent…', 'rigParent'], ['Bone rig: free this layer', 'rigFree'], ['How to rig a character…', 'rigHelp']);
+  const AN = MENUS.find(m => m[0] === 'Animation')[1];
+  AN.push('-', ['How to rig a character…', 'rigHelp']);
+}
+
 /* ---------- Opening Photoshop (.psd / .psb) and Clip Studio (.clip) files ----------
    PSD/PSB: RGB, grayscale or CMYK, 8 or 16 bit; raw, RLE and ZIP channels; layers with position, opacity,
    fill, visibility, blend mode, clipping; layer masks are baked into the pixels; groups are flattened
@@ -4838,8 +4949,6 @@ function symMats() {
   return [refl(th)];
 }
 function symPoints(x, y) { return symMats().map(m => applyMat(m, x, y)); }
-const mulMat = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
-  m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
 /* Symmetry matrices expressed in a layer's own pixel space (fwd = layer -> document matrix, or null if untransformed). */
 function symLocal(fwd) {
   const ms = symMats(); if (!fwd) return ms;
@@ -5572,7 +5681,8 @@ function installWorkspace() {
    Filter menu, Tonal correction, Select > expand / shrink / blur border.          */
 
 function layerFlags(l) {
-  return (l.vref ? '  VIDEO' : '') + (l.clip ? '  clip' : '') + (l.alock ? '  α-lock' : '') + (l.ref ? '  REF' : '') + (l.draft ? '  draft' : '') + (l.mask ? (l.maskEdit ? '  MASK✎' : '  mask') : '');
+  const par = typeof layerParent === 'function' ? layerParent(l) : null;
+  return (par ? '  ↳ ' + par.name : '') + (l.vref ? '  VIDEO' : '') + (l.clip ? '  clip' : '') + (l.alock ? '  α-lock' : '') + (l.ref ? '  REF' : '') + (l.draft ? '  draft' : '') + (l.mask ? (l.maskEdit ? '  MASK✎' : '  mask') : '');
 }
 function clipBaseOf(i) {
   for (let j = i - 1; j >= 0; j--) if (!state.layers[j].clip) return state.layers[j];
@@ -5580,7 +5690,7 @@ function clipBaseOf(i) {
 }
 function drawLayerOwn(g, l, fp) {
   g.save();
-  if (!isIdentP(fp.p)) g.transform(...xfMatrix(fp.p, l));
+  { const m = layerMat(l, drawLayerOwn.frame ?? state.frame); if (m) g.transform(...m); }
   g.drawImage(fp.cel, 0, 0);
   g.restore();
   if (l.mask) {
@@ -7639,7 +7749,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
