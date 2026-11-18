@@ -388,6 +388,14 @@ function openPenDialog() {
           <li><b>Surface, Samsung S-Pen, Android styluses:</b> work out of the box in Chrome / Edge.</li>
           <li>Then use <b>Calibrate my pen</b> above so light and hard strokes reach the full range.</li>
         </ul></details>
+      <details class="pentips"><summary>Light, slow strokes start late? (Windows)</summary>
+        <p class="small">Windows waits a moment on a gentle pen touch to see if you want a right-click. Hard or fast strokes skip the wait, light slow ones feel laggy. Turn it off:</p>
+        <ul class="small">
+          <li><b>Windows 10 / 11:</b> Start → type <i>Pen and Touch</i> (Control Panel) → <i>Pen Options</i> → <i>Press and hold</i> → <i>Settings…</i> → untick <i>Enable press and hold for right-clicking</i>.</li>
+          <li>Also in Settings → Bluetooth &amp; devices → Pen &amp; Windows Ink: turn off <i>Show visual effects</i> and <i>Show cursor</i> if the pen still feels slow.</li>
+          <li><b>Wacom:</b> Wacom Tablet Properties → Pen → <i>Tip Feel</i> towards <i>Soft</i>; untick <i>Use Windows Ink</i> only if pressure keeps working without it.</li>
+          <li><b>XP-Pen / Huion:</b> in the driver, make the pressure curve softer at the start, and turn off "press and hold" / right-click gestures if offered.</li>
+        </ul></details>
       <div class="dialog-actions"><button type="button" id="penReset">Reset</button><button type="button" id="penClose" class="primary">Done</button></div></form>`;
     document.body.appendChild(d);
     const pad = $('#penPad'), g = pad.getContext('2d');

@@ -8937,6 +8937,14 @@ function openPenDialog() {
           <li><b>Surface, Samsung S-Pen, Android styluses:</b> work out of the box in Chrome / Edge.</li>
           <li>Then use <b>Calibrate my pen</b> above so light and hard strokes reach the full range.</li>
         </ul></details>
+      <details class="pentips"><summary>Light, slow strokes start late? (Windows)</summary>
+        <p class="small">Windows waits a moment on a gentle pen touch to see if you want a right-click. Hard or fast strokes skip the wait, light slow ones feel laggy. Turn it off:</p>
+        <ul class="small">
+          <li><b>Windows 10 / 11:</b> Start → type <i>Pen and Touch</i> (Control Panel) → <i>Pen Options</i> → <i>Press and hold</i> → <i>Settings…</i> → untick <i>Enable press and hold for right-clicking</i>.</li>
+          <li>Also in Settings → Bluetooth &amp; devices → Pen &amp; Windows Ink: turn off <i>Show visual effects</i> and <i>Show cursor</i> if the pen still feels slow.</li>
+          <li><b>Wacom:</b> Wacom Tablet Properties → Pen → <i>Tip Feel</i> towards <i>Soft</i>; untick <i>Use Windows Ink</i> only if pressure keeps working without it.</li>
+          <li><b>XP-Pen / Huion:</b> in the driver, make the pressure curve softer at the start, and turn off "press and hold" / right-click gestures if offered.</li>
+        </ul></details>
       <div class="dialog-actions"><button type="button" id="penReset">Reset</button><button type="button" id="penClose" class="primary">Done</button></div></form>`;
     document.body.appendChild(d);
     const pad = $('#penPad'), g = pad.getContext('2d');
@@ -9758,6 +9766,7 @@ function installTutorials() {
    open the tutorial at the right step). English and French words are understood. It never draws for anyone:
    asked why, it says "AI is not supposed to steal your job." */
 const HELP_TIPS = [
+  { q: 'pen lag slow light pressure gentle stroke starts late delay windows ink press and hold tablet laggy', t: 'Light strokes feel slow (Windows)', x: 'Windows waits on a gentle pen touch to see if you want a right-click. Control Panel › Pen and Touch › Press and hold › Settings… › untick "Enable press and hold for right-clicking". More tips in View › Pen pressure & touch.', a: [['cmd', 'penSettings', 'Pen settings']] },
   { q: 'import image picture photo png jpg jpeg webp gif bmp tiff svg add picture insert photo reference', t: 'Import a picture', x: 'File › Import image… (Ctrl+Shift+O) puts a picture on a new layer (PNG, JPEG, WebP, GIF, BMP, TIFF, SVG, ICO…). You can also drop it on the canvas or paste it (Ctrl+V). File › Open… opens a picture as a new page.', a: [['cmd', 'importImage', 'Import image…'], ['cmd', 'pasteImage', 'Paste picture']] },
   { q: 'import gif frames sequence pictures animation frames png sequence', t: 'Pictures as animation frames', x: 'File › Import pictures as animation frames…: choose several pictures (or one animated GIF) and each becomes a frame on one layer.', a: [['cmd', 'importFrames', 'Import frames…']] },
   { q: 'import sound music audio mp3 wav voice song', t: 'Import sound', x: 'File › Import sound / music… (MP3, WAV, M4A, OGG, FLAC…). It plays with your animation and shows under the timeline.', a: [['cmd', 'audioImport', 'Import sound…']] },
