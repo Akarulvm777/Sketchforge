@@ -1,4 +1,4 @@
-# Sketchforge 2.1 — drawing + animation studio
+# Sketchforge 2.2 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -107,7 +107,7 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - New: Tool Property › Paper › Load image… turns any image into a paper texture. Imported Clip Studio brushes (.sut) keep their texture image, density, scale and invert settings.
 - Tests: `bash tools/e2e/run_all.sh` runs the whole browser test suite.
 
-## 2.1: 🎨 Custom P studio — customise everything
+## 2.2: 🎨 Custom P — customise everything
 Custom P is now a full studio with 8 sections, all applied live:
 - **Themes**: 16 colour themes, 4 layout styles (compact, big touch-friendly, soft rounded, classic square), 🎲 Surprise me, save your own themes, export / import theme files (.sftheme).
 - **Colours**: base colours plus every area on its own (menu bar, command bar, tabs, tool palette, tool buttons, selected tool, side panels, panel titles, sub tools & layers, selected layer, timeline, frames, tweens, status bar, buttons, main buttons, text boxes, dialogs & menus, messages) and text, keyframe dots, borders, sliders, scrollbars. Text stays readable automatically.
@@ -118,3 +118,6 @@ Custom P is now a full studio with 8 sections, all applied live:
 - **Cursor**: colour, thickness, centre cross, outline.
 - **Effects**: wallpaper behind the app, see-through panels with glass blur, shadows, animations, glow.
 - ↺ on every option, "Reset this section" and "Reset everything".
+
+## 2.2: Custom P window
+The Custom P window keeps the original look (tabs across the top, colour swatch cards, the icon grid, Reset to default / Done) with all the new options: themes, colours of every part, icons, text & fonts, layout, canvas area, cursor and effects.
