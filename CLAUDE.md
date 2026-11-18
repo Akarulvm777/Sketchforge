@@ -48,6 +48,7 @@ Modules dans `parts/` :
 - `p08_ops` : commandes.
 - `p09_timeline` : timeline, onion skin, lecture.
 - `p10_docs_export` : save/open `.sketchforge`, exports GIF, WebM, PNG et ZIP.
+- `p10o_multidoc` : plusieurs documents (onglets). Le document actif vit dans les globales (`state` pour les champs de `DOC_FIELDS`, `history`, `view`, `sel`, `layerSeq`, `layerCounter`, `dirty`, `TL.frames`, `aud`, `lightPins`) ; les autres sont rangés dans `rec.saved` (`docStash` / `docLoad`). `newDocument` et `openDocumentFile` appellent `docPrepareNew()` (nouvel onglet, sauf l'onglet vierge de démarrage). **Si tu ajoutes un état propre au document dans un autre module, ajoute-le à `docStash` / `docLoad` / `docBlankGlobals`.** Aussi : déplacer un document dans une nouvelle fenêtre (postMessage `sf-ready` / `sf-doc` / `sf-loaded`), et la « seconde vue » (vue live flottante, détachable dans une fenêtre).
 - `p10p_anim` : light table, audio, page manager, export PSD, bouton 3D.
 - `p10q_filters` : courbe de tons, balance des couleurs, gradient map, flou radial, Liquify.
 - `p10r_pro` : règles, cases de manga, bulles, effets manga.

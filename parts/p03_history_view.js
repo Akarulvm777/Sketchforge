@@ -3,11 +3,15 @@ const history = { undo: [], redo: [] };
 const busy = () => !!(stroke || active);
 
 function syncTab() {
-  $('#tabDirty').classList.toggle('on', dirty);
-  $('#tabName').textContent = state.name;
   document.title = (dirty ? '• ' : '') + state.name + ' – Sketchforge';
+  if (typeof renderTabs === 'function' && typeof DOCS !== 'undefined' && DOCS.list.length) renderTabs();
 }
-function markDirty() { dirty = true; syncTab(); if (typeof tlCapture === 'function') tlCapture(); }
+function markDirty() {
+  const was = dirty; dirty = true;
+  if (!was) syncTab();
+  if (typeof tlCapture === 'function') tlCapture();
+  if (typeof subViewInvalidate === 'function') subViewInvalidate();
+}
 function updateHistoryButtons() { /* menu items read the stacks when opened */ }
 function pushHistory(entry) {
   history.undo.push(entry);

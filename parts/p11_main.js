@@ -285,10 +285,11 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
+  DOCS.cur.blank = true; renderTabs();
   selectTool('pen');
   resizeOverlay();
   setTimeout(() => { fit(); updateCursor(); }, 50);

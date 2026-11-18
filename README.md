@@ -62,3 +62,9 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - The "REC Time-lapse" button turns recording on / off (remembered); ▾ opens options and export.
 - Each file has its own time-lapse: New starts an empty one, it is saved inside the .sketchforge file (optional) and continues when you reopen that file.
 - Record modes: **Workspace view** (default: the canvas as you see it, with zoom, pan, rotation, cursor, current tool, brush size and colour), **Whole screen** (real screen recording of the app, desktop browsers and the desktop app; asks permission), **Canvas only** (as before).
+
+## 2.0.x: multiple documents
+- Open as many files as you like: New and Open create a new tab (the empty start tab is reused). Click a tab to switch, × or middle-click to close (asks if there are unsaved changes), drag tabs to reorder, Ctrl+Tab / Ctrl+PageDown to cycle.
+- Each document keeps its own layers, size, undo history, selection, zoom / rotation, time-lapse and audio. Copy / paste works between documents.
+- Right-click a tab (or Window menu): close others, duplicate, **Move to new window** (the document opens in a separate app window and leaves this one), Open a copy in new window.
+- Window → Second view: a floating live view of the current document with its own zoom, rotation and flip; ⧉ pops it out into its own window.

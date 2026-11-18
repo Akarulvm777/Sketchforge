@@ -8,6 +8,7 @@ function resetSelection() {
   sel.active = false; sel.bb = null; antsEdge = null; antsDirty = true; startAnts();
 }
 function newDocument(w, h, frames, fps, transparent, name) {
+  if (typeof docPrepareNew === 'function') docPrepareNew(); // opens a new tab (p10o_multidoc)
   stop();
   stroke = null; active = null;
   Object.assign(state, { name: name || 'Untitled', w, h, frameCount: frames, fps, frame: 0, layers: [] });
@@ -98,7 +99,6 @@ $('#newCreate').onclick = () => {
   if (newType === 'comic') fr = clamp(Math.round(+$('#newPages').value) || 1, 1, MAX_FRAMES);
   const mem = w * h * 4 * fr / 1048576;
   if (mem > 1500 && !confirm(`This canvas could need over ${Math.round(mem)} MB if every frame has a drawing. Continue?`)) return;
-  if (dirty && !confirm('Discard unsaved changes?')) return;
   $('#newDialog').close();
   const tr = $('#newTransparent').checked;
   newDocument(w, h, fr, fps, tr, ($('#newName').value || 'Untitled').trim());
@@ -117,7 +117,8 @@ $('#newCreate').onclick = () => {
 };
 
 /* ---------- save / open (.sketchforge, JSON, v2) ---------- */
-async function saveDocument() {
+/* The .sketchforge document as a plain object (also used to hand a document to another window). */
+async function buildDocObject() {
   const doc = {
     format: 'sketchforge', version: 2, name: state.name, w: state.w, h: state.h,
     frameCount: state.frameCount, fps: state.fps, loop: state.loop, mode: state.mode,
@@ -134,6 +135,10 @@ async function saveDocument() {
   };
   const tl = typeof tlSerialize === 'function' ? await tlSerialize() : null;
   if (tl) doc.timelapse = tl;
+  return doc;
+}
+async function saveDocument() {
+  const doc = await buildDocObject();
   const blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
   download(blob, (state.name || 'Untitled').replace(/[^\w\- ]+/g, '_') + '.sketchforge');
   dirty = false; syncTab();
@@ -142,6 +147,7 @@ async function openDocumentFile(file) {
   try {
     const doc = JSON.parse(await file.text());
     if (doc.format !== 'sketchforge') throw new Error('Not a Sketchforge file');
+    if (typeof docPrepareNew === 'function') docPrepareNew(); // opens in a new tab (p10o_multidoc)
     stop();
     const w = doc.w, h = doc.h;
     Object.assign(state, { name: doc.name || file.name.replace(/\.[^.]+$/, ''), w, h, frameCount: doc.frameCount || 1, fps: doc.fps || 12, frame: 0, loop: doc.loop !== false, layers: [] });
@@ -184,7 +190,6 @@ async function openDocumentFile(file) {
 $('#fileOpen').onchange = e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
-  if (dirty && !confirm('Discard unsaved changes?')) return;
   openDocumentFile(f);
 };
 function exportPNG() {

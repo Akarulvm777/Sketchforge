@@ -650,3 +650,32 @@ body.tools2 #toolbox .tsep { flex:0 0 100%; }
 .cpIcon span { font-size: 10px; color: var(--muted); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .cpIcon .cpX { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; line-height: 14px; padding: 0; border-radius: 50%; border: 0; background: var(--line); color: var(--text); cursor: pointer; }
 svg.cicon { overflow: visible; }
+
+/* document tabs */
+#tabbar { overflow-x: auto; overflow-y: hidden; gap: 2px; scrollbar-width: thin; }
+#tabbar .tab { position: relative; flex: 0 0 auto; max-width: 220px; cursor: pointer; opacity: .62; user-select: none; }
+#tabbar .tab.on { opacity: 1; }
+#tabbar .tab:hover { opacity: .9; }
+#tabbar .tab .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+#tabbar .tab .dot { width: 7px; height: 7px; border-radius: 50%; background: transparent; flex: 0 0 auto; }
+#tabbar .tab .dot.on { background: #f0a14d; }
+#tabbar .tab .x { width: 18px; height: 18px; padding: 0; line-height: 16px; border: 0; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; opacity: .55; font-size: 14px; }
+#tabbar .tab .x:hover { opacity: 1; background: rgba(255,255,255,.12); }
+#tabbar .tab.over { box-shadow: inset 2px 0 0 var(--accent); }
+#tabbar .tab.drag { opacity: .35; }
+#tabbar .tab:not(.on) { border-top-color: transparent; }
+#tabbar .tabplus { flex: 0 0 auto; align-self: center; width: 24px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--muted); font-size: 17px; line-height: 20px; cursor: pointer; }
+#tabbar .tabplus:hover { background: var(--panel2); color: var(--text); }
+.tabmenu { width: 210px; padding: 4px; }
+.tabmenu button { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: inherit; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.tabmenu button:hover { background: var(--accent); color: #fff; }
+.tabmenu hr { border: 0; border-top: 1px solid rgba(0,0,0,.35); margin: 4px 2px; }
+/* second view */
+.subview { position: fixed; right: 290px; bottom: 250px; width: 360px; height: 280px; min-width: 200px; min-height: 150px; z-index: 6000; display: flex; flex-direction: column; background: var(--panel); border: 1px solid #111; border-radius: 8px; box-shadow: 0 12px 34px rgba(0,0,0,.5); resize: both; overflow: hidden; }
+.subview[hidden] { display: none; }
+.svhead { display: flex; align-items: center; gap: 3px; padding: 3px 6px; background: var(--menu); cursor: move; font-size: 12px; user-select: none; }
+.svhead .svinfo { color: var(--muted); margin-left: 8px; font-size: 11px; }
+.svhead button { background: transparent; border: 0; color: var(--text); padding: 1px 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.svhead button:hover { background: var(--panel2); }
+.svbody { position: relative; flex: 1; overflow: hidden; }
+.svbody canvas { display: block; cursor: grab; touch-action: none; }

@@ -184,6 +184,7 @@ function refreshStage() {
   onionCanvas.style.zIndex = 5000;
   antsCanvas.style.zIndex = 9000;
   if (!stroke && !(active && active.usesBuffer)) bufCanvas.style.zIndex = 9999;
+  if (typeof subViewInvalidate === 'function') subViewInvalidate();
 }
 
 /* ---------- layer panel ---------- */
