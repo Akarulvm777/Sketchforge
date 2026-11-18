@@ -1,6 +1,6 @@
 {
   "name": "sketchforge",
-  "version": "2.7.1",
+  "version": "2.8.0",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
   "author": "Sketchforge",
@@ -40,6 +40,7 @@
       "cloud-lib.js",
       "three3d.js",
       "models3d.js",
+      "vroid3d.js",
       "sw.js",
       "manifest.json",
       "icon.svg",

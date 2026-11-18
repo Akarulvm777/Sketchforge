@@ -81,7 +81,7 @@ function applyShape() {
   }
   const dy = ud.minY0 - minY; // keep the feet on the ground
   for (let v = 0; v < n; v++) out[v * 3 + 1] += dy;
-  pos.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
+  pos.needsUpdate = true; if (ud.vrm) weldNormals(mesh.geometry, ud.vrm.weld); else mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
   // bones: rest positions from the reshaped joints, re-bind in the rest pose, then put the pose back
   const quats = names.map(nm => M3.joints[nm].quaternion.clone());
   names.forEach((nm, i) => {
@@ -143,8 +143,8 @@ function ikSolve(bone, grabLocal, target) {
   }
 }
 function rayToPlane(e, cv, point) {
-  const T = M3.T, r = cv.getBoundingClientRect();
-  const rc = new T.Raycaster(); rc.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), M3.camera);
+  const T = M3.T;
+  const rc = new T.Raycaster(); rc.setFromCamera(m3Ndc(e, cv), M3.camera);
   const nrm = new T.Vector3(); M3.camera.getWorldDirection(nrm);
   const plane = new T.Plane().setFromNormalAndCoplanarPoint(nrm, point);
   return rc.ray.intersectPlane(plane, new T.Vector3());
@@ -176,7 +176,7 @@ function install3DPlus(b) {
   $('#m3dShapeReset').onclick = () => { M3.shape = { ...SHAPE_DEF }; sh.querySelectorAll('[data-shape]').forEach(i => { i.value = 100; i.nextElementSibling.textContent = '100%'; }); applyShape(); };
   Object.keys(HAND_POSES).forEach(n => { const x = document.createElement('button'); x.textContent = n; x.onclick = () => applyHandPose(n, $('#m3dHandWhich').value); $('#m3dHands').appendChild(x); });
   $('#m3dCurl').oninput = e => { const fo = fingerOf(M3.sel); if (!fo) return; setCurl(fo.f, fo.s, +e.target.value); $('#m3dCurlV').textContent = e.target.value + '°'; syncJointSliders(); render3D(); };
-  b.querySelectorAll('#m3dDrag button').forEach(x => x.onclick = () => { M3.dragMode = x.dataset.d; b.querySelectorAll('#m3dDrag button').forEach(y => y.classList.toggle('on', y === x)); });
+  b.querySelectorAll('#m3dDrag button').forEach(x => x.onclick = () => { M3.dragMode = x.dataset.d; syncPoseBar(); });
   $('#m3dZoom').oninput = e => setZoom(+e.target.value);
   const h = $('#m3dH'); h.min = 20; h.max = 300;
   $('#m3dResetAll').addEventListener('click', () => { M3.curl = {}; syncCurl(); });

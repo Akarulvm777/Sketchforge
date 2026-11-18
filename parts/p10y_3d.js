@@ -17,7 +17,8 @@ function load3D() {
   M3.ready = loadScript('three3d.js').then(() => {
     initThree();
     // Rigged mannequins are optional: without them the procedural mannequin is used.
-    return loadScript('models3d.js').catch(e => console.warn('3D:', e.message));
+    return Promise.all([loadScript('models3d.js').catch(e => console.warn('3D:', e.message)),
+      loadScript('vroid3d.js').catch(e => { console.warn('3D:', e.message); M3.style = 'simple'; })]);
   });
   M3.ready.catch(() => { M3.ready = null; });
   return M3.ready;
@@ -57,6 +58,8 @@ function mkMat(color, toon, vertexColors) {
     : new T.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, vertexColors: !!vertexColors });
 }
 function buildMannequin(g) {
+  if (M3.style !== 'simple' && vrmReady(g)) return buildVrmMesh(vrmReady(g)); // VRoid character (p10yb)
+  if (g === 'custom') g = 'female';
   if (typeof SF_MODELS !== 'undefined' && SF_MODELS.models[g]) return buildRigged(g);
   return buildProcedural(g);
 }
@@ -155,6 +158,10 @@ function setModel(m) {
   markSel(); render3D(); buildJointUI();
 }
 function rebuildModel() {
+  if (M3.kind === 'mannequin' && M3.style !== 'simple' && M3.gender !== 'custom' && !vrmReady(M3.gender) && typeof SF_VRM !== 'undefined') {
+    vrmLoad(M3.gender).then(() => { rebuildModel(); fitModel(); }, e => { toast('3D: ' + e.message); M3.style = 'simple'; rebuildModel(); });
+    return;
+  }
   if (M3.kind === 'mannequin') setModel(buildMannequin(M3.gender));
   else if (M3.kind === 'import' && M3.imported) setModel(M3.imported);
   else setModel(makePrimitive(M3.kind));
@@ -170,7 +177,10 @@ function markSel() {
   }
 }
 function applyToon() {
-  for (const p of M3.parts) { p.material.dispose && p.material.dispose(); p.material = mkMat(p.userData.color, M3.toon, p.userData.vc); }
+  for (const p of M3.parts) {
+    for (const m of [].concat(p.material)) m.dispose && m.dispose();
+    p.material = p.userData.vrm ? p.userData.vrm.mats.map(d => mkVrmMat(d, M3.toon)) : mkMat(p.userData.color, M3.toon, p.userData.vc);
+  }
   markSel(); render3D();
 }
 function sizeRenderer() {
@@ -237,9 +247,13 @@ function fitModel() {
   if (state.w / state.h < 1) M3.cam.dist *= 1.0;
   render3D();
 }
+function m3Ndc(e, cv) {
+  if (cv.id === 'model3d-canvas') { const d = toDoc(e); return new M3.T.Vector2(d.x / state.w * 2 - 1, -(d.y / state.h) * 2 + 1); }
+  const r = cv.getBoundingClientRect();
+  return new M3.T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+}
 function pick(e, cv) {
-  const r = cv.getBoundingClientRect(), T = M3.T;
-  const v = new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  const T = M3.T, v = m3Ndc(e, cv);
   const rc = new T.Raycaster(); rc.setFromCamera(v, M3.camera);
   const rigged = M3.parts.find(p => p.userData.rigged);
   if (rigged) return pickRigged(rigged, rc);
@@ -264,15 +278,19 @@ function pickRigged(mesh, rc) {
   M3.lastHit = hit.point.clone();
   return mesh.userData.boneNames[mesh.userData.dom[hit.face.a]];
 }
-function bind3DPreview() {
-  const cv = $('#m3dPreview'); let drag = null;
+function bind3DPreview() { bindPoseSurface($('#m3dPreview'), false); }
+/* drag on a body part = move it (IK) or rotate its joint; drag elsewhere = orbit; Shift / right drag = move the model.
+   Used by the small preview and, in Pose on canvas mode, by the big model over the drawing. */
+function bindPoseSurface(cv, big) {
+  let drag = null;
   cv.addEventListener('pointerdown', e => {
-    cv.setPointerCapture(e.pointerId);
+    if (big) { if (!M3.poseOn) return; e.stopPropagation(); e.preventDefault(); }
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
     M3.lastHit = null;
     const hit = pick(e, cv);
     drag = { x: e.clientX, y: e.clientY, mode: e.shiftKey || e.button === 2 ? 'pan' : hit ? 'joint' : 'orbit' };
-    if (hit && drag.mode === 'joint') { M3.sel = hit; markSel(); buildJointUI(); }
-    // move mode: the grabbed point of the part follows the mouse (inverse kinematics); the hips move the whole model
+    if (hit && drag.mode === 'joint') { M3.sel = hit; markSel(); buildJointUI(); if (big) poseBarLabel(); }
+    // move mode: the grabbed point of the part follows the pointer (inverse kinematics); the hips move the whole model
     if (hit && drag.mode === 'joint' && M3.dragMode === 'move' && M3.lastHit && riggedMesh()) {
       if (hit === 'pelvis') drag.mode = 'pan';
       else { const j = M3.joints[hit]; M3.root.updateMatrixWorld(true); drag.mode = 'ik'; drag.bone = hit; drag.grab = j.worldToLocal(M3.lastHit.clone()); drag.plane = M3.lastHit.clone(); }
@@ -281,7 +299,10 @@ function bind3DPreview() {
   });
   cv.addEventListener('pointermove', e => {
     if (!drag) return;
-    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (big) e.stopPropagation();
+    // on the big canvas, a screen pixel is smaller in model terms: scale the drag like the preview
+    const k0 = big ? ($('#m3dPreview') ? $('#m3dPreview').getBoundingClientRect().width : 236) / Math.max(1, cv.getBoundingClientRect().width) : 1;
+    const dx = (e.clientX - drag.x) * k0, dy = (e.clientY - drag.y) * k0; drag.x = e.clientX; drag.y = e.clientY;
     const T = M3.T;
     if (drag.mode === 'orbit') { M3.cam.az -= dx * 0.01; M3.cam.el = clamp(M3.cam.el + dy * 0.01, -1.4, 1.4); }
     else if (drag.mode === 'pan') {
@@ -298,9 +319,45 @@ function bind3DPreview() {
     }
     render3D();
   });
-  cv.addEventListener('pointerup', () => { drag = null; });
+  const end = e => { if (drag && big) e.stopPropagation(); drag = null; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   cv.addEventListener('contextmenu', e => e.preventDefault());
-  cv.addEventListener('wheel', e => { e.preventDefault(); M3.cam.dist = clamp(M3.cam.dist * Math.exp(e.deltaY * 0.001), 1, 20); render3D(); }, { passive: false });
+  if (!big) cv.addEventListener('wheel', e => { e.preventDefault(); M3.cam.dist = clamp(M3.cam.dist * Math.exp(e.deltaY * 0.001), 1, 20); render3D(); }, { passive: false });
+}
+/* Pose on canvas: the big model over the drawing takes the pointer; a small bar on the canvas switches Move / Rotate */
+function setPoseOnCanvas(on) {
+  if (!M3.renderer) return;
+  M3.poseOn = !!on;
+  const cv = M3.renderer.domElement;
+  if (!cv._pose) { cv._pose = true; bindPoseSurface(cv, true); }
+  if (on) { M3.over = true; const o = $('#m3dOver'); if (o) o.checked = true; }
+  cv.style.pointerEvents = on ? 'auto' : 'none';
+  cv.style.cursor = on ? 'grab' : '';
+  let bar = $('#m3dPoseBar');
+  if (on && !bar) {
+    bar = document.createElement('div'); bar.id = 'm3dPoseBar';
+    bar.innerHTML = `<span id="m3dPoseLbl">Pose: tap a body part</span><button data-d="move">Move</button><button data-d="rotate">Rotate</button><button data-x="reset" title="Reset pose">↺</button><button data-x="done" class="primary">Done</button>`;
+    viewport.appendChild(bar);
+    bar.addEventListener('pointerdown', e => e.stopPropagation()); // the canvas must not start a stroke under the bar
+    bar.querySelectorAll('[data-d]').forEach(x => x.onclick = () => { M3.dragMode = x.dataset.d; syncPoseBar(); });
+    bar.querySelector('[data-x=reset]').onclick = () => { $('#m3dResetAll') && $('#m3dResetAll').click(); };
+    bar.querySelector('[data-x=done]').onclick = () => setPoseOnCanvas(false);
+  }
+  if (bar) bar.hidden = !on;
+  const btn = $('#m3dPoseCanvas'); if (btn) btn.classList.toggle('on', M3.poseOn);
+  syncPoseBar(); render3D();
+  if (on) toast('Drag any body part on the canvas to pose it · Done to draw again', 3000);
+}
+function syncPoseBar() {
+  const bar = $('#m3dPoseBar'); if (!bar) return;
+  bar.querySelectorAll('[data-d]').forEach(x => x.classList.toggle('on', x.dataset.d === M3.dragMode));
+  document.querySelectorAll('#m3dDrag button').forEach(y => y.classList.toggle('on', y.dataset.d === M3.dragMode));
+  poseBarLabel();
+}
+function poseBarLabel() {
+  const l = $('#m3dPoseLbl'); if (!l) return;
+  const n = (jointNameList().find(x => x[0] === M3.sel) || [, ''])[1];
+  l.textContent = n ? n : 'Pose: tap a body part';
 }
 async function importModelFile(f) {
   await load3D();
@@ -321,8 +378,8 @@ async function importModelFile(f) {
 function build3DPanel() {
   const b = $('#m3dBody');
   b.innerHTML = `
-    <div class="seg" id="m3dGender"><button data-g="female" class="on">Female</button><button data-g="male">Male</button></div>
-    <label class="select"><span>Model</span><select id="m3dKind"><option value="mannequin">Posable mannequin</option><option value="cube">Cube</option><option value="sphere">Sphere</option><option value="cylinder">Cylinder</option><option value="import">Imported file</option></select></label>
+    <div class="seg" id="m3dGender"><button data-g="female" class="on">Female</button><button data-g="male">Male</button><button data-g="custom" title="Pose your own VRoid Studio character (.vrm)">My VRM…</button></div>
+    <label class="select"><span>Model</span><select id="m3dKind"><option value="mannequin">Posable character (VRoid)</option><option value="simple">Simple mannequin (grey)</option><option value="cube">Cube</option><option value="sphere">Sphere</option><option value="cylinder">Cylinder</option><option value="import">Imported file</option></select></label>
     <canvas id="m3dPreview" width="236" height="133" style="width:100%;border-radius:6px;border:1px solid #1d1f21;touch-action:none;display:block;margin:6px 0;cursor:grab"></canvas>
     <div class="hint">Drag the background = orbit · drag a body part = rotate that joint · Shift+drag = move model · wheel = zoom</div>
     <div class="grp">Pose</div>
@@ -333,23 +390,28 @@ function build3DPanel() {
       <label class="slider"><span>Turn (Y)</span><input type="range" id="m3dY" min="-180" max="180"><output id="m3dYV"></output></label>
       <label class="slider"><span>Tilt (Z)</span><input type="range" id="m3dZ" min="-180" max="180"><output id="m3dZV"></output></label>
     </div>
+    <div class="btnrow"><button id="m3dPoseCanvas" class="primary" title="Pose the big model directly on the canvas">✋ Pose on canvas</button></div>
     <div class="btnrow"><button id="m3dResetJ">Reset joint</button><button id="m3dResetAll">Reset pose</button><button id="m3dCam">Reset camera</button></div>
     <div class="grp">Look</div>
     <label class="slider"><span>Light dir.</span><input type="range" id="m3dLa" min="-180" max="180" value="40"><output id="m3dLaV">40°</output></label>
     <label class="slider"><span>Light height</span><input type="range" id="m3dLe" min="0" max="90" value="50"><output id="m3dLeV">50°</output></label>
     <label class="slider"><span>Size</span><input type="range" id="m3dH" min="60" max="160" value="100"><output id="m3dHV">100%</output></label>
+    <label class="select"><span>Colours</span><select id="m3dLook"><option value="grey">Grey mannequin</option><option value="color">Original colours</option></select></label>
     <label class="check"><input type="checkbox" id="m3dToon"> Toon (flat manga-style shading)</label>
     <label class="check"><input type="checkbox" id="m3dOver" checked> Show over canvas as reference</label>
     <label class="slider"><span>Opacity</span><input type="range" id="m3dOp" min="10" max="100" value="85"><output id="m3dOpV">85%</output></label>
-    <div class="btnrow"><button id="m3dPlace" class="primary">Place on new layer</button><button id="m3dImport">Import model…</button></div>
-    <div class="hint">Place on new layer turns the current 3D view into a normal layer you can trace and paint over. Import accepts .glb / .gltf / .obj.</div>`;
+    <div class="btnrow"><button id="m3dPlace" class="primary">Place on new layer</button><button id="m3dImport">Import model…</button><button id="m3dVrm" title="Your own VRoid Studio character">Load VRM…</button></div>
+    <div class="hint">Place on new layer turns the current 3D view into a normal layer you can trace and paint over. Import accepts .glb / .gltf / .obj. Load VRM poses your own VRoid character. VRoid models by bluegi.</div>`;
   Object.keys(POSES).forEach(n => { const x = document.createElement('button'); x.textContent = n; x.onclick = () => applyPose(n); $('#m3dPoses').appendChild(x); });
   b.querySelectorAll('#m3dGender button').forEach(x => x.onclick = () => {
-    M3.gender = x.dataset.g; b.querySelectorAll('#m3dGender button').forEach(y => y.classList.toggle('on', y === x));
-    if (M3.kind !== 'mannequin') { M3.kind = 'mannequin'; $('#m3dKind').value = 'mannequin'; }
-    rebuildModel();
+    if (x.dataset.g === 'custom' && !vrmReady('custom')) { pickFile('.vrm,.glb', f => loadUserVrm(f)); return; }
+    M3.gender = x.dataset.g; if (M3.gender === 'custom') M3.style = 'vroid';
+    if (M3.kind !== 'mannequin') M3.kind = 'mannequin';
+    syncModelButtons(); rebuildModel();
   });
-  $('#m3dKind').onchange = e => { M3.kind = e.target.value; if (M3.kind === 'import' && !M3.imported) { pickFile('.glb,.gltf,.obj', f => importModelFile(f).catch(err => toast(err.message))); M3.kind = 'mannequin'; e.target.value = 'mannequin'; return; } rebuildModel(); fitModel(); };
+  $('#m3dKind').onchange = e => {
+    if (e.target.value === 'simple' || e.target.value === 'mannequin') { M3.kind = 'mannequin'; M3.style = e.target.value === 'simple' ? 'simple' : 'vroid'; if (M3.style === 'simple' && M3.gender === 'custom') M3.gender = 'female'; syncModelButtons(); rebuildModel(); fitModel(); return; }
+    M3.kind = e.target.value; if (M3.kind === 'import' && !M3.imported) { pickFile('.glb,.gltf,.obj', f => importModelFile(f).catch(err => toast(err.message))); M3.kind = 'mannequin'; e.target.value = 'mannequin'; return; } rebuildModel(); fitModel(); };
   $('#m3dJointSel').onchange = e => { M3.sel = e.target.value; markSel(); syncJointSliders(); render3D(); };
   ['X', 'Y', 'Z'].forEach(a => $('#m3d' + a).oninput = setJointEuler);
   $('#m3dResetJ').onclick = () => { const j = M3.joints[M3.sel]; if (j) { j.quaternion.identity(); syncJointSliders(); render3D(); } };
@@ -359,10 +421,13 @@ function build3DPanel() {
   $('#m3dLe').oninput = e => { M3.light.el = +e.target.value; $('#m3dLeV').textContent = e.target.value + '°'; render3D(); };
   $('#m3dH').oninput = e => { M3.heightScale = e.target.value / 100; $('#m3dHV').textContent = e.target.value + '%'; M3.root.scale.setScalar(M3.heightScale); render3D(); };
   $('#m3dToon').onchange = e => { M3.toon = e.target.checked; applyToon(); };
+  $('#m3dLook').value = M3.vrmLook; $('#m3dLook').onchange = e => { M3.vrmLook = e.target.value; try { localStorage.setItem('sketchforge.m3dlook', M3.vrmLook); } catch (err) { /* ignore */ } applyToon(); };
   $('#m3dOver').onchange = e => { M3.over = e.target.checked; render3D(); };
   $('#m3dOp').oninput = e => { M3.overOp = e.target.value / 100; $('#m3dOpV').textContent = e.target.value + '%'; render3D(); };
   $('#m3dImport').onclick = () => pickFile('.glb,.gltf,.obj', f => importModelFile(f).catch(err => toast(err.message)));
   $('#m3dPlace').onclick = placeOnLayer;
+  $('#m3dPoseCanvas').onclick = () => setPoseOnCanvas(!M3.poseOn);
+  $('#m3dVrm').onclick = () => pickFile('.vrm,.glb', f => loadUserVrm(f));
   install3DPlus(b);
   bind3DPreview();
 }
@@ -384,7 +449,11 @@ async function show3D() {
   p.classList.remove('phidden', 'collapsed'); refreshDocks(); saveLayout();
   try {
     await load3D();
-    if (!M3.root) { build3DPanel(); rebuildModel(); fitModel(); applyPose('Stand'); }
+    if (!M3.root) {
+      build3DPanel();
+      if (M3.style !== 'simple') await vrmLoad(M3.gender).catch(e => { console.warn('3D:', e.message); M3.style = 'simple'; syncModelButtons(); });
+      rebuildModel(); fitModel(); applyPose('Stand');
+    }
     M3.hidden = false; render3D();
   } catch (e) { toast('3D could not start: ' + e.message); }
 }

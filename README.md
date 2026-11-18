@@ -1,4 +1,4 @@
-# Sketchforge 2.7 — drawing + animation studio
+# Sketchforge 2.8 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -207,3 +207,13 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.7: effects with live preview
 - New effects in the Filter menu: glow, drop shadow, outline (border), bloom, extract line art (trace a photo), emboss, halftone dots, oil paint, vignette, chromatic aberration, glitch, twirl, pinch / bulge, wave / ripple, grayscale, sepia.
 - Every filter and effect now shows the result live on the canvas while you move the sliders.
+
+## 2.8: new 3D characters (VRoid)
+- The 3D panel's man and woman are new VRoid characters with a full skeleton: every finger and better bending at the shoulders, elbows, knees and hips. Models by bluegi.
+- They are grey mannequins by default, with the eyes and brows still visible. 3D panel › Colours › Original colours shows their colours.
+- Load VRM… (or the "My VRM…" button) poses your own VRoid Studio character with the same tools: poses, hand poses, drag to move, body shape.
+- The previous grey mannequin is still there: Model › Simple mannequin.
+
+## 2.8: pose the 3D model right on the canvas
+- 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
+- A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.

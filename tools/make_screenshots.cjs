@@ -32,7 +32,7 @@ const ROOT = path.dirname(__dirname), OUT = path.join(ROOT, 'site/assets/shots')
   await pg.waitForTimeout(400); await shot('animation');
   await pg.click('#modeSwitch [data-mode="draw"]'); await pg.waitForTimeout(300);
   // 3D model
-  await E(() => window.__sketchforge.CMD.show3d()); await pg.waitForTimeout(3000);
+  await E(() => window.__sketchforge.CMD.show3d()); await pg.waitForTimeout(6000);
   await pg.click('#m3dPoses button:text("Walk")'); await pg.waitForTimeout(500); await shot('model3d');
   // Custom P
   await E(() => window.__sketchforge.CMD.cpOpen ? window.__sketchforge.CMD.cpOpen() : null);
