@@ -7605,27 +7605,27 @@ function cpApply() {
 /* ---- options: everything beyond the base colours ---- */
 const CP_AREAS = [ // key, label, background selector, text selector (auto-contrast unless a text colour is set)
   ['menubar', 'Menu bar', '#menubar', '#menubar, #menubar .menu-btn'],
-  ['cmdbar', 'Command bar (top buttons)', '#cmdbar', '#cmdbar, #cmdbar button'],
-  ['tabbar', 'Document tabs bar', '#tabbar', '#tabbar .tab:not(.on)'],
-  ['tab', 'Active document tab', '#tabbar .tab.on', '#tabbar .tab.on'],
+  ['cmdbar', 'Command bar', '#cmdbar', '#cmdbar, #cmdbar button'],
+  ['tabbar', 'Tabs bar', '#tabbar', '#tabbar .tab:not(.on)'],
+  ['tab', 'Active tab', '#tabbar .tab.on', '#tabbar .tab.on'],
   ['toolbox', 'Tool palette', '#toolbox', null],
   ['tool', 'Tool buttons', '#toolbox .tool', '#toolbox .tool'],
-  ['toolOn', 'Selected tool / sub tool', '#toolbox .tool.active, .sub-item.active', '#toolbox .tool.active, .sub-item.active'],
+  ['toolOn', 'Selected tool', '#toolbox .tool.active, .sub-item.active', '#toolbox .tool.active, .sub-item.active'],
   ['docks', 'Side panels', '#leftdock, #rightdock, .pal', '#leftdock, #rightdock'],
   ['header', 'Panel titles', '.pal h4', '.pal h4'],
-  ['items', 'Sub tools & layers', '.sub-item:not(.active), .layer-item:not(.active)', '.sub-item:not(.active), .layer-item:not(.active)'],
+  ['items', 'Tool & layer lists', '.sub-item:not(.active), .layer-item:not(.active)', '.sub-item:not(.active), .layer-item:not(.active)'],
   ['layerOn', 'Selected layer', '.layer-item.active, .tl-row.active .tl-name', '.layer-item.active, .tl-row.active .tl-name'],
   ['timeline', 'Timeline', '#timeline, #tlScroll, .tl-name, .tl-head', '#timeline'],
   ['cells', 'Timeline frames', '.tl-cell.hold, .tl-cell.key', null],
   ['tween', 'Tween frames', '.tl-cell.tween', null],
   ['statusbar', 'Status bar', '#statusbar', '#statusbar'],
   ['buttons', 'Buttons', '.pal button, dialog button, .popover button, .navrow button, .seg button, .lbtns button', '.pal button, dialog button, .popover button, .navrow button, .seg button'],
-  ['primary', 'Main buttons (OK, Done…)', 'button.primary', 'button.primary'],
-  ['inputs', 'Text boxes & lists', 'input[type=text], input[type=number], select, textarea', 'input[type=text], input[type=number], select, textarea'],
-  ['dialogs', 'Dialogs, menus & popups', 'dialog, .popover, .dropdown, .subview, .svhead', 'dialog, .popover, .dropdown'],
-  ['toast', 'Messages (toasts)', '#toast', '#toast']
+  ['primary', 'OK buttons', 'button.primary', 'button.primary'],
+  ['inputs', 'Text boxes', 'input[type=text], input[type=number], select, textarea', 'input[type=text], input[type=number], select, textarea'],
+  ['dialogs', 'Dialogs & menus', 'dialog, .popover, .dropdown, .subview, .svhead', 'dialog, .popover, .dropdown'],
+  ['toast', 'Messages', '#toast', '#toast']
 ];
-const CP_TEXTS = [['text', 'Main text'], ['muted', 'Secondary text'], ['menuText', 'Menu bar text'], ['headerText', 'Panel title text'], ['keyDot', 'Keyframe dots'], ['border', 'Borders & lines'], ['slider', 'Sliders & check boxes'], ['scroll', 'Scrollbars']];
+const CP_TEXTS = [['text', 'Main text'], ['muted', 'Secondary text'], ['menuText', 'Menu text'], ['headerText', 'Panel title text'], ['keyDot', 'Keyframe dots'], ['border', 'Borders'], ['slider', 'Sliders'], ['scroll', 'Scrollbars']];
 const CP_FONTS = [['', 'System (default)'], ['"Segoe UI", system-ui, sans-serif', 'Segoe UI'], ['Helvetica, Arial, sans-serif', 'Helvetica / Arial'], ['Verdana, Geneva, sans-serif', 'Verdana (wide)'],
   ['"Trebuchet MS", sans-serif', 'Trebuchet'], ['ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif', 'Rounded'], ['Georgia, "Times New Roman", serif', 'Georgia (serif)'],
   ['ui-monospace, Consolas, "Courier New", monospace', 'Monospace'], ['"Comic Sans MS", "Comic Neue", cursive', 'Comic'], ['Impact, "Arial Black", sans-serif', 'Heavy'], ['SFUserFont, system-ui, sans-serif', 'My font file']];
@@ -7864,7 +7864,7 @@ function cpClearIcon(name) { delete CP.icons[name]; delete customIcons[name]; cp
 const cpIconLabel = k => k.replace(/([a-z])([A-Z0-9])/g, '$1 $2').replace(/[_-]/g, ' ').replace(/^./, c => c.toUpperCase());
 
 /* ---- the studio dialog ---- */
-const CP_SECTIONS = [['themes', '🎭', 'Themes'], ['colors', '🎨', 'Colours'], ['text', '🔤', 'Text & fonts'], ['layout', '📐', 'Layout & size'], ['icons', '✏️', 'Icons'], ['canvas', '🖼', 'Canvas area'], ['cursor', '🎯', 'Cursor'], ['effects', '✨', 'Effects']];
+const CP_SECTIONS = [['themes', '🎭', 'Themes'], ['colors', '🎨', 'Colours'], ['icons', '✏️', 'Icons'], ['text', '🔤', 'Text'], ['layout', '📐', 'Layout'], ['canvas', '🖼', 'Canvas'], ['cursor', '🎯', 'Cursor'], ['effects', '✨', 'Effects']];
 let cpTab = 'themes';
 function cpOpen(tab) {
   if (tab && CP_SECTIONS.some(x => x[0] === tab)) cpTab = tab;
@@ -7882,13 +7882,17 @@ function cpRow(label, ctrl, onReset, hint) {
   return r;
 }
 function cpColor(label, get, set, auto) {
-  const w = document.createElement('span'); w.className = 'cpcolor';
+  const w = document.createElement('label'); w.className = 'cpcard' + (get() ? ' set' : ''); w.dataset.label = label;
   const i = document.createElement('input'); i.type = 'color'; i.value = get() || auto || '#808080';
-  const t = document.createElement('span'); t.className = 'muted small'; t.textContent = get() ? get() : 'theme';
-  i.oninput = () => { set(i.value); t.textContent = i.value; cpOverrides(); }; i.onchange = () => cpSave();
-  w.append(i, t);
-  return cpRow(label, w, () => { set(null); cpChanged(); cpRefreshDlg(); });
+  const t = document.createElement('span'); t.textContent = label;
+  i.oninput = () => { set(i.value); w.classList.add('set'); cpOverrides(); }; i.onchange = () => cpSave();
+  const r = document.createElement('button'); r.type = 'button'; r.className = 'cpreset'; r.textContent = '↺'; r.title = 'Back to the theme colour';
+  r.onclick = e => { e.preventDefault(); set(null); cpChanged(); cpRefreshDlg(); };
+  w.append(i, t, r);
+  return w;
 }
+/* colour cards sit in a grid, like the original picker layout */
+function cpCards(...cards) { const g = document.createElement('div'); g.className = 'cpPickers'; g.append(...cards.flat().filter(Boolean)); return g; }
 function cpRange(label, min, max, step, get, set, fmt, def) {
   const w = document.createElement('span'); w.className = 'cprange';
   const i = document.createElement('input'); i.type = 'range'; i.min = min; i.max = max; i.step = step; i.value = get() ?? def;
@@ -7941,13 +7945,15 @@ async function cpSectionBody(sec) {
     b.append(cpGroup('Colour themes', grid), cpGroup('Layout styles', lay), cpGroup('My saved themes', saved), cpGroup('More', act));
   } else if (sec === 'colors') {
     const cur = CP.custom || cpTheme() || CP_DEFAULT;
-    const base = [['bg', 'Background'], ['panel', 'Panels'], ['text', 'Text'], ['accent', 'Accent (highlights)']].map(([k, n]) => {
-      const r = cpRow(n, (() => { const i = document.createElement('input'); i.type = 'color'; i.dataset.ck = k; i.value = cur[k]; i.oninput = () => { if (CP.preset !== 'custom') { CP.custom = { ...(cpTheme() || CP_DEFAULT) }; CP.preset = 'custom'; } CP.custom[k] = i.value; cpApply(); cpOverrides(); }; i.onchange = () => cpSave(); return i; })());
-      return r;
+    const base = [['bg', 'Background'], ['panel', 'Panels'], ['text', 'Text'], ['accent', 'Accent']].map(([k, n]) => {
+      const w = document.createElement('label'); w.className = 'cpcard set'; w.dataset.label = n;
+      const i = document.createElement('input'); i.type = 'color'; i.dataset.ck = k; i.value = cur[k];
+      i.oninput = () => { if (CP.preset !== 'custom') { CP.custom = { ...(cpTheme() || CP_DEFAULT) }; CP.preset = 'custom'; } CP.custom[k] = i.value; cpApply(); cpOverrides(); }; i.onchange = () => cpSave();
+      const t = document.createElement('span'); t.textContent = n; w.append(i, t); return w;
     });
     const areas = CP_AREAS.map(([k, n, sel]) => cpColor(n, C(k), CS(k), cpAutoColor(sel)));
     const texts = CP_TEXTS.map(([k, n]) => cpColor(n, C(k), CS(k)));
-    b.append(cpGroup('Base colours (the whole interface follows)', base), cpGroup('Each area', areas), cpGroup('Text, lines & details', texts),
+    b.append(cpGroup('My colours (the whole interface follows)', cpCards(base)), cpGroup('Each part of the interface', cpCards(areas)), cpGroup('Text, lines & details', cpCards(texts)),
       Object.assign(document.createElement('p'), { className: 'muted small', textContent: 'Text on a coloured area switches between light and dark automatically so it stays readable. ↺ puts one colour back.' }));
   } else if (sec === 'text') {
     b.append(cpGroup('Font',
@@ -7985,28 +7991,25 @@ async function cpSectionBody(sec) {
       cell.querySelector('.cpPick').onclick = () => pickFile('image/*,.svg,.ico,.bmp,.webp,.avif,.gif', f => cpSetIcon(k, f));
       const x = cell.querySelector('.cpX'); if (x) x.onclick = () => cpClearIcon(k);
     });
-    b.append(cpGroup('Look of all icons',
-      cpColor('Icon colour', O('iconColor'), S('iconColor'), cpAutoColor('#toolbox .tool', 'color')),
-      cpColor('Selected tool icon', O('iconOn'), S('iconOn')),
+    b.append(Object.assign(document.createElement('p'), { className: 'muted small', textContent: 'Click an icon to replace it with any image (PNG, JPG, GIF, WebP, SVG, BMP, ICO…). It is resized to icon size automatically. × puts the original back.' }), grid, cpGroup('Look of all icons',
+      cpCards(cpColor('Icon colour', O('iconColor'), S('iconColor'), cpAutoColor('#toolbox .tool', 'color')), cpColor('Selected tool icon', O('iconOn'), S('iconOn'))),
       cpRange('Line thickness', 0.8, 3.2, 0.1, O('iconStroke'), S('iconStroke'), v => v.toFixed(1), 1.8),
-      cpRange('Tool palette icon size', 14, 34, 1, O('iconSize'), S('iconSize'), v => v + ' px', 20)),
-    cpGroup('Replace any icon with an image (PNG, JPG, GIF, WebP, SVG, BMP, ICO… — resized automatically)', grid));
+      cpRange('Tool palette icon size', 14, 34, 1, O('iconSize'), S('iconSize'), v => v + ' px', 20)));
   } else if (sec === 'canvas') {
     b.append(cpGroup('Background around the drawing',
       cpSelect('Style', [['', 'Theme colour'], ['solid', 'Solid colour'], ['gradient', 'Gradient'], ['radial', 'Radial glow'], ['checker', 'Checkerboard'], ['dots', 'Dots'], ['grid', 'Grid lines'], ['image', 'My image']], O('cvType'), S('cvType')),
-      o.cvType && o.cvType !== 'theme' ? cpColor('Colour', O('cvColor'), S('cvColor'), cpAutoColor('#viewport')) : null,
-      ['gradient', 'radial', 'checker', 'dots', 'grid'].includes(o.cvType) ? cpColor('Second colour', O('cvColor2'), S('cvColor2'), '#2b2b2b') : null,
+      o.cvType && o.cvType !== 'theme' ? cpCards(cpColor('Colour', O('cvColor'), S('cvColor'), cpAutoColor('#viewport')), ['gradient', 'radial', 'checker', 'dots', 'grid'].includes(o.cvType) ? cpColor('Second colour', O('cvColor2'), S('cvColor2'), '#2b2b2b') : null) : null,
       o.cvType === 'gradient' ? cpRange('Gradient angle', 0, 360, 5, O('cvAngle'), S('cvAngle'), v => v + '°', 160) : null,
       ['checker', 'dots', 'grid'].includes(o.cvType) ? cpRange('Pattern size', 6, 80, 2, O('cvSize'), S('cvSize'), v => v + ' px', 24) : null,
       o.cvType === 'image' ? cpImagePicker('Image', 'cvImage') : null,
       o.cvType === 'image' ? cpSelect('Image fit', [['', 'Fill'], ['contain', 'Whole image'], ['tile', 'Tile']], O('cvFit'), S('cvFit')) : null),
     cpGroup('The drawing sheet',
       cpRange('Shadow', 0, 100, 5, O('cvShadow'), S('cvShadow'), v => v + '%', 30),
-      cpColor('Border colour', O('cvBorder'), S('cvBorder')),
+      cpCards(cpColor('Border colour', O('cvBorder'), S('cvBorder'))),
       cpRange('Border thickness', 1, 6, 1, O('cvBorderW'), S('cvBorderW'), v => v + ' px', 1)));
   } else if (sec === 'cursor') {
     b.append(cpGroup('Brush cursor',
-      cpColor('Outline colour', O('curColor'), S('curColor'), '#ffffff'),
+      cpCards(cpColor('Outline colour', O('curColor'), S('curColor'), '#ffffff')),
       cpRange('Outline thickness', 1, 4, 1, O('curWidth'), S('curWidth'), v => v + ' px', 1),
       cpToggle('Cross in the centre', O('curCross'), S('curCross')),
       cpToggle('Dark outline around it (visible on white)', () => o.curShadow !== false, v => { if (v) delete o.curShadow; else o.curShadow = false; })));
@@ -8026,10 +8029,10 @@ async function cpSectionBody(sec) {
 async function cpRefreshDlg(force) {
   const d = $('#cpDialog'); if (!d || (!d.open && !force)) return;
   const body = await cpSectionBody(cpTab), sc = d.querySelector('.cpBody') ? d.querySelector('.cpBody').scrollTop : 0;
-  d.innerHTML = `<form method="dialog"><h5>🎨 Custom P — make the interface yours</h5><div class="cpwrap"><nav class="cpTabs"></nav><div class="cpBody"></div></div>
-    <div class="dialog-actions"><button type="button" id="cpResetSec">Reset this section</button><button type="button" id="cpReset">Reset everything</button><span style="flex:1"></span><button type="button" id="cpClose" class="primary">Done</button></div></form>`;
+  d.innerHTML = `<form method="dialog"><h5>🎨 Custom P — customise the interface</h5><div class="cpwrap"><nav class="cpTabs"></nav><div class="cpBody"></div></div>
+    <div class="dialog-actions"><button type="button" id="cpReset">Reset to default</button><button type="button" id="cpResetSec" class="cplink">Reset this tab</button><span style="flex:1"></span><button type="button" id="cpClose" class="primary">Done</button></div></form>`;
   const nav = d.querySelector('.cpTabs');
-  for (const [k, e, n] of CP_SECTIONS) { const x = cpBtn(e + ' ' + n, () => { cpTab = k; cpRefreshDlg(); }, cpTab === k ? 'on' : ''); x.dataset.tab = k; nav.appendChild(x); }
+  for (const [k, , n] of CP_SECTIONS) { const x = cpBtn(n, () => { cpTab = k; cpRefreshDlg(); }, cpTab === k ? 'on' : ''); x.dataset.tab = k; nav.appendChild(x); }
   d.querySelector('.cpBody').appendChild(body);
   d.querySelector('.cpBody').scrollTop = sc;
   d.querySelector('#cpResetSec').onclick = () => { if (cpTab === 'themes') { if (confirm('Back to the default colours and layout?')) { CP.preset = 'default'; CP.custom = null; CP.o = {}; cpApplyAll(); cpSave(); cpRefreshDlg(); } } else cpResetSection(cpTab); };

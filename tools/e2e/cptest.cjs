@@ -12,14 +12,15 @@ const fs = require('fs');
   const tab = async t => { await pg.click(`#cpDialog .cpTabs [data-tab="${t}"]`); await pg.waitForTimeout(150); };
   const row = label => `#cpDialog .cprow:has(.cplbl:text-is("${label}"))`;
   const setRange = async (label, v) => pg.evaluate(([l, v]) => { const r = [...document.querySelectorAll('#cpDialog .cprow')].find(x => x.querySelector('.cplbl').textContent === l).querySelector('input[type=range]'); r.value = v; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); }, [label, v]);
-  const setColor = async (label, v) => pg.evaluate(([l, v]) => { const r = [...document.querySelectorAll('#cpDialog .cprow')].find(x => x.querySelector('.cplbl').textContent === l).querySelector('input[type=color]'); r.value = v; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); }, [label, v]);
+  const setColor = async (label, v) => pg.evaluate(([l, v]) => { const r = [...document.querySelectorAll('#cpDialog .cpcard')].find(x => x.dataset.label === l).querySelector('input[type=color]'); r.value = v; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); }, [label, v]);
   const setSelect = async (label, v) => { await pg.evaluate(([l, v]) => { const r = [...document.querySelectorAll('#cpDialog .cprow')].find(x => x.querySelector('.cplbl').textContent === l).querySelector('select'); r.value = v; r.dispatchEvent(new Event('change')); }, [label, v]); await pg.waitForTimeout(200); };
   const toggle = async label => { await pg.evaluate(l => { const t = [...document.querySelectorAll('#cpDialog .cptoggle')].find(x => x.textContent.trim() === l).querySelector('input'); t.click(); }, label); await pg.waitForTimeout(100); };
   const menus = await E(() => [...document.querySelectorAll('#menus .menu-btn')].map(b => b.textContent));
   check('menu "🎨 Custom P" right after Add-ons', menus[menus.indexOf('Add-ons') + 1] === '🎨 Custom P');
   const bar0 = await cs('#cmdbar', 'backgroundColor');
   await E(() => window.__sketchforge.CMD.cpOpen()); await pg.waitForTimeout(300);
-  check('studio has 8 sections', await E(() => document.querySelectorAll('#cpDialog .cpTabs button').length) === 8);
+  check('window has 8 tabs', await E(() => document.querySelectorAll('#cpDialog .cpTabs button').length) === 8);
+  await tab('colors'); await pg.screenshot({ path: out + '/cp_tab_colours.png' }); await tab('icons'); await pg.screenshot({ path: out + '/cp_tab_icons.png' }); await tab('themes');
   // themes
   await pg.click('#cpDialog [data-preset="midnight"]'); await pg.waitForTimeout(150);
   check('colour theme repaints the interface', (await cs('#cmdbar', 'backgroundColor')) !== bar0);
@@ -33,7 +34,7 @@ const fs = require('fs');
   await setColor('Side panels', '#2a6f4f');
   check('side panel colour changed', (await cs('#rightdock', 'backgroundColor')) === 'rgb(42, 111, 79)');
   await setColor('Keyframe dots', '#ff0000');
-  await setColor('Sliders & check boxes', '#00aaff');
+  await setColor('Sliders', '#00aaff');
   check('slider colour changed', (await cs('input[type=range]', 'accentColor')) === 'rgb(0, 170, 255)');
   // text
   await tab('text');
