@@ -119,10 +119,10 @@ jobs:
         with: { path: dist-site }
   pages:
     # The official website on GitHub Pages (https://<owner>.github.io/<repo>/): the landing page, the web app for
-    # browsers / iPad (/app/) and version.json, which every installed app checks for updates. Published on releases
-    # only, after the installers are attached, so the download buttons work.
-    needs: [gate, web, release]
-    if: always() && needs.release.result == 'success'
+    # browsers / iPad (/app/) and version.json, which every installed app checks for updates. Published on releases.
+    # does not wait for the installers (a missing macOS machine must not hold the website back)
+    needs: [gate, web]
+    if: needs.gate.outputs.release == 'true'
     runs-on: ubuntu-latest
     environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
     steps:
