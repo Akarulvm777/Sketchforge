@@ -3,22 +3,32 @@
   "version": "2.2.0",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
-  "author": "",
+  "author": "Sketchforge",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
     "serve": "npx serve .",
-    "dist": "electron-builder",
+    "dist": "electron-builder --publish never",
     "build": "python3 build.py",
-    "build:models": "node tools/build_models.mjs"
+    "build:models": "node tools/build_models.mjs",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "build:www": "node tools/build_www.mjs",
+    "android": "node tools/build_www.mjs && npx cap sync android"
   },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
-    "three": "0.170.0"
+    "three": "0.170.0",
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/share": "^6.0.2"
   },
   "build": {
-    "appId": "com.example.sketchforge",
+    "appId": "app.sketchforge.studio",
     "productName": "Sketchforge",
     "files": [
       "main.js",
@@ -35,13 +45,61 @@
       "THREE-LICENSE.txt"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon-512.png"
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "icon-512.png",
+      "category": "public.app-category.graphics-design",
+      "identity": null
     },
     "linux": {
-      "target": "AppImage"
-    }
+      "target": [
+        "AppImage"
+      ],
+      "icon": "icon-512.png",
+      "category": "Graphics"
+    },
+    "artifactName": "Sketchforge-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "publish": null,
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sketchforge",
+      "artifactName": "Sketchforge-Setup-${version}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "Sketchforge-${version}-mac-${arch}.${ext}"
+    },
+    "fileAssociations": [
+      {
+        "ext": "sketchforge",
+        "name": "Sketchforge drawing",
+        "role": "Editor"
+      }
+    ]
   }
 }
