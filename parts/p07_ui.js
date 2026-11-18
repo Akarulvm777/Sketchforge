@@ -251,6 +251,7 @@ function refreshProps() {
   const id = state.tool, k = kindOf(id);
   $('#toolName').textContent = TOOLDEF[id].name;
   if (k === 'dragdraw') { if (id === 'liquify') liqProps(body); else proProps(body, id); return; }
+  if (k === 'puppet') { puppetProps(body); return; }
   if (k === 'brush' || k === 'shape' || k === 'poly') {
     const s = (k === 'shape' || k === 'poly') ? settings.shape : settings[id];
     slider(body, 'Size', 1, 300, 1, s.size, v => v + 'px', v => { s.size = v; updateCursor(); });

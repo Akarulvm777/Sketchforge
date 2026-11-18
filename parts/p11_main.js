@@ -66,6 +66,7 @@ viewport.addEventListener('pointerdown', e => {
     case 'select': if (TOOLDEF[state.tool].wand) wandSelect(d.x, d.y, e.shiftKey ? 'add' : e.altKey ? 'subtract' : null); else if (state.tool === 'selpoly') polyClick(e); else selDragStart(e); break;
     case 'poly': polyClick(e); break;
     case 'dragdraw': ddDown(e); break;
+    case 'puppet': puppetDown(e); break;
     case 'lassofill': selDragStart(e); break;
     case 'gradient': gradDown(e); break;
     case 'text': textClick(e); break;
@@ -109,6 +110,7 @@ viewport.addEventListener('pointermove', e => {
     case 'dd': ddMove(e); break;
     case 'grad': gradMove(e); break;
     case 'xf': case 'pixmove': moveMove(e); break;
+    case 'puppet': puppetMove(e); break;
     case 'pick': pickAt(e); break;
     case 'rotv': {
       const [cx, cy] = vpCenter();
@@ -141,6 +143,7 @@ function pointerEnd(e) {
     case 'dd': ddUp(); break;
     case 'grad': gradUp(); break;
     case 'xf': case 'pixmove': moveUp(); break;
+    case 'puppet': puppetUp(); break;
     case 'zoomv': active = null; if (!a.moved) { const [cx, cy] = [a.cx, a.cy]; zoomAt(cx, cy, a.alt ? 1 / 1.5 : 1.5); updateCursor(); } break;
     default: active = null;
   }

@@ -336,7 +336,7 @@ function drawOverlay() {
     g.fillStyle = state.color2; g.beginPath(); g.arc(p1[0], p1[1], 5, 0, 7); g.fill(); g.stroke();
   }
   drawPolyOverlay(g, S);
-  drawRulers(g, S); drawDDOverlay(g, S);
+  drawRulers(g, S); drawDDOverlay(g, S); drawPuppet(g);
   if (state.tool === 'move' && !sel.active && !(a && a.type === 'pixmove')) {
     drawBones(g, S);
     const h = handlesOf(activeLayer());

@@ -37,6 +37,7 @@ function copyCel(src, keepTween) {
   const c = makeCanvas(state.w, state.h);
   c.getContext('2d').drawImage(src, 0, 0);
   c._ink = src._ink !== false;
+  if (src._pup) c._pup = { rest: src._pup.rest, pins: src._pup.pins.map(p => p.slice()), cur: src._pup.cur.map(p => p.slice()) }; // puppet pins travel with copies (new keyframes)
   if (src._xf) {
     c._xf = { ...src._xf };
     if (!keepTween) { c._xf.tween = false; c._xf.ease = 0; }

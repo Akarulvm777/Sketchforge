@@ -95,3 +95,7 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 ## 2.0.x: bone rig (cut-out animation)
 - Layer → Bone rig: set parent…: a layer follows its parent layer. Draw each body part on its own layer, link forearm → upper arm → body, and Alt+drag each part's orange pivot dot (Move tool) onto its joint.
 - Rotating / moving a part with the Move tool carries all its children; keyframes and motion tweens animate the whole limb. Bones are drawn over the canvas in the Move tool. Parent links are saved in the file. Layer → How to rig a character… explains the steps.
+
+## 2.0.x: puppet warp
+- Move group → **Puppet warp**: click a drawing to place pins on its joints, drag a pin to bend the drawing smoothly around the others (Alt+click removes a pin). The original drawing is kept, so bending again never loses quality.
+- Animate it: pose one keyframe, make the next keyframe (K), move its pins, then **Create in-betweens** (tool panel or Animation menu) fills every frame between them. Pins are saved in the file; "Remove pins" restores the original drawing.

@@ -135,6 +135,15 @@ async function buildDocObject() {
     }))
   };
   for (let i = 0; i < state.layers.length; i++) if (state.layers[i].vref) doc.layers[i].vref = await vrefSerialize(state.layers[i]);
+  // puppet warp pins: each keyframe keeps its pins; the original drawings are stored once (shared by keys)
+  const rests = new Map(), pupRests = [];
+  state.layers.forEach((l, i) => Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).forEach(([, c], j) => {
+    if (!c._pup) return;
+    let r = rests.get(c._pup.rest);
+    if (r === undefined) { r = pupRests.length; rests.set(c._pup.rest, r); pupRests.push(c._pup.rest.toDataURL('image/png')); }
+    doc.layers[i].cels[j].pup = { r, pins: c._pup.pins, cur: c._pup.cur };
+  }));
+  if (pupRests.length) doc.pupRests = pupRests;
   const au = typeof audioSerialize === 'function' ? await audioSerialize() : null;
   if (au) doc.audio = au;
   const tl = typeof tlSerialize === 'function' ? await tlSerialize() : null;
@@ -157,6 +166,7 @@ async function openDocumentFile(file) {
     Object.assign(state, { name: doc.name || file.name.replace(/\.[^.]+$/, ''), w, h, frameCount: doc.frameCount || 1, fps: doc.fps || 12, frame: 0, loop: doc.loop !== false, layers: [] });
     resizeDocCanvases();
     layerSeq = 1; layerCounter = doc.layerCounter || doc.layers.length;
+    const pupRests = doc.pupRests ? await Promise.all(doc.pupRests.map(async u => { const c = makeCanvas(w, h); c.getContext('2d').drawImage(await loadImage(u), 0, 0); c._ink = true; return c; })) : [];
     for (const ld of doc.layers) {
       const l = createLayer(ld.name);
       l.cels = new Map();
@@ -165,6 +175,7 @@ async function openDocumentFile(file) {
         const c = makeCel(cd.ink);
         if (cd.data) c.getContext('2d').drawImage(await loadImage(cd.data), 0, 0);
         if (cd.xf) c._xf = { ...IDENT, ...cd.xf };
+        if (cd.pup && pupRests[cd.pup.r]) c._pup = { rest: pupRests[cd.pup.r], pins: cd.pup.pins, cur: cd.pup.cur };
         l.cels.set(cd.k, c);
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
