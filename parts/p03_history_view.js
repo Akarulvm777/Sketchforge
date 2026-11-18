@@ -11,6 +11,7 @@ function markDirty() {
   if (!was) syncTab();
   if (typeof tlCapture === 'function') tlCapture();
   if (typeof subViewInvalidate === 'function') subViewInvalidate();
+  if (typeof sessionSoon === 'function') sessionSoon();
 }
 function updateHistoryButtons() { /* menu items read the stacks when opened */ }
 function pushHistory(entry) {
@@ -57,8 +58,8 @@ function celEntry(t, b, before, after) {
   t.cel._bb = undefined;
   return {
     frame: t.frame,
-    undo() { restoreRegion(t.ctx, b, before); t.cel._bb = undefined; if (t.created) t.layer.cels.delete(t.key); },
-    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); restoreRegion(t.ctx, b, after); t.cel._bb = undefined; }
+    undo() { restoreRegion(t.ctx, b, before); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; if (t.created) t.layer.cels.delete(t.key); },
+    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); restoreRegion(t.ctx, b, after); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; }
   };
 }
 
@@ -75,6 +76,7 @@ function acquireCel(layer) {
     created = true;
     refreshStage(); renderTimeline();
   }
+  if (layer.canvas) layer.canvas._sv = (layer.canvas._sv || 0) + 1; // pixels are about to change (session autosave cache)
   return { layer, cel: layer.canvas, ctx: layer.ctx, created, key: f, frame: f };
 }
 function releaseCel(t) {
@@ -112,6 +114,7 @@ function applyView() {
   scheduleAntsRebuild();
   drawOverlay();
   if (typeof tlViewChanged === 'function') tlViewChanged();
+  if (typeof sessionSoon === 'function') sessionSoon(4000);
 }
 function anchorView(cx, cy, p) {
   const m = vmat();

@@ -111,6 +111,7 @@ function pupDeform(pins, cur, x, y) {
 }
 function pupRender(cel) {
   const P = cel._pup, rest = P.rest, g = cel.getContext('2d');
+  cel._sv = (cel._sv || 0) + 1;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cel.width, cel.height);
   if (!P.pins.length) { g.drawImage(rest, 0, 0); g.restore(); cel._bb = undefined; return; }
   const bb = celBBox(rest); if (!bb) { g.restore(); return; }

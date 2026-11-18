@@ -73,6 +73,7 @@ function docSwitch(r) {
   if (typeof drawAudioStrip === 'function') drawAudioStrip();
   if (typeof tlUpdateBtn === 'function') tlUpdateBtn();
   subViewInvalidate();
+  if (typeof sessionSoon === 'function') sessionSoon(800);
 }
 function docClose(r, force) {
   r = r || DOCS.cur;
@@ -92,6 +93,7 @@ function docClose(r, force) {
   if (r.saved && r.saved.aud && r.saved.aud.el) r.saved.aud.el.pause();
   DOCS.list.splice(DOCS.list.indexOf(r), 1);
   renderTabs();
+  if (typeof sessionSoon === 'function') sessionSoon(800);
   return true;
 }
 function docCloseOthers(keep) {

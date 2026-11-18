@@ -555,6 +555,7 @@ function markDirty() {
   if (!was) syncTab();
   if (typeof tlCapture === 'function') tlCapture();
   if (typeof subViewInvalidate === 'function') subViewInvalidate();
+  if (typeof sessionSoon === 'function') sessionSoon();
 }
 function updateHistoryButtons() { /* menu items read the stacks when opened */ }
 function pushHistory(entry) {
@@ -601,8 +602,8 @@ function celEntry(t, b, before, after) {
   t.cel._bb = undefined;
   return {
     frame: t.frame,
-    undo() { restoreRegion(t.ctx, b, before); t.cel._bb = undefined; if (t.created) t.layer.cels.delete(t.key); },
-    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); restoreRegion(t.ctx, b, after); t.cel._bb = undefined; }
+    undo() { restoreRegion(t.ctx, b, before); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; if (t.created) t.layer.cels.delete(t.key); },
+    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); restoreRegion(t.ctx, b, after); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; }
   };
 }
 
@@ -619,6 +620,7 @@ function acquireCel(layer) {
     created = true;
     refreshStage(); renderTimeline();
   }
+  if (layer.canvas) layer.canvas._sv = (layer.canvas._sv || 0) + 1; // pixels are about to change (session autosave cache)
   return { layer, cel: layer.canvas, ctx: layer.ctx, created, key: f, frame: f };
 }
 function releaseCel(t) {
@@ -656,6 +658,7 @@ function applyView() {
   scheduleAntsRebuild();
   drawOverlay();
   if (typeof tlViewChanged === 'function') tlViewChanged();
+  if (typeof sessionSoon === 'function') sessionSoon(4000);
 }
 function anchorView(cx, cy, p) {
   const m = vmat();
@@ -2870,6 +2873,7 @@ function gotoFrame(n, quiet) {
   refreshStage(); updatePlayhead();
   if (!quiet) { renderLayers(); refreshProps(); updateOnion(); }
   syncTimelineFields(); updateStatus(); drawOverlay(); updateNav(); audioSeek();
+  if (!playing && typeof sessionSoon === 'function') sessionSoon();
 }
 function sameDrawing(l, a, b) {
   const fa = frameParams(l, a), fb = frameParams(l, b);
@@ -3180,35 +3184,45 @@ $('#newCreate').onclick = () => {
 
 /* ---------- save / open (.sketchforge, JSON, v2) ---------- */
 /* The .sketchforge document as a plain object (also used to hand a document to another window). */
-async function buildDocObject() {
+/* src: which document ({ st: state fields, lc: layerCounter, aud, tl: time-lapse frames }); default = the open tab.
+   opts.cache: reuse each cel's last PNG while it is unchanged (session autosave); opts.quiet: no size warnings. */
+function docSource() { return { st: state, lc: layerCounter, aud, tl: null }; }
+function celURL(c, cache) {
+  if (!cache) return c.toDataURL('image/png');
+  if (c._su && c._suv === (c._sv || 0)) return c._su;
+  c._su = c.toDataURL('image/png'); c._suv = c._sv || 0; return c._su;
+}
+async function buildDocObject(src, opts = {}) {
+  src = src || docSource();
+  const st = src.st, enc = c => celURL(c, opts.cache);
   const doc = {
-    format: 'sketchforge', version: 2, name: state.name, w: state.w, h: state.h,
-    frameCount: state.frameCount, fps: state.fps, loop: state.loop, mode: state.mode,
-    layerCounter,
-    layers: state.layers.map(l => ({
+    format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
+    frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode,
+    layerCounter: src.lc,
+    layers: st.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
-      active: l.id === state.activeId,
-      parent: l.parent ? state.layers.findIndex(x => x.id === l.parent) : -1,
-      mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : c.toDataURL('image/png') })) } : null,
+      active: l.id === st.activeId,
+      parent: l.parent ? st.layers.findIndex(x => x.id === l.parent) : -1,
+      mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null,
-        data: c._ink === false ? null : c.toDataURL('image/png')
+        data: c._ink === false ? null : enc(c)
       }))
     }))
   };
-  for (let i = 0; i < state.layers.length; i++) if (state.layers[i].vref) doc.layers[i].vref = await vrefSerialize(state.layers[i]);
+  for (let i = 0; i < st.layers.length; i++) if (st.layers[i].vref) doc.layers[i].vref = await vrefSerialize(st.layers[i], opts.quiet);
   // puppet warp pins: each keyframe keeps its pins; the original drawings are stored once (shared by keys)
   const rests = new Map(), pupRests = [];
-  state.layers.forEach((l, i) => Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).forEach(([, c], j) => {
+  st.layers.forEach((l, i) => Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).forEach(([, c], j) => {
     if (!c._pup) return;
     let r = rests.get(c._pup.rest);
-    if (r === undefined) { r = pupRests.length; rests.set(c._pup.rest, r); pupRests.push(c._pup.rest.toDataURL('image/png')); }
+    if (r === undefined) { r = pupRests.length; rests.set(c._pup.rest, r); pupRests.push(enc(c._pup.rest)); }
     doc.layers[i].cels[j].pup = { r, pins: c._pup.pins, cur: c._pup.cur };
   }));
   if (pupRests.length) doc.pupRests = pupRests;
-  const au = typeof audioSerialize === 'function' ? await audioSerialize() : null;
+  const au = typeof audioSerialize === 'function' ? await audioSerialize(src.aud, opts.quiet) : null;
   if (au) doc.audio = au;
-  const tl = typeof tlSerialize === 'function' ? await tlSerialize() : null;
+  const tl = typeof tlSerialize === 'function' ? await tlSerialize(src.tl) : null;
   if (tl) doc.timelapse = tl;
   return doc;
 }
@@ -3537,6 +3551,7 @@ function docSwitch(r) {
   if (typeof drawAudioStrip === 'function') drawAudioStrip();
   if (typeof tlUpdateBtn === 'function') tlUpdateBtn();
   subViewInvalidate();
+  if (typeof sessionSoon === 'function') sessionSoon(800);
 }
 function docClose(r, force) {
   r = r || DOCS.cur;
@@ -3556,6 +3571,7 @@ function docClose(r, force) {
   if (r.saved && r.saved.aud && r.saved.aud.el) r.saved.aud.el.pause();
   DOCS.list.splice(DOCS.list.indexOf(r), 1);
   renderTabs();
+  if (typeof sessionSoon === 'function') sessionSoon(800);
   return true;
 }
 function docCloseOthers(keep) {
@@ -3760,6 +3776,83 @@ function installMultiDoc() {
   }, true);
   window.addEventListener('beforeunload', e => { if (DOCS.list.some(r => r !== DOCS.cur && r.saved && r.saved.dirty)) { e.preventDefault(); e.returnValue = ''; } });
   installChildProtocol();
+}
+
+/* ---------- Remember the last work ----------
+   A few seconds after any change (and when switching tabs or leaving the app) every open document is saved
+   to IndexedDB 'sketchforge-session' with which tab was active and, per document, the frame, zoom / position
+   and unsaved state. On the next start everything is opened again where it was left.
+   Unchanged cels reuse their last PNG (cel._sv counters, celURL in p10_docs_export), so saving stays cheap. */
+const SESS = { on: true, t: 0, busy: false, again: false, restoring: false, db: null };
+try { SESS.on = localStorage.getItem('sketchforge.session.v1') !== 'off'; } catch (e) { /* ignore */ }
+function sessDB() {
+  if (SESS.db) return Promise.resolve(SESS.db);
+  return new Promise(res => { try { const rq = indexedDB.open('sketchforge-session', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onsuccess = () => res(SESS.db = rq.result); rq.onerror = () => res(null); } catch (e) { res(null); } });
+}
+async function sessKV(mode, fn) { const db = await sessDB(); if (!db) return null; return new Promise((res, rej) => { const tx = db.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && 'result' in r ? r.result : null); tx.onerror = () => rej(tx.error); }); }
+function sessionSoon(ms = 2500) {
+  if (!SESS.on || SESS.restoring) return;
+  clearTimeout(SESS.t); SESS.t = setTimeout(sessionSave, ms);
+}
+async function sessionSave() {
+  if (!SESS.on || SESS.restoring || typeof DOCS === 'undefined' || !DOCS.list.length) return;
+  if (SESS.busy || stroke || active || exporting) { SESS.again = true; sessionSoon(1500); return; }
+  SESS.busy = true;
+  try {
+    const docs = [];
+    for (const r of DOCS.list) {
+      const cur = r === DOCS.cur;
+      if (!cur && !r.saved) continue;
+      const src = cur ? null : { st: r.saved.state, lc: r.saved.layerCounter, aud: r.saved.aud, tl: r.saved.tl };
+      const doc = await buildDocObject(src, { cache: true, quiet: true });
+      const info = cur ? { frame: state.frame, view: { ...view }, dirty, blank: !!r.blank && !dirty && !history.undo.length }
+        : { frame: r.saved.state.frame, view: r.saved.view, dirty: r.saved.dirty, blank: false };
+      docs.push({ json: JSON.stringify(doc), ...info });
+    }
+    await sessKV('readwrite', s => s.put({ t: Date.now(), active: DOCS.list.indexOf(DOCS.cur), docs, tool: state.tool, color: state.color, color2: state.color2 }, 'last'));
+  } catch (e) { console.warn('session save failed', e); }
+  SESS.busy = false;
+  if (SESS.again) { SESS.again = false; sessionSoon(); }
+}
+async function sessionRestore() {
+  if (!SESS.on || location.hash === '#sf-child') return;
+  const rec = await sessKV('readonly', s => s.get('last')).catch(() => null);
+  if (!rec || !rec.docs) return;
+  const keep = rec.docs.map((d, i) => ({ d, i })).filter(x => !x.d.blank);
+  if (!keep.length) return;
+  SESS.restoring = true;
+  const opened = [];
+  try {
+    for (const { d, i } of keep) {
+      await openDocumentFile(new File([d.json], 'last work.sketchforge'));
+      if (d.frame) gotoFrame(d.frame);
+      if (d.view) { Object.assign(view, d.view); applyView(); }
+      dirty = !!d.dirty; syncTab();
+      opened.push({ rec: DOCS.cur, i });
+    }
+    const act = opened.find(o => o.i === rec.active) || opened[opened.length - 1];
+    if (act && act.rec !== DOCS.cur) docSwitch(act.rec);
+    if (rec.tool && TOOLDEF[rec.tool]) selectTool(rec.tool);
+    if (rec.color) setColor(rec.color);
+    if (rec.color2) { state.color2 = rec.color2; if (typeof syncColorUI === 'function') syncColorUI(); }
+    toast(`Welcome back — your last work is open again (${opened.length} file${opened.length > 1 ? 's' : ''}, ${state.name} at frame ${state.frame + 1})`, 5000);
+  } catch (e) { console.warn('session restore failed', e); }
+  SESS.restoring = false;
+}
+function installSession() {
+  Object.assign(CMD, {
+    sessToggle: () => {
+      SESS.on = !SESS.on; try { localStorage.setItem('sketchforge.session.v1', SESS.on ? 'on' : 'off'); } catch (e) { /* ignore */ }
+      if (SESS.on) sessionSave(); else sessKV('readwrite', s => s.delete('last'));
+      toast(SESS.on ? 'Your work will be reopened next time' : 'Last work will not be remembered');
+    },
+    sessFresh: () => { if (!confirm('Close every open file and start with a blank page? (Unsaved work is lost.)')) return; sessKV('readwrite', s => s.delete('last')).then(() => location.reload()); }
+  });
+  const F = MENUS[0][1];
+  F.push('-', ['Reopen my last work at start (on / off)', 'sessToggle'], ['Start fresh (close everything)', 'sessFresh']);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') sessionSave(); });
+  window.addEventListener('pagehide', () => sessionSave());
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { /* ignore */ });
 }
 
 /* ---------- animation extras: light table, frame tools, audio, page manager, PSD export ---------- */
@@ -4307,6 +4400,7 @@ function pupDeform(pins, cur, x, y) {
 }
 function pupRender(cel) {
   const P = cel._pup, rest = P.rest, g = cel.getContext('2d');
+  cel._sv = (cel._sv || 0) + 1;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cel.width, cel.height);
   if (!P.pins.length) { g.drawImage(rest, 0, 0); g.restore(); cel._bb = undefined; return; }
   const bb = celBBox(rest); if (!bb) { g.restore(); return; }
@@ -4914,11 +5008,11 @@ function vrefSettings() {
 const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 async function dataURLToFile(url, name) { const b = await (await fetch(url)).blob(); return new File([b], name, { type: b.type }); }
 /* layer record extras for buildDocObject */
-async function vrefSerialize(l) {
+async function vrefSerialize(l, quiet) {
   const v = l.vref;
   const out = { name: v.name, offset: v.offset, fit: v.fit, data: null };
-  if (v.file && v.file.size <= VREF_EMBED_MAX) out.data = await blobToDataURL(v.file);
-  else if (v.file) toast(`"${v.name}" is too big to keep inside the file (${Math.round(v.file.size / 1048576)} MB) — relink it after opening`);
+  if (v.file && v.file.size <= VREF_EMBED_MAX) out.data = v.file._d || (v.file._d = await blobToDataURL(v.file));
+  else if (v.file && !quiet) toast(`"${v.name}" is too big to keep inside the file (${Math.round(v.file.size / 1048576)} MB) — relink it after opening`);
   return out;
 }
 async function vrefRestore(l, rec) {
@@ -4926,10 +5020,10 @@ async function vrefRestore(l, rec) {
   if (rec.data) { try { await vrefAttach(l, await dataURLToFile(rec.data, rec.name)); } catch (e) { /* stays "missing" */ } }
   else vrefPaint(l);
 }
-async function audioSerialize() {
-  if (!aud.file) return null;
-  if (aud.file.size > VREF_EMBED_MAX) { toast('The audio file is too big to keep inside the document'); return { name: aud.name, data: null }; }
-  return { name: aud.name, data: await blobToDataURL(aud.file) };
+async function audioSerialize(a = aud, quiet) {
+  if (!a || !a.file) return null;
+  if (a.file.size > VREF_EMBED_MAX) { if (!quiet) toast('The audio file is too big to keep inside the document'); return { name: a.name, data: null }; }
+  return { name: a.name, data: a.file._d || (a.file._d = await blobToDataURL(a.file)) };
 }
 async function audioRestore(rec) {
   if (!rec || !rec.data) return;
@@ -5757,12 +5851,13 @@ function tlReset() { TL.gen++; TL.frames = []; clearTimeout(TL.vt); clearTimeout
 async function tlIdle() { await new Promise(r => setTimeout(r, 450)); await TL.chain; }
 
 /* ---- per-document storage (inside the .sketchforge file) ---- */
-async function tlSerialize() {
+async function tlSerialize(frames) {
   if (!TL.keep) return null;
-  await TL.chain;
-  if (!TL.frames.length) return null;
+  if (!frames) { await TL.chain; frames = TL.frames; }
+  if (!frames || !frames.length) return null;
   const toURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
-  return { mode: TL.mode, frames: await Promise.all(TL.frames.map(async f => ({ w: f.w, h: f.h, d: await toURL(f.b) }))) };
+  // each snapshot is encoded once (the session autosave serialises often)
+  return { mode: TL.mode, frames: await Promise.all(frames.map(async f => ({ w: f.w, h: f.h, d: f.d || (f.d = await toURL(f.b)) }))) };
 }
 async function tlRestore(data) {
   tlReset();
@@ -8399,18 +8494,19 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installMobile(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
   DOCS.cur.blank = true; renderTabs();
+  sessionRestore();
   selectTool('pen');
   resizeOverlay();
   setTimeout(() => { fit(); updateCursor(); }, 50);
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   window.__sketchforge = {
-    state, view, history, sel, CMD, M3, TL, tlIdle, TOOLDEF, GROUPS, settings, get stroke() { return stroke; }, get active() { return active; },
+    state, view, history, sel, CMD, M3, TL, tlIdle, TOOLDEF, GROUPS, settings, sessionSave, get stroke() { return stroke; }, get active() { return active; },
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
     makeZip, crc32, lzw, newDocument, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,

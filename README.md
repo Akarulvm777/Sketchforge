@@ -121,3 +121,6 @@ Custom P is now a full studio with 8 sections, all applied live:
 
 ## 2.2: Custom P window
 The Custom P window keeps the original look (tabs across the top, colour swatch cards, the icon grid, Reset to default / Done) with all the new options: themes, colours of every part, icons, text & fonts, layout, canvas area, cursor and effects.
+
+## 2.3: remembers your last work
+Close the app (or the tab) at any time: next time Sketchforge opens every file you had open, on the same tab, frame, zoom and position, with your tool and colours. Files keep their "unsaved" mark until you save them. File menu: "Reopen my last work at start (on / off)" and "Start fresh (close everything)".

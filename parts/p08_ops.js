@@ -207,6 +207,7 @@ function gotoFrame(n, quiet) {
   refreshStage(); updatePlayhead();
   if (!quiet) { renderLayers(); refreshProps(); updateOnion(); }
   syncTimelineFields(); updateStatus(); drawOverlay(); updateNav(); audioSeek();
+  if (!playing && typeof sessionSoon === 'function') sessionSoon();
 }
 function sameDrawing(l, a, b) {
   const fa = frameParams(l, a), fb = frameParams(l, b);

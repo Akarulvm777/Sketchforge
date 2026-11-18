@@ -128,12 +128,13 @@ function tlReset() { TL.gen++; TL.frames = []; clearTimeout(TL.vt); clearTimeout
 async function tlIdle() { await new Promise(r => setTimeout(r, 450)); await TL.chain; }
 
 /* ---- per-document storage (inside the .sketchforge file) ---- */
-async function tlSerialize() {
+async function tlSerialize(frames) {
   if (!TL.keep) return null;
-  await TL.chain;
-  if (!TL.frames.length) return null;
+  if (!frames) { await TL.chain; frames = TL.frames; }
+  if (!frames || !frames.length) return null;
   const toURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
-  return { mode: TL.mode, frames: await Promise.all(TL.frames.map(async f => ({ w: f.w, h: f.h, d: await toURL(f.b) }))) };
+  // each snapshot is encoded once (the session autosave serialises often)
+  return { mode: TL.mode, frames: await Promise.all(frames.map(async f => ({ w: f.w, h: f.h, d: f.d || (f.d = await toURL(f.b)) }))) };
 }
 async function tlRestore(data) {
   tlReset();

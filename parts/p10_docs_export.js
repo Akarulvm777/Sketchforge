@@ -118,35 +118,45 @@ $('#newCreate').onclick = () => {
 
 /* ---------- save / open (.sketchforge, JSON, v2) ---------- */
 /* The .sketchforge document as a plain object (also used to hand a document to another window). */
-async function buildDocObject() {
+/* src: which document ({ st: state fields, lc: layerCounter, aud, tl: time-lapse frames }); default = the open tab.
+   opts.cache: reuse each cel's last PNG while it is unchanged (session autosave); opts.quiet: no size warnings. */
+function docSource() { return { st: state, lc: layerCounter, aud, tl: null }; }
+function celURL(c, cache) {
+  if (!cache) return c.toDataURL('image/png');
+  if (c._su && c._suv === (c._sv || 0)) return c._su;
+  c._su = c.toDataURL('image/png'); c._suv = c._sv || 0; return c._su;
+}
+async function buildDocObject(src, opts = {}) {
+  src = src || docSource();
+  const st = src.st, enc = c => celURL(c, opts.cache);
   const doc = {
-    format: 'sketchforge', version: 2, name: state.name, w: state.w, h: state.h,
-    frameCount: state.frameCount, fps: state.fps, loop: state.loop, mode: state.mode,
-    layerCounter,
-    layers: state.layers.map(l => ({
+    format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
+    frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode,
+    layerCounter: src.lc,
+    layers: st.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
-      active: l.id === state.activeId,
-      parent: l.parent ? state.layers.findIndex(x => x.id === l.parent) : -1,
-      mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : c.toDataURL('image/png') })) } : null,
+      active: l.id === st.activeId,
+      parent: l.parent ? st.layers.findIndex(x => x.id === l.parent) : -1,
+      mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null,
-        data: c._ink === false ? null : c.toDataURL('image/png')
+        data: c._ink === false ? null : enc(c)
       }))
     }))
   };
-  for (let i = 0; i < state.layers.length; i++) if (state.layers[i].vref) doc.layers[i].vref = await vrefSerialize(state.layers[i]);
+  for (let i = 0; i < st.layers.length; i++) if (st.layers[i].vref) doc.layers[i].vref = await vrefSerialize(st.layers[i], opts.quiet);
   // puppet warp pins: each keyframe keeps its pins; the original drawings are stored once (shared by keys)
   const rests = new Map(), pupRests = [];
-  state.layers.forEach((l, i) => Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).forEach(([, c], j) => {
+  st.layers.forEach((l, i) => Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).forEach(([, c], j) => {
     if (!c._pup) return;
     let r = rests.get(c._pup.rest);
-    if (r === undefined) { r = pupRests.length; rests.set(c._pup.rest, r); pupRests.push(c._pup.rest.toDataURL('image/png')); }
+    if (r === undefined) { r = pupRests.length; rests.set(c._pup.rest, r); pupRests.push(enc(c._pup.rest)); }
     doc.layers[i].cels[j].pup = { r, pins: c._pup.pins, cur: c._pup.cur };
   }));
   if (pupRests.length) doc.pupRests = pupRests;
-  const au = typeof audioSerialize === 'function' ? await audioSerialize() : null;
+  const au = typeof audioSerialize === 'function' ? await audioSerialize(src.aud, opts.quiet) : null;
   if (au) doc.audio = au;
-  const tl = typeof tlSerialize === 'function' ? await tlSerialize() : null;
+  const tl = typeof tlSerialize === 'function' ? await tlSerialize(src.tl) : null;
   if (tl) doc.timelapse = tl;
   return doc;
 }

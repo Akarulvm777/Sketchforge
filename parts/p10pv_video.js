@@ -159,11 +159,11 @@ function vrefSettings() {
 const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 async function dataURLToFile(url, name) { const b = await (await fetch(url)).blob(); return new File([b], name, { type: b.type }); }
 /* layer record extras for buildDocObject */
-async function vrefSerialize(l) {
+async function vrefSerialize(l, quiet) {
   const v = l.vref;
   const out = { name: v.name, offset: v.offset, fit: v.fit, data: null };
-  if (v.file && v.file.size <= VREF_EMBED_MAX) out.data = await blobToDataURL(v.file);
-  else if (v.file) toast(`"${v.name}" is too big to keep inside the file (${Math.round(v.file.size / 1048576)} MB) — relink it after opening`);
+  if (v.file && v.file.size <= VREF_EMBED_MAX) out.data = v.file._d || (v.file._d = await blobToDataURL(v.file));
+  else if (v.file && !quiet) toast(`"${v.name}" is too big to keep inside the file (${Math.round(v.file.size / 1048576)} MB) — relink it after opening`);
   return out;
 }
 async function vrefRestore(l, rec) {
@@ -171,10 +171,10 @@ async function vrefRestore(l, rec) {
   if (rec.data) { try { await vrefAttach(l, await dataURLToFile(rec.data, rec.name)); } catch (e) { /* stays "missing" */ } }
   else vrefPaint(l);
 }
-async function audioSerialize() {
-  if (!aud.file) return null;
-  if (aud.file.size > VREF_EMBED_MAX) { toast('The audio file is too big to keep inside the document'); return { name: aud.name, data: null }; }
-  return { name: aud.name, data: await blobToDataURL(aud.file) };
+async function audioSerialize(a = aud, quiet) {
+  if (!a || !a.file) return null;
+  if (a.file.size > VREF_EMBED_MAX) { if (!quiet) toast('The audio file is too big to keep inside the document'); return { name: a.name, data: null }; }
+  return { name: a.name, data: a.file._d || (a.file._d = await blobToDataURL(a.file)) };
 }
 async function audioRestore(rec) {
   if (!rec || !rec.data) return;
