@@ -416,6 +416,7 @@ function canPaint() {
   const layer = activeLayer();
   if (!layer) { toast('No layer selected'); return null; }
   if (!layer.visible) { toast('Layer is hidden'); return null; }
+  if (layer.vref) { toast('This is a video reference layer — draw on another layer'); return null; }
   if (layer.locked) { toast('Layer is locked'); return null; }
   if (layer.maskEdit && layer.mask) { bindLayer(layer.mask, state.frame); return layer.mask; }
   return layer;
@@ -590,6 +591,7 @@ function compositeFrame(f, opts = {}) {
   const g = c.getContext('2d');
   state.layers.forEach((l, i) => {
     if (!l.visible || (opts.skipPaper && l.paper)) return;
+    if (l.vref) { if (opts.all) { g.save(); g.globalAlpha = l.opacity; g.drawImage(l.vref.canvas, 0, 0); g.restore(); } return; } // video reference: never exported
     if (opts.onlyRef ? !l.ref : ((l.draft || l.ref) && !opts.all)) return;
     const fp = frameParams(l, f);
     if (!fp) return;
@@ -617,6 +619,7 @@ function sampleColor(x, y) {
   pickCtx.clearRect(0, 0, 1, 1);
   for (const l of state.layers) {
     if (!l.visible) continue;
+    if (l.vref) { pickCtx.save(); pickCtx.globalAlpha = l.opacity; pickCtx.drawImage(l.vref.canvas, -x, -y); pickCtx.restore(); continue; } // pick colours from the video
     const fp = frameParams(l, state.frame);
     if (!fp) continue;
     pickCtx.save();

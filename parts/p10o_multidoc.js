@@ -39,7 +39,7 @@ function docBlankGlobals() {
   sel.mask = makeCanvas(state.w, state.h); sel.active = false; sel.bb = null;
   TL.gen++; TL.frames = [];
   if (aud.el) aud.el.pause();
-  Object.assign(aud, { el: null, name: '', peaks: null, dur: 0, url: '' });
+  Object.assign(aud, { el: null, name: '', peaks: null, dur: 0, url: '', file: null });
   lightPins.length = 0;
   dirty = false;
 }

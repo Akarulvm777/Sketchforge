@@ -62,7 +62,7 @@ function retime(p) {
   toast('Shooting on ' + k + 's');
 }
 /* ---- audio ---- */
-const aud = { el: null, name: '', peaks: null, dur: 0, url: '' };
+const aud = { el: null, name: '', peaks: null, dur: 0, url: '', file: null };
 function audioStart() { if (!aud.el) return; try { aud.el.currentTime = Math.min(aud.dur, state.frame / state.fps); aud.el.play(); } catch (e) { /* autoplay policy */ } }
 function audioStop() { if (aud.el) aud.el.pause(); }
 function audioSeek() { if (aud.el && !playing) { try { aud.el.currentTime = Math.min(aud.dur, state.frame / state.fps); } catch (e) { /* ignore */ } } }
@@ -79,7 +79,7 @@ function drawAudioStrip() {
   g.fillStyle = '#7fb4e8';
   for (let x = 0; x < total; x++) { const i = Math.min(aud.peaks.length - 1, Math.floor(x / (aud.dur * pxPerSec) * aud.peaks.length)), a = aud.peaks[i] * (h - 10) / 2; g.fillRect(off + x, h / 2 - a, 1, Math.max(1, a * 2)); }
 }
-async function audioImport(file) {
+async function audioImport(file, quiet) {
   try {
     const buf = await file.arrayBuffer();
     const AC = window.AudioContext || window.webkitAudioContext, ac = new AC();
@@ -87,11 +87,13 @@ async function audioImport(file) {
     const ch = dec.getChannelData(0), N = 4000, peaks = new Float32Array(N), step = Math.max(1, Math.floor(ch.length / N));
     for (let i = 0; i < N; i++) { let m = 0; for (let j = 0; j < step; j++) m = Math.max(m, Math.abs(ch[i * step + j] || 0)); peaks[i] = m; }
     if (aud.url) URL.revokeObjectURL(aud.url);
-    aud.url = URL.createObjectURL(file); aud.el = new Audio(aud.url); aud.name = file.name; aud.dur = dec.duration; aud.peaks = peaks;
-    drawAudioStrip(); toast('Audio loaded: ' + file.name + ' (' + dec.duration.toFixed(1) + ' s) — it plays with the animation');
-  } catch (e) { toast('Could not read that audio file'); }
+    if (aud.el) aud.el.pause();
+    aud.url = URL.createObjectURL(file); aud.el = new Audio(aud.url); aud.name = file.name; aud.dur = dec.duration; aud.peaks = peaks; aud.file = file;
+    drawAudioStrip(); if (!quiet) toast('Audio loaded: ' + file.name + ' (' + dec.duration.toFixed(1) + ' s) — it plays with the animation');
+    if (typeof markDirty === 'function' && !quiet) markDirty();
+  } catch (e) { if (!quiet || file.type.startsWith('audio/')) toast(file.type.startsWith('video/') ? 'This video has no sound the browser can read' : 'Could not read that audio file'); }
 }
-function audioRemove() { audioStop(); aud.el = null; aud.peaks = null; drawAudioStrip(); toast('Audio removed'); }
+function audioRemove() { audioStop(); aud.el = null; aud.peaks = null; aud.file = null; drawAudioStrip(); markDirty(); toast('Audio removed'); }
 /* ---- pages (comic) ---- */
 function pagesExpand() { /* every layer gets its own cel on every page */
   for (const l of state.layers) for (let f = 0; f < state.frameCount; f++) if (!l.cels.has(f)) { const c = celCanvas(l, f); l.cels.set(f, c ? copyCel(c, false) : makeCel(false)); }

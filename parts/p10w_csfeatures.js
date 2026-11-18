@@ -3,7 +3,7 @@
    Filter menu, Tonal correction, Select > expand / shrink / blur border.          */
 
 function layerFlags(l) {
-  return (l.clip ? '  clip' : '') + (l.alock ? '  α-lock' : '') + (l.ref ? '  REF' : '') + (l.draft ? '  draft' : '') + (l.mask ? (l.maskEdit ? '  MASK✎' : '  mask') : '');
+  return (l.vref ? '  VIDEO' : '') + (l.clip ? '  clip' : '') + (l.alock ? '  α-lock' : '') + (l.ref ? '  REF' : '') + (l.draft ? '  draft' : '') + (l.mask ? (l.maskEdit ? '  MASK✎' : '  mask') : '');
 }
 function clipBaseOf(i) {
   for (let j = i - 1; j >= 0; j--) if (!state.layers[j].clip) return state.layers[j];

@@ -133,6 +133,9 @@ async function buildDocObject() {
       }))
     }))
   };
+  for (let i = 0; i < state.layers.length; i++) if (state.layers[i].vref) doc.layers[i].vref = await vrefSerialize(state.layers[i]);
+  const au = typeof audioSerialize === 'function' ? await audioSerialize() : null;
+  if (au) doc.audio = au;
   const tl = typeof tlSerialize === 'function' ? await tlSerialize() : null;
   if (tl) doc.timelapse = tl;
   return doc;
@@ -171,6 +174,7 @@ async function openDocumentFile(file) {
         if (!m.cels.size) m.cels.set(0, makeCel(false));
         l.mask = m;
       }
+      if (ld.vref && typeof vrefRestore === 'function') { await vrefRestore(l, ld.vref); bindLayer(l, 0); }
       state.layers.push(l);
       if (ld.active) state.activeId = l.id;
     }
@@ -178,6 +182,7 @@ async function openDocumentFile(file) {
     history.undo.length = 0; history.redo.length = 0;
     resetSelection();
     dirty = false;
+    if (doc.audio && typeof audioRestore === 'function') await audioRestore(doc.audio);
     if (typeof tlRestore === 'function') TL.restoring = true;
     setMode(doc.mode || (state.frameCount > 1 ? 'anim' : 'draw'), true);
     refreshAll(); syncTab(); fit();

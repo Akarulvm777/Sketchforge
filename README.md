@@ -68,3 +68,10 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - Each document keeps its own layers, size, undo history, selection, zoom / rotation, time-lapse and audio. Copy / paste works between documents.
 - Right-click a tab (or Window menu): close others, duplicate, **Move to new window** (the document opens in a separate app window and leaves this one), Open a copy in new window.
 - Window → Second view: a floating live view of the current document with its own zoom, rotation and flip; ⧉ pops it out into its own window.
+
+## 2.0.x: video and sound reference
+- Animation → Import video reference… (also Layer menu, or drop a video on the canvas). Two ways to use it:
+  - **Reference layer**: a VIDEO layer that shows the matching video frame for every timeline frame and plays with the animation. Adjustable opacity, start frame and fit; it can't be painted on and is never exported. The eyedropper picks colours from it.
+  - **Animation frames**: every video frame becomes a frame on a new layer, to trace or paint over (rotoscoping).
+- The video's sound can become the audio track; Layer → Add sound / voice… loads any audio file. Both play with the animation.
+- Video and sound are kept inside the .sketchforge file (up to 60 MB each); bigger videos can be relinked with Animation → Relink video….

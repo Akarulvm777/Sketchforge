@@ -76,6 +76,7 @@ function celCanvas(l, f) {
   return k === null ? null : l.cels.get(k);
 }
 function bindLayer(l, f) {
+  if (l.vref) { l.canvas = l.vref.canvas; l.ctx = null; vrefShow(l, f); return; } // video reference layer (p10pv_video)
   const c = celCanvas(l, f);
   l.canvas = c;
   l.ctx = c ? c.getContext('2d') : null;
