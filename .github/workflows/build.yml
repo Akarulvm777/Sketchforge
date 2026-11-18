@@ -94,13 +94,15 @@ jobs:
           npx cap sync android
       - name: Sign with the Sketchforge key (so a new APK installs over the old one, keeping drawings and settings)
         env:
-          KS: ${{ secrets.ANDROID_KEYSTORE }}
+          KS1: ${{ secrets.ANDROID_KEYSTORE }}
+          KS2: ${{ secrets.ANDROID_KEYSTORE_2 }}
         run: |
+          KS="$KS1$KS2" # the key in one or two parts (phones copy at most 2000 characters at once)
           if [ -n "$KS" ]; then
             printf '%s' "$KS" | tr -d ' \r\n' | base64 -d > android/app/sketchforge.keystore
             CLEAN=$(printf '%s' "$KS" | tr -d ' \r\n'); echo "Secret: ${#CLEAN} characters (expected 3536), key file: $(wc -c < android/app/sketchforge.keystore) bytes (expected 2650)"
             if ! keytool -list -keystore android/app/sketchforge.keystore -storepass android -alias androiddebugkey >/dev/null 2>&1; then
-              echo "::error::The ANDROID_KEYSTORE secret is not the Sketchforge key (cut off or changed when pasted). Paste the whole ANDROID_KEYSTORE.txt again: Settings > Secrets and variables > Actions > ANDROID_KEYSTORE > Update."; exit 1
+              echo "::error::The ANDROID_KEYSTORE secret is not the Sketchforge key (cut off or changed when pasted). Put part 1 in secret ANDROID_KEYSTORE and part 2 in secret ANDROID_KEYSTORE_2 (Settings > Secrets and variables > Actions)."; exit 1
             fi
             # sign debug builds with this key explicitly (Gradle's default ~/.android/debug.keystore is not reliable on CI)
             cat >> android/app/build.gradle <<'GRADLE'
