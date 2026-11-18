@@ -97,17 +97,35 @@ jobs:
           KS: ${{ secrets.ANDROID_KEYSTORE }}
         run: |
           if [ -n "$KS" ]; then
-            for d in "$HOME/.android" ${ANDROID_USER_HOME:+"$ANDROID_USER_HOME"}; do mkdir -p "$d"; echo "$KS" | base64 -d > "$d/debug.keystore"; done
+            printf '%s' "$KS" | tr -d ' \r\n' | base64 -d > android/app/sketchforge.keystore
+            keytool -list -v -keystore android/app/sketchforge.keystore -storepass android | grep -i 'SHA256:' | head -1
+            # sign debug builds with this key explicitly (Gradle's default ~/.android/debug.keystore is not reliable on CI)
+            cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file('sketchforge.keystore')
+                      storePassword 'android'
+                      keyAlias 'androiddebugkey'
+                      keyPassword 'android'
+                  }
+              }
+          }
+          GRADLE
+            echo "SF_SIGNED=1" >> "$GITHUB_ENV"
             echo "Using the Sketchforge signing key"
           else
             echo "::warning::Secret ANDROID_KEYSTORE is not set: this APK gets a random key and cannot be installed over a previous version"
           fi
       - name: Build APK
         run: cd android && ./gradlew assembleDebug --no-daemon
-      - name: Show the signing certificate
+      - name: Check the signing certificate
         run: |
           AS=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
-          "$AS" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256" || true
+          CERT=$("$AS" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256" | head -1 | awk '{print $NF}')
+          echo "APK certificate SHA-256: $CERT"
+          WANT=46de89643bbc415f6a04eea7c44223056e4f3c1522f98f648203bdc5deca10f8
+          if [ "$SF_SIGNED" = 1 ] && [ "$CERT" != "$WANT" ]; then echo "::error::The APK is not signed with the Sketchforge key"; exit 1; fi
       - name: Name the APK
         run: |
           VER=$(node -p "require('./package.json').version")
