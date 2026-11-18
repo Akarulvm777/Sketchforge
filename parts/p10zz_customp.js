@@ -555,6 +555,7 @@ async function cpRefreshDlg(force) {
   d.querySelector('#cpResetSec').onclick = () => { if (cpTab === 'themes') { if (confirm('Back to the default colours and layout?')) { CP.preset = 'default'; CP.custom = null; CP.o = {}; cpApplyAll(); cpSave(); cpRefreshDlg(); } } else cpResetSection(cpTab); };
   d.querySelector('#cpReset').onclick = () => { if (confirm('Reset colours, layout, fonts, icons and effects to the default?')) cpResetAll(); };
   d.querySelector('#cpClose').onclick = () => d.close();
+  if (typeof tutHost === 'function') tutHost();
 }
 
 function installCustomP() {

@@ -1,4 +1,4 @@
-# Sketchforge 2.2 — drawing + animation studio
+# Sketchforge 2.3 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -6,6 +6,8 @@ Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code,
 ## Run it
 - **Any browser / phone / tablet:** open `index.html` (or host the folder; it installs as a PWA — "Add to Home Screen").
 - **Desktop app:** `npm install` then `npm start` (Electron). `npm run dist` builds installers (electron-builder).
+- **Installers:** every release on the GitHub Releases page has `Sketchforge-Setup-<version>.exe` (Windows), `.dmg` (Mac: arm64 = Apple Silicon, x64 = Intel), `Sketchforge-<version>-android.apk` (Android phones and tablets), an `.AppImage` (Linux) and a web zip. They are built by `.github/workflows/build.yml` (push a commit whose message contains `[release]`, or run "Build apps" by hand with "release" ticked).
+- **iPad / iPhone:** host the folder (or the web zip) and open it in Safari → Share → Add to Home Screen.
 - Mobile native shell: wrap the same folder with Capacitor (`npx cap add android|ios`).
 
 ## What's in this stage
@@ -124,3 +126,15 @@ The Custom P window keeps the original look (tabs across the top, colour swatch 
 
 ## 2.3: remembers your last work
 Close the app (or the tab) at any time: next time Sketchforge opens every file you had open, on the same tab, frame, zoom and position, with your tool and colours. Files keep their "unsaved" mark until you save them. File menu: "Reopen my last work at start (on / off)" and "Start fresh (close everything)".
+
+## 2.3: installable apps
+- Windows installer (.exe), Mac app (.dmg, Apple Silicon and Intel), Android app (.apk) and Linux AppImage, built automatically by GitHub Actions and attached to each release. iPad / iPhone: Add to Home Screen from Safari.
+- Phones and small tablets: a ☰ Menu button replaces the menu bar, and Panels opens tool settings, then layers, as full-screen sheets. In the Android app, Save and Export write to Documents/Sketchforge (or open the share sheet).
+
+## 2.3: tutorials
+Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with ▶ "Show me" buttons and ✓ marks for finished ones:
+- Get started: Welcome tour (offered on first start), Your first drawing.
+- Tools & options: Every tool one by one (each tool and its sub tools), All menus and options, Layers & selections, Pen tablet & pressure.
+- Features: Symmetry, time-lapse, 3D, multiple files, Photoshop / Clip Studio files, video & sound reference, remembered work.
+- Animation & rigging: Make an animation, Motion tweens, Rig a character (bones), Bend a drawing (puppet pins), Reuse drawings.
+- Customise: Custom P (walks through every tab), Install the app.

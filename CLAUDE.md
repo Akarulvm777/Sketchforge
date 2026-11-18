@@ -65,6 +65,8 @@ Modules dans `parts/` :
 - `p10x_penset` : les 11 pens intégrés, avec des tips en base64 (lignes très longues : ne pas l'ouvrir en entier).
 - `p10y_3d` : panneau 3D (mannequins riggés de `models3d.js`, repli sur un mannequin procédural, primitives, glTF et OBJ).
 - `p10z_addons` : panneaux flottants et dockables, API add-ons (`Sketchforge.addBrush`, `addCommand`…), import `.sut`.
+- `p10zx_tutorial` : tutoriels (Help › 📚 Tutorials). `TUTORIALS` = liste de tours ; une étape = `{ el (sélecteur ou liste, le premier visible gagne), t, x (HTML), pre (prépare l'écran), demo: [libellé, fn] }`. Overlay spotlight + carte ; quand Custom P est ouvert, l'overlay vit dans `#cpDialog` (`tutHost`, rappelé par `cpRefreshDlg`). ✓ et « déjà vu » : `sketchforge.tutorials.v1`. Carte « take the tour » au premier lancement (désactivée dans `harness.cjs`, testée par `tuttest`). **Si tu renommes un id / sélecteur de l'interface, lance `tuttest` : il vérifie que chaque cible de chaque étape existe (bureau + téléphone).**
+- `p10zy_mobile` : téléphone / tablette (bouton ☰ Menu, Panels en feuilles plein écran) et sauvegarde native dans l'app Android Capacitor (`isNativeApp`, `nativeSave`, appelés par `download()` de p00).
 - `p10zz_customp` : « 🎨 Custom P », studio de personnalisation en 8 sections (thèmes / couleurs de chaque zone / texte et polices / mise en page et tailles / icônes / zone du canevas / curseur / effets). Couleurs de base : repeint toutes les couleurs de `style.css` via le CSSOM (gris → rampe du thème, cuivre / bleu ardoise → accent). Tout le reste (`CP.o`) est généré dans la feuille `<style id="cpOv">` par `cpOverrides()` (zones dans `CP_AREAS`, avec contraste automatique du texte). Images et police perso, thèmes sauvés : IndexedDB `sketchforge-customp`. Export / import `.sftheme`. Clé `sketchforge.customp.v2` (migre la v1). Icônes perso : hook `customIcons` dans `icon()` de p00. Si tu ajoutes une zone d'interface, ajoute-la à `CP_AREAS`.
 - `p11_main` : construction des menus (`data-cmd`), raccourcis, init, enregistrement du SW.
 
@@ -80,6 +82,7 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
    - `index.html` → `<title>`, `?v=` sur `style.css` et `app.js`, texte de la barre d'état
    - `sw.js` → `CACHE` (sinon les PWA installées gardent l'ancien code)
    - `README.md` → titre et une section changelog
+   - Installeurs : `.github/workflows/build.yml` construit .exe / .dmg / .AppImage (electron-builder) et l'APK Android (Capacitor, `tools/build_www.mjs` + `tools/android_icons.sh`). Les tags ne passent pas par le proxy : un commit dont le message contient `[build]` lance une build de test, `[release]` publie la Release GitHub `v<version>`.
 3. Si tu ajoutes un fichier que l'app charge, ajoute-le aussi à `ASSETS` dans `sw.js` **et** à `build.files` dans `package.json`.
 4. Interdit : ajouter une dépendance runtime ou un bundler sans accord de l'utilisateur. Le projet doit rester un dossier statique ouvrable tel quel.
 5. Aucun asset, code ni nom de marque de Clip Studio ou d'Adobe. Les fichiers `.sut` et `.lmtl` sont lus uniquement via l'import utilisateur.

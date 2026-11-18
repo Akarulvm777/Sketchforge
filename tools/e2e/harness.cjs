@@ -6,6 +6,8 @@ exports.open = async (root, port = 8767, viewport = { width: 1500, height: 950 }
   const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' }); r.end(d); }); }).listen(port);
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', ...extraArgs] });
   const ctx = await b.newContext({ viewport, acceptDownloads: true });
+  // skip the first-start "take the tour" card (tuttest sets SF_TUT_FIRST=1 to test it)
+  if (!process.env.SF_TUT_FIRST) await ctx.addInitScript(() => { try { if (!localStorage.getItem('sketchforge.tutorials.v1')) localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); } catch (e) {} });
   const pg = await ctx.newPage();
   const errors = []; pg.on('pageerror', e => errors.push(String(e)));
   await pg.goto(`http://127.0.0.1:${port}/index.html`); await pg.waitForTimeout(2000);
