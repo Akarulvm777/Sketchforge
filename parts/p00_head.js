@@ -219,11 +219,11 @@ function clampBox(x0, y0, x1, y1) {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 let toastTimer = 0;
-function toast(msg) {
+function toast(msg, ms) {
   toastEl.textContent = msg;
   toastEl.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms || 2200);
 }
 function download(blob, name) {
   const a = document.createElement('a');

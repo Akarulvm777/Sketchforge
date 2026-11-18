@@ -75,3 +75,8 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
   - **Animation frames**: every video frame becomes a frame on a new layer, to trace or paint over (rotoscoping).
 - The video's sound can become the audio track; Layer → Add sound / voice… loads any audio file. Both play with the animation.
 - Video and sound are kept inside the .sketchforge file (up to 60 MB each); bigger videos can be relinked with Animation → Relink video….
+
+## 2.0.x: open Photoshop and Clip Studio files
+- File → Open (or drop on the canvas) now opens **.psd / .psb** with their layers: position, opacity, visibility, blend mode, clipping; RGB, grayscale and CMYK, 8 and 16 bit. Groups are flattened (their visibility / opacity apply, the group name is added before the layer name), layer masks are applied to the pixels.
+- **Save as Photoshop PSD** keeps layers, opacity, visibility, blend modes, clipping and non-English layer names.
+- **.clip** (Clip Studio) files open as one flattened picture (the full preview stored inside the file); the .clip format is not public, so separate layers are not available — export PSD from Clip Studio for layers.

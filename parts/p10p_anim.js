@@ -182,11 +182,15 @@ function exportPSD() {
   for (const { l, d } of layers) {
     const planes = [3, 0, 1, 2].map(ch => { const p = new Uint8Array(W * H); for (let i = 0, j = ch; i < p.length; i++, j += 4) p[i] = d[j]; return p; });
     const ids = [-1, 0, 1, 2];
-    const nm = new TextEncoder().encode(l.name.slice(0, 200)), padN = (1 + nm.length + 3) & ~3;
+    const ascName = l.name.slice(0, 200).replace(/[^\x20-\x7e]/g, '_'), nm = ascii(ascName), padN = (1 + nm.length + 3) & ~3;
+    // 'luni' block: the real (Unicode) layer name, so Photoshop shows non-English names correctly
+    const uni = l.name.slice(0, 200), luniLen = 4 + uni.length * 2 + ((4 + uni.length * 2) % 4 ? 4 - (4 + uni.length * 2) % 4 : 0);
+    const luni = new Uint8Array(12 + luniLen), lv = new DataView(luni.buffer);
+    luni.set(ascii('8BIMluni')); lv.setUint32(8, luniLen); lv.setUint32(12, uni.length); for (let k = 0; k < uni.length; k++) lv.setUint16(16 + k * 2, uni.charCodeAt(k));
     const parts = [be(0, 4), be(0, 4), be(H, 4), be(W, 4), be(4, 2)];
     ids.forEach((id, i) => { parts.push(be(id & 0xffff, 2), be(W * H + 2, 4)); });
-    parts.push(ascii('8BIM'), ascii(PSD_BLEND[l.blend] || 'norm'), new Uint8Array([Math.round(l.opacity * 255), 0, l.visible ? 0 : 2, 0]), be(4 + 4 + padN, 4), be(0, 4), be(0, 4));
-    const pn = new Uint8Array(padN); pn[0] = nm.length; pn.set(nm, 1); parts.push(pn);
+    parts.push(ascii('8BIM'), ascii(PSD_BLEND[l.blend] || 'norm'), new Uint8Array([Math.round(l.opacity * 255), l.clip ? 1 : 0, l.visible ? 0 : 2, 0]), be(4 + 4 + padN + luni.length, 4), be(0, 4), be(0, 4));
+    const pn = new Uint8Array(padN); pn[0] = nm.length; pn.set(nm, 1); parts.push(pn, luni);
     recs.push(parts);
     chData.push(planes);
   }
