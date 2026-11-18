@@ -586,6 +586,10 @@ body.mode-draw #timeline, body.mode-draw #tlResize, body.mode-draw .menu[data-me
 #tlBtn { background:#3a3a3a; color:#ccc; border:1px solid #2a2a2a; border-radius:3px; padding:2px 10px; font-size:12px; cursor:pointer; margin-left:8px; }
 #tlBtn.rec { color:#ff7a6a; }
 #tlBtn { white-space:nowrap; flex:0 0 auto; }
+#cmdbar #tlBtn { display:inline-flex !important; flex-direction:row; align-items:stretch; overflow:hidden; padding:0 0 0 10px; gap:6px; }
+#cmdbar #tlBtn .lbl { display:flex; align-items:center; }
+#tlBtn .caret { padding:0 7px; border-left:1px solid rgba(0,0,0,.35); display:flex; align-items:center; }
+#tlBtn .caret:hover { background:rgba(255,255,255,.08); }
 #audioWrap { overflow:hidden; background:#2a2a2a; border-bottom:1px solid #1a1a1a; flex:0 0 34px; }
 #audioWrap[hidden] { display:none; }
 dialog.pgdlg { max-width:92vw; }

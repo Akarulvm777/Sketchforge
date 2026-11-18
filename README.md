@@ -57,3 +57,8 @@ Check the licence of the base mesh before distributing the app.
 
 ## 2.0.x: 🎨 Custom P menu
 New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light, Paper, Sakura, Forest, Ocean, Purple night, Sepia, High contrast, or "My colours" (background, panels, text, accent and canvas area, applied live). Icons: replace any icon with any image file the browser can open (PNG, JPG, GIF, WebP, SVG, BMP, ICO…); it is resized to icon size automatically, and × restores the original. "Reset to default" puts colours and icons back. Settings are remembered on this device.
+
+## 2.0.x: time-lapse per file, workspace recording
+- The "REC Time-lapse" button turns recording on / off (remembered); ▾ opens options and export.
+- Each file has its own time-lapse: New starts an empty one, it is saved inside the .sketchforge file (optional) and continues when you reopen that file.
+- Record modes: **Workspace view** (default: the canvas as you see it, with zoom, pan, rotation, cursor, current tool, brush size and colour), **Whole screen** (real screen recording of the app, desktop browsers and the desktop app; asks permission), **Canvas only** (as before).

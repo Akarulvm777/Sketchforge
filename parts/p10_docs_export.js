@@ -117,7 +117,7 @@ $('#newCreate').onclick = () => {
 };
 
 /* ---------- save / open (.sketchforge, JSON, v2) ---------- */
-function saveDocument() {
+async function saveDocument() {
   const doc = {
     format: 'sketchforge', version: 2, name: state.name, w: state.w, h: state.h,
     frameCount: state.frameCount, fps: state.fps, loop: state.loop, mode: state.mode,
@@ -132,6 +132,8 @@ function saveDocument() {
       }))
     }))
   };
+  const tl = typeof tlSerialize === 'function' ? await tlSerialize() : null;
+  if (tl) doc.timelapse = tl;
   const blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
   download(blob, (state.name || 'Untitled').replace(/[^\w\- ]+/g, '_') + '.sketchforge');
   dirty = false; syncTab();
@@ -170,8 +172,10 @@ async function openDocumentFile(file) {
     history.undo.length = 0; history.redo.length = 0;
     resetSelection();
     dirty = false;
+    if (typeof tlRestore === 'function') TL.restoring = true;
     setMode(doc.mode || (state.frameCount > 1 ? 'anim' : 'draw'), true);
     refreshAll(); syncTab(); fit();
+    if (typeof tlRestore === 'function') { await tlRestore(doc.timelapse); TL.restoring = false; if (!TL.frames.length) setTimeout(() => tlCapture(true), 100); }
     toast('Opened ' + state.name);
   } catch (err) {
     toast('Could not open file: ' + err.message);

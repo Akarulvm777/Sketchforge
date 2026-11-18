@@ -1,5 +1,5 @@
 // Desktop wrapper (Electron). Run with: npm start
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, session } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -30,6 +30,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Time-lapse "Whole screen" mode: getDisplayMedia records the app's own window.
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => callback({ video: request.frame }));
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

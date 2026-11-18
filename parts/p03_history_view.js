@@ -107,6 +107,7 @@ function applyView() {
   syncNav();
   scheduleAntsRebuild();
   drawOverlay();
+  if (typeof tlViewChanged === 'function') tlViewChanged();
 }
 function anchorView(cx, cy, p) {
   const m = vmat();

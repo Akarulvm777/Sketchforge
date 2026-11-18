@@ -53,7 +53,7 @@ Modules dans `parts/` :
 - `p10r_pro` : règles, cases de manga, bulles, effets manga.
 - `p10s_masks` : masques de calque.
 - `p10t_symmetry` : bouton / popup / menu Symétrie (miroir, 4 axes, radial, kaléidoscope). La géométrie (`symMats`, `symLocal`) est dans `p10r_pro`, l'application aux traits et formes dans `p04_brush` (`stampAt`, `drawShapePreview`).
-- `p10u_timelapse` : enregistrement time-lapse.
+- `p10u_timelapse` : time-lapse, un par document (remis à zéro par New, sauvé dans le `.sketchforge` sous `timelapse`, restauré à l'ouverture ; `TL.gen` empêche les captures en retard d'un autre fichier d'y entrer). Modes : `canvas`, `view` (vue de travail : zoom, rotation, curseur, outil), `screen` (getDisplayMedia ; dans Electron, `setDisplayMediaRequestHandler` de `main.js`). Bouton REC on/off + ▾ options, préférences `sketchforge.tl.v1`.
 - `p10v_workspace` : espaces de travail Dessin et Animation.
 - `p10w_csfeatures` : clipping, verrou de transparence, calques référence et brouillon, menu Filtre, Select expand/shrink.
 - `p10x_penset` : les 11 pens intégrés, avec des tips en base64 (lignes très longues : ne pas l'ouvrir en entier).

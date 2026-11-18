@@ -137,6 +137,7 @@ function selectTool(id) {
   renderSubTools(); refreshProps(); drawOverlay();
   viewport.dataset.tool = kindOf(id);
   updateCursor();
+  if (typeof tlViewChanged === 'function') tlViewChanged();
 }
 /* little sample stroke so each pen can be told apart at a glance */
 function strokePreview(id) {
