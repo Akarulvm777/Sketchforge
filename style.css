@@ -688,3 +688,13 @@ svg.cicon { overflow: visible; }
 .pendlg .pentips ul { margin: 6px 0 0 18px; padding: 0; line-height: 1.5; }
 /* iPad / Apple Pencil: no text selection, callouts or magnifier on the drawing area */
 #viewport, #toolbox, #timeline, #tabbar { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* drawing library */
+.libpanel { right: 290px; top: 120px; bottom: auto; width: 300px; height: 380px; }
+.libgrid { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 8px; align-content: start; }
+.libitem { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); cursor: pointer; }
+.libitem:hover { border-color: var(--accent); }
+.libitem img { width: 72px; height: 60px; object-fit: contain; background: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 12px 12px; border-radius: 4px; }
+.libitem span { font-size: 10px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.libitem .x { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; line-height: 16px; display: none; }
+.libitem:hover .x { display: block; }

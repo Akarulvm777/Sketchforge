@@ -86,3 +86,8 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - View → Pen pressure & touch: **Calibrate my pen** (draw a few light-to-hard strokes; the app uses the range your pen really reaches — useful for XP-Pen / Huion pens that never report full pressure), Soft / Normal / Firm presets, a live "pressure is working" check, and setup steps for Wacom, XP-Pen, Huion, Gaomon / Veikk, macOS, iPad + Apple Pencil, Surface / Samsung.
 - The pen's side button works: eyedropper by default (or move the canvas / nothing).
 - iPad: no more text-selection magnifier or callout interrupting Apple Pencil strokes.
+
+## 2.0.x: reuse drawings in animation
+- Animation → Copy drawing / Paste drawing here (Alt+C / Alt+V): copy one layer's drawing to another frame, layer or document as a new keyframe — no redrawing.
+- Animation → Repeat frames (cycle)…: repeat a frame range N times (walk / run cycles), on all layers or only the active one.
+- Animation (or Window) → Drawing library: save a drawing or a selection once; click it (or drag it onto the canvas) to place it again on any frame, in any document. The library is kept in the browser between sessions.
