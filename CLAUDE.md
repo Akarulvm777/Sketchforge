@@ -93,6 +93,8 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
    - `sw.js` → `CACHE` (sinon les PWA installées gardent l'ancien code)
    - `README.md` → titre et une section changelog
    - Installeurs : `.github/workflows/build.yml` construit .exe / .dmg / .AppImage (electron-builder) et l'APK Android (Capacitor, `tools/build_www.mjs` + `tools/android_icons.sh`). Les tags ne passent pas par le proxy : un commit dont la **première ligne** du message contient `[build]` lance une build de test, `[release]` publie la Release GitHub `v<version>`.
+   - **Clé de signature Android** : secret GitHub `ANDROID_KEYSTORE` (keystore PKCS12 en base64, alias `androiddebugkey`, mots de passe `android`, écrite comme `debug.keystore` avant `assembleDebug`). Sans elle, chaque APK a une clé aléatoire et ne s'installe pas par-dessus l'ancienne. **Ne jamais la mettre dans le dépôt (public).**
+   - Notes de version : `build.py` injecte `APP_CHANGES` (sections `## X.Y: …` du README pour la version courante) : popup « What's new » au premier lancement d'une nouvelle version (`whatsNew`, clé `sketchforge.lastver`) et section du site.
    - Avant une release, si l'interface a changé : `node tools/make_screenshots.cjs` (images du site). Une release met à jour toutes les apps installées (≥ 2.4.0) via le site ; si une version a besoin d'une nouvelle app installée (main.js, Capacitor), monte `sketchforge.minShell` dans `package.json`.
 3. Si tu ajoutes un fichier que l'app charge, ajoute-le aussi à `ASSETS` dans `sw.js` **et** à `build.files` dans `package.json`.
 4. Interdit : ajouter une dépendance runtime ou un bundler sans accord de l'utilisateur. Le projet doit rester un dossier statique ouvrable tel quel.

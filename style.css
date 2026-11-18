@@ -853,3 +853,11 @@ svg.cicon { overflow: visible; }
   #aiFab:active { transform: scale(.94); }
   #aiPanel { right: 8px; left: 8px; width: auto; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); height: min(70vh, 560px); }
 }
+
+/* ---- what's new ---- */
+.wndlg { width: min(94vw, 560px); max-height: 88vh; }
+.wndlg h5 { margin: 0 0 6px; font-size: 16px; }
+.wnlist { max-height: 62vh; overflow: auto; display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 1.5; }
+.wnlist ul { margin: 4px 0 0; padding-left: 18px; }
+.wnlist li { margin: 3px 0; }
+.wnfix { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 0 6px; border-radius: 5px; background: rgba(63, 191, 111, .18); color: #4fc97c; }

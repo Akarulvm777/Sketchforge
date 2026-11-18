@@ -1,4 +1,4 @@
-# Sketchforge 2.5 — drawing + animation studio
+# Sketchforge 2.6 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -179,3 +179,11 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.5: manga tones and shading pens
 - New Manga tone tool: dot tones 10 / 20 / 30 / 50 %, fine and big dots, line, horizontal line and cross-hatch tones, sand tone and a tone eraser. The pattern stays aligned on the page like a real tone sheet, so overlapping strokes never double the dots.
 - New Shading pens: shadow pen (solid blacks), hatching brush, cross-hatching brush, stipple pen.
+
+## 2.6: your picture around the page
+- 🎨 Custom P › Colours › Pictures: "Around the page" puts your own image in the area around the drawing (where you draw), besides the whole app background, panels, menu bar, tool palette and timeline.
+
+## 2.6: easier updates
+- When a new version needs a new installer, a popup offers "Download update": install it over the old app, no need to uninstall, your drawings and settings stay.
+- After updating, a "What's new" popup lists what changed and what was fixed (also in Help › What's new in this version).
+- Fixed: a new Android APK could not be installed over the previous one ("App not installed"). Android versions are now signed with the same Sketchforge key every time. One last time only: uninstall the old Android app before installing 2.6 (save your drawings first).

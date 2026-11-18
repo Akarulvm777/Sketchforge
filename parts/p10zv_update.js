@@ -48,6 +48,12 @@ async function androidLiveUpdate(j) {
   updCard(`<b>⬆ Sketchforge ${v} is ready</b>${notesHtml(j)}<span class="muted small">Your work is kept and reopened.</span>`,
     [['Later'], ['Use it now', async () => { await updSaveFirst(); location.replace(url); }, true]]);
 }
+/* opens an installer link in the browser (Android: the system browser downloads the .apk; Windows: the .exe) */
+function openDownload(url) {
+  if (isElectron()) window.open(url, '_blank'); // main.js sends web links to the browser
+  else if (typeof isNativeApp === 'function' && isNativeApp()) location.assign(url); // Capacitor opens other sites in the browser
+  else window.open(url, '_blank');
+}
 async function checkForUpdate(manual) {
   const site = siteUrl();
   if (!site) { if (manual) toast('Updates come from the Sketchforge website, which is not set up in this copy yet.'); return; }
@@ -59,8 +65,8 @@ async function checkForUpdate(manual) {
   const need = j.shell && j.shell[sh.platform];
   const dl = j.downloads && (sh.platform === 'android' ? j.downloads.android : sh.platform === 'desktop' ? (/Mac/.test(navigator.platform) ? (j.downloads.macArm || j.downloads.mac) : /Linux/.test(navigator.platform) ? j.downloads.linux : j.downloads.windows) : null);
   if (need && verGt(need, sh.version) && sh.platform !== 'web') {
-    updCard(`<b>⬆ Sketchforge ${j.version}</b>${notesHtml(j)}This update needs the new app: download and install it over this one (your work is kept).`,
-      [['Later'], ['Download', () => window.open(dl || site + '/#download', '_blank'), true]]);
+    updCard(`<b>⬆ Sketchforge ${j.version} is available</b>${notesHtml(j)}Tap <b>Download update</b>, then open the file and install it <b>over this one</b> — no need to uninstall: your drawings and settings stay.`,
+      [['Later'], ['Download update', () => openDownload(dl || site + '/#download'), true]]);
     return;
   }
   if (sh.platform === 'web') {
@@ -68,6 +74,21 @@ async function checkForUpdate(manual) {
   } else if (sh.platform === 'android') {
     try { await androidLiveUpdate(j); } catch (e) { console.warn('update', e); if (manual) toast('Update failed: ' + e.message); }
   } else if (manual) toast('Downloading Sketchforge ' + j.version + ' in the background…');
+}
+/* What's new: shown once, the first time a new version starts (notes from the README, injected by build.py) */
+function whatsNew(force) {
+  let last = null; try { last = localStorage.getItem('sketchforge.lastver'); localStorage.setItem('sketchforge.lastver', APP_VERSION); } catch (e) { /* ignore */ }
+  if (!force && (!last || !verGt(APP_VERSION, last))) return; // first install: the welcome tour covers it
+  if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Sketchforge ' + APP_VERSION); return; }
+  let d = $('#whatsNew'); if (d) d.remove();
+  d = document.createElement('dialog'); d.id = 'whatsNew'; d.className = 'csdlg wndlg';
+  const esc2 = s => String(s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  d.innerHTML = `<form method="dialog"><h5>🎉 Sketchforge ${APP_VERSION}: what's new</h5>
+    ${last && !force ? `<p class="muted small" style="margin:0 0 8px">Updated from ${esc2(last)}. Your drawings and settings were kept.</p>` : ''}
+    <div class="wnlist">${APP_CHANGES.map(c => `<section><b>${esc2(c.title.charAt(0).toUpperCase() + c.title.slice(1))}</b><ul>${c.items.map(i => /^Fixed:/i.test(i)
+      ? `<li><span class="wnfix">Fixed</span> ${esc2(i.replace(/^Fixed:\s*/i, ''))}</li>` : `<li>${esc2(i)}</li>`).join('')}</ul></section>`).join('')}</div>
+    <div class="dialog-actions"><span style="flex:1"></span><button value="ok" class="primary">Start drawing</button></div></form>`;
+  document.body.appendChild(d); d.showModal();
 }
 function installUpdater() {
   // Android: remember the built-in version, and confirm that a downloaded version started fine
@@ -78,8 +99,10 @@ function installUpdater() {
     }
   } catch (e) { /* ignore */ }
   CMD.checkUpdate = () => checkForUpdate(true);
+  CMD.whatsNew = () => whatsNew(true);
   CMD.about = () => toast(`Sketchforge ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
   const H = MENUS.find(m => m[0] === 'Help')[1];
-  H.push('-', ['Check for updates', 'checkUpdate'], ['About Sketchforge', 'about']);
+  H.push('-', ["What's new in this version", 'whatsNew'], ['Check for updates', 'checkUpdate'], ['About Sketchforge', 'about']);
+  if (location.hash !== '#sf-child') setTimeout(() => whatsNew(false), 1200);
   if (location.hash !== '#sf-child' && !isElectron()) setTimeout(() => checkForUpdate(false), 6000);
 }

@@ -92,8 +92,22 @@ jobs:
           VER=$(node -p "require('./package.json').version")
           sed -i "s/versionName \".*\"/versionName \"$VER\"/; s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
           npx cap sync android
+      - name: Sign with the Sketchforge key (so a new APK installs over the old one, keeping drawings and settings)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KS" ]; then
+            for d in "$HOME/.android" ${ANDROID_USER_HOME:+"$ANDROID_USER_HOME"}; do mkdir -p "$d"; echo "$KS" | base64 -d > "$d/debug.keystore"; done
+            echo "Using the Sketchforge signing key"
+          else
+            echo "::warning::Secret ANDROID_KEYSTORE is not set: this APK gets a random key and cannot be installed over a previous version"
+          fi
       - name: Build APK
         run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: Show the signing certificate
+        run: |
+          AS=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$AS" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256" || true
       - name: Name the APK
         run: |
           VER=$(node -p "require('./package.json').version")

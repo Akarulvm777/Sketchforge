@@ -121,9 +121,9 @@ function cpApply() {
 
 /* ---- options: everything beyond the base colours ---- */
 /* pictures instead of a colour (Colours tab): asset key, label, selector ('wallpaper' = behind the whole app) */
-const CP_IMG_AREAS = [['wallpaper', 'Whole background (behind everything)', null], ['img_docks', 'Side panels', '#leftdock, #rightdock'],
+const CP_IMG_AREAS = [['cvImage', 'Around the page (the area you draw on)', null], ['wallpaper', 'Whole app background (behind the panels)', null], ['img_docks', 'Side panels', '#leftdock, #rightdock'],
   ['img_menubar', 'Menu bar', '#menubar'], ['img_toolbox', 'Tool palette', '#toolbox'], ['img_timeline', 'Timeline', '#timeline']];
-const CP_ASSET_KEYS = ['cvImage', 'font', ...CP_IMG_AREAS.map(a => a[0])];
+const CP_ASSET_KEYS = ['font', ...CP_IMG_AREAS.map(a => a[0])];
 const CP_AREAS = [ // key, label, background selector, text selector (auto-contrast unless a text colour is set)
   ['menubar', 'Menu bar', '#menubar', '#menubar, #menubar .menu-btn'],
   ['cmdbar', 'Command bar', '#cmdbar', '#cmdbar, #cmdbar button'],
@@ -451,7 +451,7 @@ function cpImagePicker(label, key, onSet) {
   w.append(cpBtn(has ? 'Change image…' : 'Choose image…', () => pickFile(key === 'font' ? '.ttf,.otf,.woff,.woff2' : 'image/*', async f => { await cpSetAsset(key, f); if (onSet) onSet(); cpChanged(); cpRefreshDlg(); })));
   if (has && key !== 'font') { const im = document.createElement('img'); im.src = CP_ASSETS[key]; im.className = 'cpthumb'; w.appendChild(im); }
   if (has && key === 'font') { const s = document.createElement('span'); s.className = 'small'; s.textContent = ' loaded'; w.appendChild(s); }
-  return cpRow(label, w, has ? async () => { await cpSetAsset(key, null); cpChanged(); cpRefreshDlg(); } : null);
+  return cpRow(label, w, has ? async () => { await cpSetAsset(key, null); if (key === 'cvImage' && cpO().cvType === 'image') delete cpO().cvType; cpChanged(); cpRefreshDlg(); } : null);
 }
 const O = k => () => cpO()[k], S = k => v => { if (v === null || v === undefined || v === '') delete cpO()[k]; else cpO()[k] = v; };
 const C = k => () => (cpO().col || {})[k], CS = k => v => { const c = cpO().col || (cpO().col = {}); if (v) c[k] = v; else delete c[k]; };
@@ -482,7 +482,8 @@ async function cpSectionBody(sec) {
     });
     const areas = CP_AREAS.map(([k, n, sel]) => cpColor(n, C(k), CS(k), cpAutoColor(sel)));
     const texts = CP_TEXTS.map(([k, n]) => cpColor(n, C(k), CS(k)));
-    const pics = CP_IMG_AREAS.map(([k, n]) => cpImagePicker(n, k, k === 'wallpaper' ? () => { if ((o.panelAlpha ?? 100) === 100) o.panelAlpha = 80; } : null));
+    const pics = CP_IMG_AREAS.map(([k, n]) => cpImagePicker(n, k, k === 'wallpaper' ? () => { if ((o.panelAlpha ?? 100) === 100) o.panelAlpha = 80; }
+      : k === 'cvImage' ? () => { o.cvType = 'image'; } : null)); // the canvas area picture (same as Canvas tab › Your picture)
     if (CP_IMG_AREAS.some(([k, , sel]) => sel && CP_ASSETS[k])) pics.push(cpRange('Darken pictures (readable text)', 0, 80, 5, O('imgDim'), S('imgDim'), v => v + '%', 35));
     b.append(cpGroup('My colours (the whole interface follows)', cpCards(base)),
       cpGroup('🖼 Pictures instead of colours (your own images)', ...pics),
