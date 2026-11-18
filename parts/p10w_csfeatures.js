@@ -416,7 +416,7 @@ function registerExtraTools() {
   for (const k in extra) { TOOLDEF[k] = extra[k]; settings[k] = { ...extra[k].preset }; }
   /* make the stock pencils textured too */
   for (const k of ['pencil', 'mech']) { Object.assign(TOOLDEF[k].preset, { tex: 'grain', texAmt: k === 'pencil' ? 0.8 : 0.5 }); Object.assign(settings[k], { tex: 'grain', texAmt: k === 'pencil' ? 0.8 : 0.5 }); }
-  Object.assign(settings.textured, { tex: 'paper', texAmt: 0.5 });
+  Object.assign(settings.textured, { tex: 'paper', texAmt: 0.85 }); Object.assign(TOOLDEF.textured.preset, { tex: 'paper', texAmt: 0.85 });
 
   const grp = id => GROUPS.find(g => g.id === id);
   grp('pencil').name = 'Sketch';

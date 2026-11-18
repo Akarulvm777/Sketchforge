@@ -87,6 +87,8 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 ## 5. Tests
 
 - `python3 tools/smoke.py` charge l'app, trace un trait, ouvre le panneau 3D, et échoue sur toute erreur JS non capturée ou si three.js ne se charge pas. Capture d'écran : `tools/smoke.png`. Si besoin, définis `CHROME_PATH` pour pointer vers un Chrome existant.
+- **Suite navigateur complète** : `bash tools/e2e/run_all.sh [dossier]` (Node + Playwright ; génère les fichiers de test avec `make_fixtures.sh` : ffmpeg, ImageMagick, Pillow, psd-tools). Un fichier par fonctionnalité (`symtest`, `mdtest`, `psdtest`, `pentest`, `rigtest`…) et `toolsweep.cjs` qui essaie **chaque outil de la palette** (encre, effacement, remplissage, undo, 0 erreur JS). `harness.cjs` expose `pg.d2c` (coordonnées document → écran), `pg.strokeDoc`, `pg.inkAt`. L'app expose ses internes aux tests via `window.__sketchforge`.
+- Textures de pinceau : appliquées au trait entier (`texSync` dans p04 : trait brut × texture), pas à chaque tampon ; les gommes utilisent une version à bord net (`texHardFor`). `registerTexture` transforme une image en texture (menu Paper › Load image…, textures des `.sut`).
 - Avant une release, faire une vérification manuelle : outils de dessin, undo/redo, calques, timeline et tween, save/open `.sketchforge`, export GIF et PNG, panneau 3D, panneaux flottants.
 
 ## 6. Corrections apportées lors de la restauration (17/11/2026)

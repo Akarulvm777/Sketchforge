@@ -304,7 +304,7 @@ function init() {
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   window.__sketchforge = {
-    state, view, history, sel, CMD, M3, TL, tlIdle, get stroke() { return stroke; }, get active() { return active; },
+    state, view, history, sel, CMD, M3, TL, tlIdle, TOOLDEF, GROUPS, settings, get stroke() { return stroke; }, get active() { return active; },
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
     makeZip, crc32, lzw, newDocument, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,

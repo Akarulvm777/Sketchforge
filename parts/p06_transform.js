@@ -270,8 +270,15 @@ function textClick(e) {
   textPos = { x: d.x, y: d.y };
   const dlg = $('#textDialog');
   $('#textInput').value = '';
-  if (typeof dlg.showModal === 'function') { dlg.showModal(); $('#textInput').focus(); }
+  if (typeof dlg.showModal === 'function') {
+    dlg.showModal();
+    // the press that opened the dialog moves focus back to the canvas: focus the text box once it is over
+    const focusIt = () => $('#textInput').focus();
+    focusIt(); setTimeout(focusIt, 0); setTimeout(focusIt, 120);
+    window.addEventListener('pointerup', () => setTimeout(focusIt, 0), { once: true });
+  }
 }
+$('#textInput').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('#textForm').requestSubmit(); } });
 $('#textForm').addEventListener('submit', e => {
   e.preventDefault();
   const txt = $('#textInput').value;

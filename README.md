@@ -99,3 +99,10 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 ## 2.0.x: puppet warp
 - Move group → **Puppet warp**: click a drawing to place pins on its joints, drag a pin to bend the drawing smoothly around the others (Alt+click removes a pin). The original drawing is kept, so bending again never loses quality.
 - Animate it: pose one keyframe, make the next keyframe (K), move its pins, then **Create in-betweens** (tool panel or Animation menu) fills every frame between them. Pins are saved in the file; "Remove pins" restores the original drawing.
+
+## 2.0.x: every tool checked, brush textures fixed
+- An automated sweep now tries every tool in the palette (107 tools: pens, pencils, brushes, erasers, blend, liquify, airbrush, decoration, fill, gradients, eyedropper, selections, auto select, move, puppet, figures, rulers, frames, balloons, text, navigation): each must do its job, undo cleanly and raise no error.
+- Fixed: the Text tool's box did not get keyboard focus (typing went nowhere until you tapped it); Ctrl+Enter now places the text.
+- Fixed: brush textures washed out to solid colour (Chalk, Oil paint, Impasto, Dry ink, canvas / bristle papers). Textures are now applied to the whole stroke, so the grain stays visible however much you go over it; textured erasers erase in patches.
+- New: Tool Property › Paper › Load image… turns any image into a paper texture. Imported Clip Studio brushes (.sut) keep their texture image, density, scale and invert settings.
+- Tests: `bash tools/e2e/run_all.sh` runs the whole browser test suite.

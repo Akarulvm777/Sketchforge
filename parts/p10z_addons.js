@@ -139,6 +139,10 @@ async function registerBrush(def, persist) {
   }
   const extra = { aa: def.aa ?? 2, taperIn: def.taperIn || 0, taperRatio: def.taperRatio ?? 0.3, spacing: def.spacing || 0.15, tipRot: !!def.tipRot };
   if (tipId) extra.tipId = tipId;
+  if (def.tex) {
+    extra.tex = def.tex; extra.texAmt = def.texAmt ?? 0.6; extra.texScale = def.texScale || 1;
+    if (def.texImg) { try { extra.tex = registerTexture('tex_' + id, await loadImage(def.texImg), def.texInv); } catch (e) { /* keep generic paper */ } }
+  }
   TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: def.pen ? 'pen' : 'brush', custom: true,
     preset: P(def.size || 40, tipId ? 1 : (def.hardness ?? 1), def.flow ?? 1, def.opacity ?? 1, def.pSize ?? true, def.pAlpha ?? false, def.smooth ?? 0.2, extra) };
   settings[id] = { ...TOOLDEF[id].preset };
@@ -213,7 +217,7 @@ function findPng(blob) {
   const sig = [0x89, 0x50, 0x4e, 0x47];
   for (let i = 0; i < blob.length - 8; i++) {
     if (blob[i] === sig[0] && blob[i + 1] === sig[1] && blob[i + 2] === sig[2] && blob[i + 3] === sig[3]) {
-      for (let j = i + 8; j < blob.length - 8; j++) if (blob[j] === 0x49 && blob[j + 1] === 0x45 && blob[j + 2] === 0x4e && blob[j + 3] === 0x44) {
+      for (let j = i + 8; j <= blob.length - 8; j++) if (blob[j] === 0x49 && blob[j + 1] === 0x45 && blob[j + 2] === 0x4e && blob[j + 3] === 0x44) {
         let bin = ''; blob.slice(i, j + 8).forEach(b => { bin += String.fromCharCode(b); });
         return 'data:image/png;base64,' + btoa(bin);
       }
@@ -243,7 +247,10 @@ function sutToDefs(buf) {
       spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip,
       taperIn: v.BrushUseIn ? (v.BrushInLength || 0) : 0, taperRatio: (v.BrushInRatio ?? 30) / 100,
       nibRatio: thick < 1 ? clamp(thick, 0.05, 1) : 1, nibAngle: rot,
-      pen: !tip && (v.BrushHardness ?? 100) >= 90
+      pen: !tip && (v.BrushHardness ?? 100) >= 90,
+      // paper texture: the embedded image when it is a PNG, otherwise a generic paper grain
+      ...(v.TextureImage ? { texImg: findPng(v.TextureImage), tex: 'paper', texAmt: clamp((v.TextureDensity ?? 50) / 100, 0, 1),
+        texScale: clamp((v.TextureScale2 ?? 100) / 100, 0.1, 8), texInv: !!v.TextureReverseDensity } : {})
     });
   }
   return defs;
@@ -264,7 +271,8 @@ function loadBuiltinPens() {
       const def = sutToDefs(u.buffer)[0]; if (!def) continue;
       const id = ids[name] || 'pen_' + name.toLowerCase().replace(/[^a-z]+/g, '_');
       TOOLDEF[id] = { name: def.name || name, kind: 'brush', icon: 'pen', preset: P(def.size, def.hardness, def.flow, def.opacity, def.pSize, def.pAlpha, def.smooth,
-        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle }) };
+        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle,
+          ...(def.tex ? { tex: def.tex, texAmt: def.texAmt, texScale: def.texScale } : id === 'textured' ? { tex: 'paper', texAmt: 0.85 } : {}) }) };
       settings[id] = { ...TOOLDEF[id].preset };
       order.push(id);
     } catch (e) { /* skip unreadable */ }

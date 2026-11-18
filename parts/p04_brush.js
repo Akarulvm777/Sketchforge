@@ -177,7 +177,7 @@ function texBaseFor(id) {
   } else if (id === 'canvas') {
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const wv = 0.5 + 0.5 * Math.sin(x * Math.PI / 2.5) * Math.sin(y * Math.PI / 2.5);
-      v[y * N + x] = 0.55 + wv * 0.3 + rnd() * 0.15;
+      v[y * N + x] = 0.25 + wv * 0.6 + rnd() * 0.15; // weave tops take paint, gaps stay lighter
     }
   } else if (id === 'rough') {
     mix(latticeNoise(N, N, 32, 32, 21), 0.5); mix(latticeNoise(N, N, 8, 8, 22), 0.35);
@@ -196,6 +196,36 @@ function texBaseFor(id) {
   g.putImageData(im, 0, 0);
   c._vals = v;
   texBase.set(id, c);
+  return c;
+}
+/* An image as a paper texture (imported brushes): darker = more paint, unless invert. */
+function registerTexture(id, img, invert) {
+  const N = TEX_N, c = makeCanvas(N, N), g = c.getContext('2d');
+  g.drawImage(img, 0, 0, N, N);
+  const d = g.getImageData(0, 0, N, N).data, v = new Float32Array(N * N);
+  for (let i = 0; i < v.length; i++) {
+    const a = d[i * 4 + 3] / 255, L = (d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11) / 255 * a + (1 - a);
+    v[i] = invert ? L : 1 - L;
+  }
+  const out = makeCanvas(N, N), og = out.getContext('2d'), im = og.createImageData(N, N);
+  for (let i = 0; i < v.length; i++) im.data[i * 4 + 3] = v[i] * 255;
+  og.putImageData(im, 0, 0); out._vals = v;
+  texBase.set(id, out);
+  for (const k of [...texAmtCache.keys()]) if (k.startsWith(id)) texAmtCache.delete(k);
+  return id;
+}
+/* hard-edged texture for erasers: a spot is either fully erased or left alone (more strength = more erased) */
+function texHardFor(id, amt) {
+  amt = Math.round(clamp(amt, 0, 1) * 20) / 20;
+  const key = id + 'hard' + amt;
+  let c = texAmtCache.get(key);
+  if (c) return c;
+  const v = texBaseFor(id)._vals, N = TEX_N, th = 0.6 - 0.4 * amt;
+  c = makeCanvas(N, N);
+  const g = c.getContext('2d'), im = g.createImageData(N, N);
+  for (let i = 0; i < v.length; i++) im.data[i * 4 + 3] = clamp((v[i] - th) / 0.08 + 0.5, 0, 1) * 255;
+  g.putImageData(im, 0, 0);
+  texAmtCache.set(key, c);
   return c;
 }
 /* texture with strength baked in: alpha = 1 - amt * (1 - value) */
@@ -220,7 +250,7 @@ function texTemp(sz) {
 }
 function drawOne(st, x, y, d, a) {
   const s = st.s, ctx = st.ctx;
-  if (!s.tex) { ctx.save(); ctx.globalAlpha = a; paintTip(ctx, st, x, y, d); ctx.restore(); return; }
+  if (!s.tex || st.tex) { ctx.save(); ctx.globalAlpha = a; paintTip(ctx, st, x, y, d); ctx.restore(); return; } // st.tex: texture is applied to the whole stroke (texSync)
   const sz = Math.ceil(d) + 6, tc = texTemp(sz), tg = tc.getContext('2d');
   const ox = Math.round(x - sz / 2), oy = Math.round(y - sz / 2);
   tg.setTransform(1, 0, 0, 1, 0, 0);
@@ -344,10 +374,31 @@ function eraseRegion(st, b) {
 function afterMove(st) {
   const m = st.mbox;
   st.mbox = newBox();
-  if (!st.clip && !st.erase) return;
+  if (!st.clip && !st.erase && !st.tex) return;
   const b = clampBox(m.x0, m.y0, m.x1, m.y1);
   if (!b) return;
-  if (st.erase) eraseRegion(st, b); else clipSync(st.clip, b);
+  if (st.tex) texSync(st, b);
+  if (st.erase) eraseRegion(st, b); else if (!st.tex) clipSync(st.clip, b);
+}
+/* Paper texture on the whole stroke: visible stroke = raw stroke × texture (× selection), for region b.
+   Applying it per dab made overlapping dabs fill the grain in, so textures washed out to solid. */
+function texSync(st, b) {
+  const s = st.s;
+  if (!st.texPat) {
+    const amt = s.texAmt == null ? 0.6 : s.texAmt;
+    st.texPat = bufCtx.createPattern(st.erase ? texHardFor(s.tex, amt) : texFor(s.tex, amt), 'repeat');
+    const k = s.texScale || 1;
+    if (st.texPat.setTransform) st.texPat.setTransform(new DOMMatrix([k, 0, 0, k, 0, 0]));
+  }
+  bufCtx.save();
+  bufCtx.beginPath(); bufCtx.rect(b.x, b.y, b.w, b.h); bufCtx.clip();
+  bufCtx.globalCompositeOperation = 'source-over';
+  bufCtx.clearRect(b.x, b.y, b.w, b.h);
+  bufCtx.drawImage(rawCanvas, 0, 0);
+  bufCtx.globalCompositeOperation = 'destination-in';
+  bufCtx.fillStyle = st.texPat; bufCtx.fillRect(b.x, b.y, b.w, b.h);
+  if (st.clip && !st.erase) bufCtx.drawImage(st.clip, 0, 0);
+  bufCtx.restore();
 }
 
 /* ---------- shapes ---------- */
@@ -459,7 +510,8 @@ function beginStroke(e) {
   rawCtx.clearRect(0, 0, state.w, state.h);
   stroke = {
     kind: tool, t, isShape, erase, direct, s, color: layer.isMask ? '#ff2a2a' : state.color, map: lm.map, clip,
-    ctx: (clip && !erase) ? rawCtx : bufCtx,
+    ctx: ((clip && !erase) || (s.tex && !direct)) ? rawCtx : bufCtx,
+    tex: !!(s.tex && !direct && !isShape),
     box: newBox(), mbox: newBox(),
     sx: x0, sy: y0, sp: pr, rx: x0, ry: y0, rp: pr,
     lx: x0, ly: y0, lp: pr, next: 0,

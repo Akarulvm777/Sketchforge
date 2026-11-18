@@ -264,10 +264,19 @@ function refreshProps() {
       const tl = document.createElement('label'); tl.className = 'select';
       tl.innerHTML = '<span>Paper</span>';
       const ts = document.createElement('select');
-      [['', 'None'], ['paper', 'Watercolour paper'], ['grain', 'Pencil grain'], ['canvas', 'Canvas weave'], ['rough', 'Rough'], ['bristle', 'Bristle'], ['charcoal', 'Charcoal']].forEach(([v, t]) => {
+      const texOpts = [['', 'None'], ['paper', 'Watercolour paper'], ['grain', 'Pencil grain'], ['canvas', 'Canvas weave'], ['rough', 'Rough'], ['bristle', 'Bristle'], ['charcoal', 'Charcoal']];
+      if (s.tex && s.tex.startsWith('tex_')) texOpts.push([s.tex, 'Own texture (image)']);
+      texOpts.push(['@load', 'Load image…']);
+      texOpts.forEach(([v, t]) => {
         const o = document.createElement('option'); o.value = v; o.textContent = t; if ((s.tex || '') === v) o.selected = true; ts.appendChild(o);
       });
-      ts.onchange = () => { s.tex = ts.value || undefined; if (s.tex && s.texAmt == null) s.texAmt = 0.6; renderSubTools(); refreshProps(); };
+      ts.onchange = () => {
+        if (ts.value === '@load') { // any image becomes a paper texture (dark = more paint)
+          pickFile('image/*', async f => { try { s.tex = registerTexture('tex_u' + Date.now().toString(36), await loadImage(await readFile(f))); if (s.texAmt == null) s.texAmt = 0.7; } catch (e) { toast('Could not read that image'); } renderSubTools(); refreshProps(); });
+          refreshProps(); return;
+        }
+        s.tex = ts.value || undefined; if (s.tex && s.texAmt == null) s.texAmt = 0.6; renderSubTools(); refreshProps();
+      };
       tl.appendChild(ts); body.appendChild(tl);
       if (s.tex) {
         slider(body, 'Strength', 0, 100, 1, (s.texAmt == null ? 0.6 : s.texAmt) * 100, v => v + '%', v => s.texAmt = v / 100);

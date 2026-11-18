@@ -892,7 +892,7 @@ function texBaseFor(id) {
   } else if (id === 'canvas') {
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const wv = 0.5 + 0.5 * Math.sin(x * Math.PI / 2.5) * Math.sin(y * Math.PI / 2.5);
-      v[y * N + x] = 0.55 + wv * 0.3 + rnd() * 0.15;
+      v[y * N + x] = 0.25 + wv * 0.6 + rnd() * 0.15; // weave tops take paint, gaps stay lighter
     }
   } else if (id === 'rough') {
     mix(latticeNoise(N, N, 32, 32, 21), 0.5); mix(latticeNoise(N, N, 8, 8, 22), 0.35);
@@ -911,6 +911,36 @@ function texBaseFor(id) {
   g.putImageData(im, 0, 0);
   c._vals = v;
   texBase.set(id, c);
+  return c;
+}
+/* An image as a paper texture (imported brushes): darker = more paint, unless invert. */
+function registerTexture(id, img, invert) {
+  const N = TEX_N, c = makeCanvas(N, N), g = c.getContext('2d');
+  g.drawImage(img, 0, 0, N, N);
+  const d = g.getImageData(0, 0, N, N).data, v = new Float32Array(N * N);
+  for (let i = 0; i < v.length; i++) {
+    const a = d[i * 4 + 3] / 255, L = (d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11) / 255 * a + (1 - a);
+    v[i] = invert ? L : 1 - L;
+  }
+  const out = makeCanvas(N, N), og = out.getContext('2d'), im = og.createImageData(N, N);
+  for (let i = 0; i < v.length; i++) im.data[i * 4 + 3] = v[i] * 255;
+  og.putImageData(im, 0, 0); out._vals = v;
+  texBase.set(id, out);
+  for (const k of [...texAmtCache.keys()]) if (k.startsWith(id)) texAmtCache.delete(k);
+  return id;
+}
+/* hard-edged texture for erasers: a spot is either fully erased or left alone (more strength = more erased) */
+function texHardFor(id, amt) {
+  amt = Math.round(clamp(amt, 0, 1) * 20) / 20;
+  const key = id + 'hard' + amt;
+  let c = texAmtCache.get(key);
+  if (c) return c;
+  const v = texBaseFor(id)._vals, N = TEX_N, th = 0.6 - 0.4 * amt;
+  c = makeCanvas(N, N);
+  const g = c.getContext('2d'), im = g.createImageData(N, N);
+  for (let i = 0; i < v.length; i++) im.data[i * 4 + 3] = clamp((v[i] - th) / 0.08 + 0.5, 0, 1) * 255;
+  g.putImageData(im, 0, 0);
+  texAmtCache.set(key, c);
   return c;
 }
 /* texture with strength baked in: alpha = 1 - amt * (1 - value) */
@@ -935,7 +965,7 @@ function texTemp(sz) {
 }
 function drawOne(st, x, y, d, a) {
   const s = st.s, ctx = st.ctx;
-  if (!s.tex) { ctx.save(); ctx.globalAlpha = a; paintTip(ctx, st, x, y, d); ctx.restore(); return; }
+  if (!s.tex || st.tex) { ctx.save(); ctx.globalAlpha = a; paintTip(ctx, st, x, y, d); ctx.restore(); return; } // st.tex: texture is applied to the whole stroke (texSync)
   const sz = Math.ceil(d) + 6, tc = texTemp(sz), tg = tc.getContext('2d');
   const ox = Math.round(x - sz / 2), oy = Math.round(y - sz / 2);
   tg.setTransform(1, 0, 0, 1, 0, 0);
@@ -1059,10 +1089,31 @@ function eraseRegion(st, b) {
 function afterMove(st) {
   const m = st.mbox;
   st.mbox = newBox();
-  if (!st.clip && !st.erase) return;
+  if (!st.clip && !st.erase && !st.tex) return;
   const b = clampBox(m.x0, m.y0, m.x1, m.y1);
   if (!b) return;
-  if (st.erase) eraseRegion(st, b); else clipSync(st.clip, b);
+  if (st.tex) texSync(st, b);
+  if (st.erase) eraseRegion(st, b); else if (!st.tex) clipSync(st.clip, b);
+}
+/* Paper texture on the whole stroke: visible stroke = raw stroke × texture (× selection), for region b.
+   Applying it per dab made overlapping dabs fill the grain in, so textures washed out to solid. */
+function texSync(st, b) {
+  const s = st.s;
+  if (!st.texPat) {
+    const amt = s.texAmt == null ? 0.6 : s.texAmt;
+    st.texPat = bufCtx.createPattern(st.erase ? texHardFor(s.tex, amt) : texFor(s.tex, amt), 'repeat');
+    const k = s.texScale || 1;
+    if (st.texPat.setTransform) st.texPat.setTransform(new DOMMatrix([k, 0, 0, k, 0, 0]));
+  }
+  bufCtx.save();
+  bufCtx.beginPath(); bufCtx.rect(b.x, b.y, b.w, b.h); bufCtx.clip();
+  bufCtx.globalCompositeOperation = 'source-over';
+  bufCtx.clearRect(b.x, b.y, b.w, b.h);
+  bufCtx.drawImage(rawCanvas, 0, 0);
+  bufCtx.globalCompositeOperation = 'destination-in';
+  bufCtx.fillStyle = st.texPat; bufCtx.fillRect(b.x, b.y, b.w, b.h);
+  if (st.clip && !st.erase) bufCtx.drawImage(st.clip, 0, 0);
+  bufCtx.restore();
 }
 
 /* ---------- shapes ---------- */
@@ -1174,7 +1225,8 @@ function beginStroke(e) {
   rawCtx.clearRect(0, 0, state.w, state.h);
   stroke = {
     kind: tool, t, isShape, erase, direct, s, color: layer.isMask ? '#ff2a2a' : state.color, map: lm.map, clip,
-    ctx: (clip && !erase) ? rawCtx : bufCtx,
+    ctx: ((clip && !erase) || (s.tex && !direct)) ? rawCtx : bufCtx,
+    tex: !!(s.tex && !direct && !isShape),
     box: newBox(), mbox: newBox(),
     sx: x0, sy: y0, sp: pr, rx: x0, ry: y0, rp: pr,
     lx: x0, ly: y0, lp: pr, next: 0,
@@ -2035,8 +2087,15 @@ function textClick(e) {
   textPos = { x: d.x, y: d.y };
   const dlg = $('#textDialog');
   $('#textInput').value = '';
-  if (typeof dlg.showModal === 'function') { dlg.showModal(); $('#textInput').focus(); }
+  if (typeof dlg.showModal === 'function') {
+    dlg.showModal();
+    // the press that opened the dialog moves focus back to the canvas: focus the text box once it is over
+    const focusIt = () => $('#textInput').focus();
+    focusIt(); setTimeout(focusIt, 0); setTimeout(focusIt, 120);
+    window.addEventListener('pointerup', () => setTimeout(focusIt, 0), { once: true });
+  }
 }
+$('#textInput').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('#textForm').requestSubmit(); } });
 $('#textForm').addEventListener('submit', e => {
   e.preventDefault();
   const txt = $('#textInput').value;
@@ -2386,10 +2445,19 @@ function refreshProps() {
       const tl = document.createElement('label'); tl.className = 'select';
       tl.innerHTML = '<span>Paper</span>';
       const ts = document.createElement('select');
-      [['', 'None'], ['paper', 'Watercolour paper'], ['grain', 'Pencil grain'], ['canvas', 'Canvas weave'], ['rough', 'Rough'], ['bristle', 'Bristle'], ['charcoal', 'Charcoal']].forEach(([v, t]) => {
+      const texOpts = [['', 'None'], ['paper', 'Watercolour paper'], ['grain', 'Pencil grain'], ['canvas', 'Canvas weave'], ['rough', 'Rough'], ['bristle', 'Bristle'], ['charcoal', 'Charcoal']];
+      if (s.tex && s.tex.startsWith('tex_')) texOpts.push([s.tex, 'Own texture (image)']);
+      texOpts.push(['@load', 'Load image…']);
+      texOpts.forEach(([v, t]) => {
         const o = document.createElement('option'); o.value = v; o.textContent = t; if ((s.tex || '') === v) o.selected = true; ts.appendChild(o);
       });
-      ts.onchange = () => { s.tex = ts.value || undefined; if (s.tex && s.texAmt == null) s.texAmt = 0.6; renderSubTools(); refreshProps(); };
+      ts.onchange = () => {
+        if (ts.value === '@load') { // any image becomes a paper texture (dark = more paint)
+          pickFile('image/*', async f => { try { s.tex = registerTexture('tex_u' + Date.now().toString(36), await loadImage(await readFile(f))); if (s.texAmt == null) s.texAmt = 0.7; } catch (e) { toast('Could not read that image'); } renderSubTools(); refreshProps(); });
+          refreshProps(); return;
+        }
+        s.tex = ts.value || undefined; if (s.tex && s.texAmt == null) s.texAmt = 0.6; renderSubTools(); refreshProps();
+      };
       tl.appendChild(ts); body.appendChild(tl);
       if (s.tex) {
         slider(body, 'Strength', 0, 100, 1, (s.texAmt == null ? 0.6 : s.texAmt) * 100, v => v + '%', v => s.texAmt = v / 100);
@@ -6266,7 +6334,7 @@ function registerExtraTools() {
   for (const k in extra) { TOOLDEF[k] = extra[k]; settings[k] = { ...extra[k].preset }; }
   /* make the stock pencils textured too */
   for (const k of ['pencil', 'mech']) { Object.assign(TOOLDEF[k].preset, { tex: 'grain', texAmt: k === 'pencil' ? 0.8 : 0.5 }); Object.assign(settings[k], { tex: 'grain', texAmt: k === 'pencil' ? 0.8 : 0.5 }); }
-  Object.assign(settings.textured, { tex: 'paper', texAmt: 0.5 });
+  Object.assign(settings.textured, { tex: 'paper', texAmt: 0.85 }); Object.assign(TOOLDEF.textured.preset, { tex: 'paper', texAmt: 0.85 });
 
   const grp = id => GROUPS.find(g => g.id === id);
   grp('pencil').name = 'Sketch';
@@ -7052,6 +7120,10 @@ async function registerBrush(def, persist) {
   }
   const extra = { aa: def.aa ?? 2, taperIn: def.taperIn || 0, taperRatio: def.taperRatio ?? 0.3, spacing: def.spacing || 0.15, tipRot: !!def.tipRot };
   if (tipId) extra.tipId = tipId;
+  if (def.tex) {
+    extra.tex = def.tex; extra.texAmt = def.texAmt ?? 0.6; extra.texScale = def.texScale || 1;
+    if (def.texImg) { try { extra.tex = registerTexture('tex_' + id, await loadImage(def.texImg), def.texInv); } catch (e) { /* keep generic paper */ } }
+  }
   TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: def.pen ? 'pen' : 'brush', custom: true,
     preset: P(def.size || 40, tipId ? 1 : (def.hardness ?? 1), def.flow ?? 1, def.opacity ?? 1, def.pSize ?? true, def.pAlpha ?? false, def.smooth ?? 0.2, extra) };
   settings[id] = { ...TOOLDEF[id].preset };
@@ -7126,7 +7198,7 @@ function findPng(blob) {
   const sig = [0x89, 0x50, 0x4e, 0x47];
   for (let i = 0; i < blob.length - 8; i++) {
     if (blob[i] === sig[0] && blob[i + 1] === sig[1] && blob[i + 2] === sig[2] && blob[i + 3] === sig[3]) {
-      for (let j = i + 8; j < blob.length - 8; j++) if (blob[j] === 0x49 && blob[j + 1] === 0x45 && blob[j + 2] === 0x4e && blob[j + 3] === 0x44) {
+      for (let j = i + 8; j <= blob.length - 8; j++) if (blob[j] === 0x49 && blob[j + 1] === 0x45 && blob[j + 2] === 0x4e && blob[j + 3] === 0x44) {
         let bin = ''; blob.slice(i, j + 8).forEach(b => { bin += String.fromCharCode(b); });
         return 'data:image/png;base64,' + btoa(bin);
       }
@@ -7156,7 +7228,10 @@ function sutToDefs(buf) {
       spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip,
       taperIn: v.BrushUseIn ? (v.BrushInLength || 0) : 0, taperRatio: (v.BrushInRatio ?? 30) / 100,
       nibRatio: thick < 1 ? clamp(thick, 0.05, 1) : 1, nibAngle: rot,
-      pen: !tip && (v.BrushHardness ?? 100) >= 90
+      pen: !tip && (v.BrushHardness ?? 100) >= 90,
+      // paper texture: the embedded image when it is a PNG, otherwise a generic paper grain
+      ...(v.TextureImage ? { texImg: findPng(v.TextureImage), tex: 'paper', texAmt: clamp((v.TextureDensity ?? 50) / 100, 0, 1),
+        texScale: clamp((v.TextureScale2 ?? 100) / 100, 0.1, 8), texInv: !!v.TextureReverseDensity } : {})
     });
   }
   return defs;
@@ -7177,7 +7252,8 @@ function loadBuiltinPens() {
       const def = sutToDefs(u.buffer)[0]; if (!def) continue;
       const id = ids[name] || 'pen_' + name.toLowerCase().replace(/[^a-z]+/g, '_');
       TOOLDEF[id] = { name: def.name || name, kind: 'brush', icon: 'pen', preset: P(def.size, def.hardness, def.flow, def.opacity, def.pSize, def.pAlpha, def.smooth,
-        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle }) };
+        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle,
+          ...(def.tex ? { tex: def.tex, texAmt: def.texAmt, texScale: def.texScale } : id === 'textured' ? { tex: 'paper', texAmt: 0.85 } : {}) }) };
       settings[id] = { ...TOOLDEF[id].preset };
       order.push(id);
     } catch (e) { /* skip unreadable */ }
@@ -7935,7 +8011,7 @@ function init() {
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
   window.__sketchforge = {
-    state, view, history, sel, CMD, M3, TL, tlIdle, get stroke() { return stroke; }, get active() { return active; },
+    state, view, history, sel, CMD, M3, TL, tlIdle, TOOLDEF, GROUPS, settings, get stroke() { return stroke; }, get active() { return active; },
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
     makeZip, crc32, lzw, newDocument, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,
