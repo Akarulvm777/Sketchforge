@@ -6,6 +6,7 @@ Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code,
 ## Run it
 - **Any browser / phone / tablet:** open `index.html` (or host the folder; it installs as a PWA — "Add to Home Screen").
 - **Desktop app:** `npm install` then `npm start` (Electron). `npm run dist` builds installers (electron-builder).
+- **Website:** https://akarulvm777.github.io/Sketchforge/ (downloads, and the web app for any browser and iPad: Share → Add to Home Screen).
 - **Installers:** every release on the GitHub Releases page has `Sketchforge-Setup-<version>.exe` (Windows), `.dmg` (Mac: arm64 = Apple Silicon, x64 = Intel), `Sketchforge-<version>-android.apk` (Android phones and tablets), an `.AppImage` (Linux) and a web zip. They are built by `.github/workflows/build.yml` (push a commit whose message contains `[release]`, or run "Build apps" by hand with "release" ticked).
 - **iPad / iPhone:** host the folder (or the web zip) and open it in Safari → Share → Add to Home Screen.
 - Mobile native shell: wrap the same folder with Capacitor (`npx cap add android|ios`).
@@ -158,3 +159,8 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - Sign in with Google or GitHub (☁ Account or the button top right): save / open drawings in the cloud, settings sync between devices, a community library of brushes (.sut) and themes to add or share. Optional: everything else works without an account.
 - ✨ Ask: a free helper that works offline. It searches every menu, tool, tutorial and common question (English and French words) and answers with buttons that take you there. It never draws for you — AI is not supposed to steal your job.
 - Official website with downloads, features, account page. Setup: docs/ONLINE-SETUP.md.
+
+## 2.4.1: public website
+- The official website is live on GitHub Pages: https://akarulvm777.github.io/Sketchforge/ — features, downloads for Windows / Mac / Android / Linux, and the web app (iPad: open it in Safari → Share → Add to Home Screen).
+- Installed apps check this website for new versions and update themselves.
+- The ✨ Ask helper is free and offline for everyone. Accounts / cloud stay hidden until they are switched on (docs/ONLINE-SETUP.md).

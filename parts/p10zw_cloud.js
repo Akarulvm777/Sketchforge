@@ -232,16 +232,19 @@ function shareDialog() {
 }
 
 function installCloud() {
-  Object.assign(CMD, { account: () => accountDialog(), cloudSave, cloudOpen: cloudFiles, syncPush: () => settingsPush(), syncPull: () => settingsPull(), communityLib: libraryDialog, askAI: aiOpen });
+  CMD.askAI = aiOpen;
+  MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the helper (free)…', 'askAI'], '-');
+  const ai = document.createElement('button'); ai.id = 'aiBtn'; ai.type = 'button'; ai.textContent = '✨ Ask'; ai.title = 'Ask where things are and how they work (free, offline)'; ai.onclick = aiOpen;
+  $('#menubar .grow').after(ai);
+  if (!SB().ready) return; // accounts are not set up in this copy: no sign-in buttons that lead nowhere
+  Object.assign(CMD, { account: () => accountDialog(), cloudSave, cloudOpen: cloudFiles, syncPush: () => settingsPush(), syncPull: () => settingsPull(), communityLib: libraryDialog });
   const F = MENUS.find(m => m[0] === 'File')[1];
   const at = F.findIndex(it => Array.isArray(it) && it[1] === 'save');
   F.splice(at + 1, 0, ['☁ Save to cloud', 'cloudSave'], ['☁ Open from cloud…', 'cloudOpen']);
   MENUS.splice(MENUS.findIndex(m => m[0] === 'Help'), 0, ['☁ Account', [['Sign in / my account…', 'account'], '-', ['Save this drawing to the cloud', 'cloudSave'], ['My cloud files…', 'cloudOpen'], '-',
     ['Upload my settings', 'syncPush'], ['Get my settings', 'syncPull'], '-', ['Brushes & themes library…', 'communityLib']]]);
-  MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the helper (free)…', 'askAI'], '-');
   const b = document.createElement('button'); b.id = 'acctBtn'; b.type = 'button'; b.onclick = () => accountDialog();
-  const ai = document.createElement('button'); ai.id = 'aiBtn'; ai.type = 'button'; ai.textContent = '✨ Ask'; ai.title = 'Ask where things are and how they work (free, offline)'; ai.onclick = aiOpen;
-  const mb = $('#menubar'), grow = mb.querySelector('.grow'); grow.after(ai, b);
+  ai.after(b);
   renderAcctBtn();
   window.addEventListener('sf-auth', renderAcctBtn);
   finishBrowserLogin();

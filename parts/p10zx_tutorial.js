@@ -183,7 +183,7 @@ const TUTORIALS = [
     { t: 'Sketchforge everywhere', x: '<b>Windows</b>: Sketchforge-Setup .exe. <b>Mac</b>: the .dmg (arm64 for Apple Silicon, x64 for Intel). <b>Android</b>: the .apk. All are on the project\'s Releases page.' },
     { t: 'iPad & iPhone', x: 'Open the web link in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline.' },
     { t: 'Your files', x: 'Save .sketchforge files to keep your work; open them on any device. Your last work also reopens automatically on the same device.' },
-    { el: '#acctBtn', pre: tutNoDock, t: 'Account & cloud (optional)', x: '<b>Sign in</b> with Google or GitHub to save drawings in the cloud, keep your settings on all your devices and share brushes and themes (☁ Account menu).' },
+    { el: ['#acctBtn', '#aiBtn', '#btnMenu'], pre: tutNoDock, t: 'Account & cloud (optional)', x: 'When accounts are switched on, <b>Sign in</b> with Google or GitHub (top right) saves drawings in the cloud, keeps your settings on all your devices and shares brushes and themes. Everything else works without an account.' },
     { el: ['#aiBtn', '#acctBtn'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or Help › Ask the helper on phones). It is free, works offline, and answers with buttons that take you there. It never draws for you.' },
     { el: menuEl('Help'), t: 'Updates', x: 'Sketchforge updates itself: you get a small card when a new version is ready. <b>Help › Check for updates</b> checks right away.' }
   ] }

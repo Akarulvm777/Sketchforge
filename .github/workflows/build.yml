@@ -113,16 +113,22 @@ jobs:
           mkdir -p out && (cd www && zip -qr ../out/Sketchforge-$VER-web.zip .)
       - uses: actions/upload-artifact@v4
         with: { name: web-zip, path: out/*.zip }
+      - name: Build the website (site + web app + version.json)
+        run: node tools/build_site.mjs
       - uses: actions/upload-pages-artifact@v3
-        with: { path: www }
+        with: { path: dist-site }
   pages:
-    # The iPad / iPhone link. Needs GitHub Pages turned on (Settings → Pages → Source: GitHub Actions);
-    # on a private repository this needs a paid GitHub plan. If Pages is off, this step fails without affecting the rest.
-    needs: web
+    # The official website on GitHub Pages (https://<owner>.github.io/<repo>/): the landing page, the web app for
+    # browsers / iPad (/app/) and version.json, which every installed app checks for updates. Published on releases
+    # only, after the installers are attached, so the download buttons work.
+    needs: [gate, web, release]
+    if: needs.gate.outputs.release == 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true
     environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
     steps:
+      - uses: actions/configure-pages@v5
+        with: { enablement: true }
+        continue-on-error: true
       - id: deploy
         uses: actions/deploy-pages@v4
   release:

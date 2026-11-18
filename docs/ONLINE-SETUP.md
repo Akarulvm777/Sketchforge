@@ -4,8 +4,8 @@ Sketchforge works fully offline, and the ✨ Ask helper is built in (free, no se
 
 | Part | What it gives | Service (free plan) | Time |
 |---|---|---|---|
-| A. Website | the official site, the web app for iPad / browser, automatic updates for every app | Netlify | 5 min |
-| B. Public downloads | download buttons that work for everyone (your code repository stays private) | GitHub | 5 min |
+| A. Website | ✅ done: GitHub Pages, https://akarulvm777.github.io/Sketchforge/ (Netlify is an optional alternative) | GitHub | — |
+| B. Public downloads | ✅ done: the repository is public, installers are on its Releases page | GitHub | — |
 | C. Accounts & cloud | Google / GitHub sign-in, cloud drawings, settings sync, shared brushes & themes | Supabase | 15 min |
 
 When you are done, send Claude **the 3 public values** listed at the end; they go into `cloud-config.js` and

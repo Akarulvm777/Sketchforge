@@ -7,6 +7,7 @@
 
   function navAccount() {
     const a = $('#navAccount'); if (!a) return;
+    if (!SB || !SB.ready) { a.hidden = true; return; }
     const p = SB && SB.ready && SB.profile();
     a.innerHTML = p ? (p.avatar ? `<img src="${esc(p.avatar)}" alt=""> ` : '') + esc(p.name) : 'Sign in';
   }
@@ -34,7 +35,7 @@
     if (os === 'ios') $('#heroDl').href = '#download';
     // community
     const grid = $('#commGrid');
-    if (!SB || !SB.ready) { grid.innerHTML = '<p class="muted small">The community library opens soon.</p>'; return; }
+    if (!SB || !SB.ready) { $('#community').hidden = true; const l = document.querySelector('.nav a[href="#community"]'); if (l) l.hidden = true; return; }
     try {
       const rows = await SB.restPublic('shared_items?select=id,kind,name,description,author,downloads&order=downloads.desc&limit=8');
       grid.innerHTML = rows.length ? rows.map(r => `<div class="citem"><span class="kind">${r.kind === 'brush' ? '🖌 Brush' : '🎨 Theme'}</span><b>${esc(r.name)}</b><span class="muted small">by ${esc(r.author || 'Anonymous')} · ⬇ ${r.downloads}</span><span class="small">${esc(r.description)}</span></div>`).join('')
