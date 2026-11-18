@@ -119,7 +119,12 @@ jobs:
           tag_name: ${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: files/*
+          files: |
+            files/*.exe
+            files/*.dmg
+            files/*.AppImage
+            files/*.apk
+            files/*.zip
           body: |
             **Windows**: download `Sketchforge-Setup-….exe` and run it (Windows may say "unknown publisher": More info → Run anyway).
             **Mac**: `…-mac-arm64.dmg` for Apple Silicon (M1/M2/M3…), `…-mac-x64.dmg` for Intel. Open the dmg, drag Sketchforge to Applications, then right-click → Open the first time (the app is not notarised).
