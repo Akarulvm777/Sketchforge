@@ -16,8 +16,7 @@
     "dist:linux": "electron-builder --linux --publish never",
     "build:www": "node tools/build_www.mjs",
     "android": "node tools/build_www.mjs && npx cap sync android",
-    "build:site": "node tools/build_site.mjs",
-    "build:knowledge": "node tools/build_knowledge.cjs"
+    "build:site": "node tools/build_site.mjs"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -108,7 +107,6 @@
   },
   "sketchforge": {
     "releasesRepo": "",
-    "minShell": "2.4.0",
-    "supabaseProject": ""
+    "minShell": "2.4.0"
   }
 }

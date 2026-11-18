@@ -75,19 +75,6 @@
       const rows = await SB.rest(`settings?select=updated_at,data&user_id=eq.${p.id}`);
       $('#syncInfo').textContent = rows[0] ? `Your settings were last saved ${new Date(rows[0].updated_at).toLocaleString()} (${Object.keys(rows[0].data || {}).length} items). Every device you sign in on gets them.` : 'No settings saved yet — sign in in the app and they upload by themselves.';
     } catch (e) { $('#syncInfo').textContent = 'Could not load: ' + e.message; }
-    // AI helper
-    const msgs = [];
-    const render = busy => {
-      $('#aiLog').innerHTML = msgs.map(m => `<div class="aimsg ${m.role}">${esc(m.content).replace(/\[\[(?:cmd|tut|acct):[\w-]+\|([^\]]+)\]\]/g, '<i>$1 (in the app)</i>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')}</div>`).join('') + (busy ? '<div class="aimsg assistant">…</div>' : '');
-      $('#aiLog').scrollTop = 1e9;
-    };
-    $('#aiForm').onsubmit = async e => {
-      e.preventDefault(); const q = $('#aiQ').value.trim(); if (!q) return; $('#aiQ').value = '';
-      msgs.push({ role: 'user', content: q }); render(true);
-      try { const r = await SB.ask(msgs.slice(-12), { platform: 'website' }); msgs.push({ role: 'assistant', content: r.text || r.error || 'No answer.' }); }
-      catch (err) { msgs.push({ role: 'assistant', content: '⚠ ' + err.message }); }
-      render(false);
-    };
   }
 
   /* ---- link: sign in for the installed app ---- */

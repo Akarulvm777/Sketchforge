@@ -174,17 +174,3 @@ jobs:
             files/*.AppImage
             files/*.apk
           body: Sketchforge ${{ steps.ver.outputs.v }}. Install instructions on the Sketchforge website.
-  backend:
-    # Deploys the AI helper (Supabase Edge Function "ask") on releases, when the secret SUPABASE_ACCESS_TOKEN and
-    # package.json "sketchforge.supabaseProject" (the project ref) are set. Otherwise deploy it by hand (docs/ONLINE-SETUP.md).
-    needs: gate
-    if: needs.gate.outputs.release == 'true'
-    runs-on: ubuntu-latest
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: ref
-        run: echo "ref=$(node -p "(require('./package.json').sketchforge || {}).supabaseProject || ''")" >> "$GITHUB_OUTPUT"
-      - if: steps.ref.outputs.ref != '' && env.SUPABASE_ACCESS_TOKEN != ''
-        run: npx --yes supabase@latest functions deploy ask --project-ref "${{ steps.ref.outputs.ref }}"

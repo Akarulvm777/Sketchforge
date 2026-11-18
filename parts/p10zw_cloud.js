@@ -1,8 +1,8 @@
-/* ---------- Account, cloud and AI helper (needs cloud-lib.js + cloud-config.js) ----------
+/* ---------- Account and cloud (needs cloud-lib.js + cloud-config.js) ----------
    Sign in with Google or GitHub. In a browser the sign-in page comes back to the app directly; the installed apps
    (Windows / Mac / Android) open the website in the browser and pick the sign-in up with a secret one-time code.
    Then: save / open drawings in the cloud, sync settings (pens, layout, Custom P, …) between devices, browse and
-   share brushes (.sut) and themes (.sftheme), and ask the AI helper (it explains the app; it never draws).        */
+   share brushes (.sut) and themes (.sftheme). (The ✨ Ask helper is free and offline: p10zxa_helper.)               */
 const SB = () => window.SFSB || { ready: false, user: () => null, profile: () => null };
 const SYNC_SKIP = /^sketchforge\.(auth|live|shell|session)\b/;
 function cloudReady(quiet) {
@@ -73,9 +73,9 @@ function accountDialog(then) {
       <div class="btnrow"><button type="button" data-a="files">☁ My cloud files</button><button type="button" data-a="save">Save this drawing to the cloud</button></div>
       <div class="btnrow"><button type="button" data-a="push">⬆ Upload my settings</button><button type="button" data-a="pull">⬇ Get my settings</button></div>
       <label class="check"><input type="checkbox" id="acctAuto" ${prefAutoSync() ? 'checked' : ''}> Keep my settings in sync automatically</label>
-      <div class="btnrow"><button type="button" data-a="library">Brushes & themes library</button><button type="button" data-a="ai">✨ Ask the AI helper</button></div>
+      <div class="btnrow"><button type="button" data-a="library">Brushes & themes library</button><button type="button" data-a="ai">✨ Ask the helper</button></div>
       <div class="btnrow"><button type="button" data-a="out">Sign out</button>${siteUrl() ? `<a class="btnlink" href="${esc(siteUrl())}/account.html" target="_blank" rel="noopener">Open my account on the website</a>` : ''}</div>`
-    : `<p>Sign in to save drawings in the cloud, keep your settings on all your devices, share brushes and themes, and ask the AI helper.</p>
+    : `<p>Sign in to save drawings in the cloud, keep your settings on all your devices, and share brushes and themes. Everything else in Sketchforge works without an account.</p>
       <div class="acct-providers"><button type="button" class="prov google" data-p="google">Continue with Google</button><button type="button" class="prov github" data-p="github">Continue with GitHub</button></div>
       <p class="muted small">Signing up is the same as signing in: the first time creates your account.</p>`;
   const d = cloudDlg('acctDlg', p ? '👤 Your account' : '👤 Sign in or sign up', html);
@@ -231,64 +231,16 @@ function shareDialog() {
   };
 }
 
-/* ---- AI helper ---- */
-const AI = { msgs: [], busy: false };
-function aiOpen() {
-  if (!cloudReady()) return;
-  let p = $('#aiPanel');
-  if (!p) {
-    p = document.createElement('div'); p.id = 'aiPanel';
-    p.innerHTML = `<div class="ai-head"><b>✨ Sketchforge helper</b><span class="muted small">Finds tools and answers questions. It won't draw for you.</span><button type="button" class="ai-x" title="Close">✕</button></div>
-      <div class="ai-log"></div><form class="ai-form"><textarea rows="2" placeholder="Ask anything about Sketchforge… e.g. how do I animate on one layer?"></textarea><button class="primary">Ask</button></form>`;
-    document.body.appendChild(p);
-    p.querySelector('.ai-x').onclick = () => { p.hidden = true; };
-    const ta = p.querySelector('textarea');
-    ta.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); p.querySelector('form').requestSubmit(); } });
-    p.querySelector('form').onsubmit = e => { e.preventDefault(); const q = ta.value.trim(); if (q) { ta.value = ''; aiAsk(q); } };
-    aiRender();
-  }
-  p.hidden = false; p.querySelector('textarea').focus();
-  if (!SB().user()) aiLog('assistant', 'Please sign in first (free, with Google or GitHub). [[acct:login|Sign in]]');
-}
-function aiFormat(text) {
-  let h = esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\n/g, '<br>');
-  return h.replace(/\[\[(cmd|tut|acct):([\w-]+)\|([^\]]{1,60})\]\]/g, (m, k, id, label) => {
-    if (k === 'cmd' && !CMD[id]) return esc(label);
-    if (k === 'tut' && !TUTORIALS.some(t => t.id === id)) return esc(label);
-    return `<button type="button" class="ai-act" data-k="${k}" data-id="${id}">${label}</button>`;
-  });
-}
-function aiLog(role, text) { AI.msgs.push({ role, content: text }); aiRender(); }
-function aiRender() {
-  const log = $('#aiPanel .ai-log'); if (!log) return;
-  log.innerHTML = AI.msgs.length ? AI.msgs.map(m => `<div class="ai-msg ${m.role}">${aiFormat(m.content)}</div>`).join('') + (AI.busy ? '<div class="ai-msg assistant"><span class="spin"></span></div>' : '')
-    : '<div class="ai-msg assistant">Hi! Ask me where a tool is, what a setting does, or how to do something in Sketchforge.</div>';
-  log.querySelectorAll('.ai-act').forEach(b => b.onclick = () => {
-    if (b.dataset.k === 'cmd') CMD[b.dataset.id](); else if (b.dataset.k === 'tut') tutStart(b.dataset.id); else accountDialog();
-  });
-  log.scrollTop = log.scrollHeight;
-}
-async function aiAsk(q) {
-  if (AI.busy) return;
-  if (!SB().user()) { aiLog('user', q); aiLog('assistant', 'Please sign in first. [[acct:login|Sign in]]'); return; }
-  AI.msgs.push({ role: 'user', content: q }); AI.busy = true; aiRender();
-  try {
-    const hist = AI.msgs.filter(m => !/\[\[acct:/.test(m.content)).slice(-12);
-    const r = await SB().ask(hist, { version: APP_VERSION, platform: shellInfo().platform, mode: state.mode === 'anim' ? 'Animation' : 'Drawing', tool: (TOOLDEF[state.tool] || {}).name || state.tool });
-    AI.busy = false; aiLog('assistant', r && r.text ? r.text : (r && r.error) || 'No answer.');
-  } catch (e) { AI.busy = false; aiLog('assistant', '⚠ ' + e.message); }
-}
-
 function installCloud() {
   Object.assign(CMD, { account: () => accountDialog(), cloudSave, cloudOpen: cloudFiles, syncPush: () => settingsPush(), syncPull: () => settingsPull(), communityLib: libraryDialog, askAI: aiOpen });
   const F = MENUS.find(m => m[0] === 'File')[1];
   const at = F.findIndex(it => Array.isArray(it) && it[1] === 'save');
   F.splice(at + 1, 0, ['☁ Save to cloud', 'cloudSave'], ['☁ Open from cloud…', 'cloudOpen']);
   MENUS.splice(MENUS.findIndex(m => m[0] === 'Help'), 0, ['☁ Account', [['Sign in / my account…', 'account'], '-', ['Save this drawing to the cloud', 'cloudSave'], ['My cloud files…', 'cloudOpen'], '-',
-    ['Upload my settings', 'syncPush'], ['Get my settings', 'syncPull'], '-', ['Brushes & themes library…', 'communityLib'], ['✨ Ask the AI helper', 'askAI']]]);
-  MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the AI helper…', 'askAI'], '-');
+    ['Upload my settings', 'syncPush'], ['Get my settings', 'syncPull'], '-', ['Brushes & themes library…', 'communityLib']]]);
+  MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the helper (free)…', 'askAI'], '-');
   const b = document.createElement('button'); b.id = 'acctBtn'; b.type = 'button'; b.onclick = () => accountDialog();
-  const ai = document.createElement('button'); ai.id = 'aiBtn'; ai.type = 'button'; ai.textContent = '✨ Ask'; ai.title = 'Ask the AI helper where things are and how they work'; ai.onclick = aiOpen;
+  const ai = document.createElement('button'); ai.id = 'aiBtn'; ai.type = 'button'; ai.textContent = '✨ Ask'; ai.title = 'Ask where things are and how they work (free, offline)'; ai.onclick = aiOpen;
   const mb = $('#menubar'), grow = mb.querySelector('.grow'); grow.after(ai, b);
   renderAcctBtn();
   window.addEventListener('sf-auth', renderAcctBtn);

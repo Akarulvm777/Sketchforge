@@ -1,15 +1,14 @@
 # Putting Sketchforge online
 
-Sketchforge works fully offline. These steps switch on the online parts:
+Sketchforge works fully offline, and the ✨ Ask helper is built in (free, no setup). These steps switch on the online parts — all on free plans:
 
 | Part | What it gives | Service (free plan) | Time |
 |---|---|---|---|
 | A. Website | the official site, the web app for iPad / browser, automatic updates for every app | Netlify | 5 min |
 | B. Public downloads | download buttons that work for everyone (your code repository stays private) | GitHub | 5 min |
 | C. Accounts & cloud | Google / GitHub sign-in, cloud drawings, settings sync, shared brushes & themes | Supabase | 15 min |
-| D. AI helper | the ✨ Ask helper in the app and on the website | Anthropic API (paid per question) | 5 min |
 
-When you are done, send Claude **the 4 public values** listed at the end; they go into `cloud-config.js` and
+When you are done, send Claude **the 3 public values** listed at the end; they go into `cloud-config.js` and
 `package.json`. Never paste passwords, secrets or API keys into the chat: they go straight into GitHub, Supabase or
 Netlify as described below.
 
@@ -60,38 +59,20 @@ Each release then copies the installers to `sketchforge-downloads` and the websi
    (Google shows "unverified app" to other people until you publish the consent screen: **OAuth consent screen →
    Publish app**.)
 
-## D. AI helper (Claude)
-
-1. <https://console.anthropic.com> → **API Keys → Create key**. Add a little credit under **Billing**.
-2. Supabase → **Edge Functions → Secrets → Add new secret**: name `ANTHROPIC_API_KEY`, value: the key.
-   Optional: `AI_DAILY_LIMIT` = questions per person per day (default 40).
-3. Deploy the helper, either way:
-   - **Automatic (recommended):** Supabase → your avatar → **Account → Access Tokens → Generate new token**. In the
-     Sketchforge GitHub repository add the secret `SUPABASE_ACCESS_TOKEN` with it. Every release then deploys the helper.
-   - **By hand:** Supabase → **Edge Functions → Deploy a new function → Via Editor**, name `ask`, and create the two
-     files from [`supabase/functions/ask/`](../supabase/functions/ask/) (`index.ts` and `knowledge.ts`), then Deploy.
-
-**Cost:** the helper uses Claude Opus 5.5 with low effort and prompt caching. The app knowledge (about 12,000 tokens)
-is cached, so a typical question costs around one US cent, a bit more for the first question after 5 quiet minutes.
-Each signed-in person can ask `AI_DAILY_LIMIT` questions a day. To make it much cheaper, change the `model` line in
-`supabase/functions/ask/index.ts` to `claude-haiku-5-5`.
-
 ---
 
-## Send these 4 public values to Claude
+## Send these 3 public values to Claude
 
 1. **Website address** — e.g. `https://sketchforge.netlify.app`
 2. **Supabase Project URL** and **anon public key** — Supabase → **Project Settings → API**
    (the anon key is meant to be public; the database is protected by the rules in `setup.sql`)
-3. **Supabase project ref** — the `xxxx` in `https://xxxx.supabase.co`
-4. **Downloads repository** — e.g. `your-name/sketchforge-downloads`
+3. **Downloads repository** — e.g. `your-name/sketchforge-downloads`
 
-Claude then fills in `cloud-config.js` and `package.json` (`sketchforge.releasesRepo`, `sketchforge.supabaseProject`)
+Claude then fills in `cloud-config.js` and `package.json` (`sketchforge.releasesRepo`)
 and pushes a release. Installed apps from 2.4.0 on pick up the website address from that release onwards.
 
 ## Keeping it up to date
 
-- `node tools/build_knowledge.cjs` after changing menus, tools or tutorials (updates what the AI helper knows).
 - `node tools/make_screenshots.cjs` to refresh the website pictures.
 - A release = bump the version (see CLAUDE.md) and push a commit with `[release]`: GitHub builds the installers and
   copies them to the downloads repository, Netlify publishes the new website and web app, every installed app updates itself.

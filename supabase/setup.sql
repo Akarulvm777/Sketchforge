@@ -59,26 +59,7 @@ begin
 end $$;
 grant execute on function public.claim_device_link(text) to anon, authenticated;
 
--- 4. AI helper usage per user per day (written by the "ask" Edge Function only)
-create table if not exists public.ai_usage (
-  user_id uuid not null references auth.users on delete cascade,
-  day date not null default current_date,
-  count integer not null default 0,
-  primary key (user_id, day)
-);
-alter table public.ai_usage enable row level security;
-create or replace function public.ai_take(uid uuid, max_per_day integer) returns integer
-  language plpgsql security definer set search_path = public as $$
-declare n integer;
-begin
-  insert into public.ai_usage (user_id, day, count) values (uid, current_date, 1)
-    on conflict (user_id, day) do update set count = public.ai_usage.count + 1
-    returning count into n;
-  return case when n > max_per_day then -1 else max_per_day - n end;
-end $$;
-revoke all on function public.ai_take(uuid, integer) from public, anon, authenticated;
-
--- 5. File storage: "docs" = each person's cloud drawings (private), "shared" = community brushes / themes (public)
+-- 4. File storage: "docs" = each person's cloud drawings (private), "shared" = community brushes / themes (public)
 insert into storage.buckets (id, name, public, file_size_limit)
   values ('docs', 'docs', false, 52428800), ('shared', 'shared', true, 20971520)
   on conflict (id) do nothing;

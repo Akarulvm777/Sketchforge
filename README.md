@@ -154,7 +154,7 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.4: updates itself
 - The browser / iPad version shows "New version — Reload"; the Windows / Mac app downloads new versions in the background and switches with one click (falls back to the built-in version if an update fails to start); the Android app downloads them into the app. Help › Check for updates.
 
-## 2.4: account, cloud and AI helper
-- Sign in with Google or GitHub (☁ Account or the button top right): save / open drawings in the cloud, settings sync between devices, a community library of brushes (.sut) and themes to add or share.
-- ✨ Ask: the AI helper finds tools and answers questions with buttons that take you there. It never draws for you — AI is not supposed to steal your job.
+## 2.4: account, cloud and the ✨ Ask helper
+- Sign in with Google or GitHub (☁ Account or the button top right): save / open drawings in the cloud, settings sync between devices, a community library of brushes (.sut) and themes to add or share. Optional: everything else works without an account.
+- ✨ Ask: a free helper that works offline. It searches every menu, tool, tutorial and common question (English and French words) and answers with buttons that take you there. It never draws for you — AI is not supposed to steal your job.
 - Official website with downloads, features, account page. Setup: docs/ONLINE-SETUP.md.

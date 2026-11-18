@@ -1,4 +1,4 @@
-/* Sketchforge cloud client: sign-in (Google / GitHub), cloud files, settings, shared brushes & themes and the AI helper,
+/* Sketchforge cloud client: sign-in (Google / GitHub), cloud files, settings, shared brushes & themes,
    talking to Supabase's REST endpoints directly (no library). Used by the app and by the website. Settings in
    cloud-config.js (window.SF_CLOUD). The session is kept in localStorage 'sketchforge.auth.v1'. */
 (function () {
@@ -76,7 +76,5 @@
   SB.download = (bucket, path) => authed(`/storage/v1/object/authenticated/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`, { type: 'blob' });
   SB.publicUrl = (bucket, path) => `${base}/storage/v1/object/public/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
   SB.remove = (bucket, paths) => authed(`/storage/v1/object/${bucket}`, { method: 'DELETE', body: { prefixes: paths } });
-  /* AI helper (Edge Function "ask") */
-  SB.ask = (messages, context) => authed('/functions/v1/ask', { method: 'POST', body: { messages, context } });
   window.SFSB = SB;
 })();

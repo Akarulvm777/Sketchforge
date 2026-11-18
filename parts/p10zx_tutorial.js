@@ -184,7 +184,7 @@ const TUTORIALS = [
     { t: 'iPad & iPhone', x: 'Open the web link in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline.' },
     { t: 'Your files', x: 'Save .sketchforge files to keep your work; open them on any device. Your last work also reopens automatically on the same device.' },
     { el: '#acctBtn', pre: tutNoDock, t: 'Account & cloud (optional)', x: '<b>Sign in</b> with Google or GitHub to save drawings in the cloud, keep your settings on all your devices and share brushes and themes (☁ Account menu).' },
-    { el: ['#aiBtn', '#acctBtn'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or ☁ Account › Ask the AI helper on phones); it answers with buttons that take you there. It never draws for you.' },
+    { el: ['#aiBtn', '#acctBtn'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or Help › Ask the helper on phones). It is free, works offline, and answers with buttons that take you there. It never draws for you.' },
     { el: menuEl('Help'), t: 'Updates', x: 'Sketchforge updates itself: you get a small card when a new version is ready. <b>Help › Check for updates</b> checks right away.' }
   ] }
 ];

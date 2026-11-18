@@ -1,5 +1,5 @@
 // Online features against a fake Supabase (no network): sign-in, cloud save / open, settings sync, sharing a theme,
-// the AI helper (answer with action buttons), the update notice, the website and the app sign-in hand-over.
+// the update notice, the website and the app sign-in hand-over.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), { execSync } = require('child_process');
 const root = process.argv[2], out = process.argv[3];
@@ -48,7 +48,6 @@ const api = http.createServer((q, r) => {
     if ((m = /^\/storage\/v1\/object\/(?:authenticated|public)\/(\w+)\/(.+)$/.exec(p))) { const k = m[1] + '/' + decodeURIComponent(m[2]); return db.store[k] ? send(r, 200, db.store[k], 'application/octet-stream') : send(r, 404, { message: 'not found' }); }
     if ((m = /^\/storage\/v1\/object\/(\w+)\/(.+)$/.exec(p)) && q.method === 'POST') { if (!signed) return send(r, 401, { message: 'auth' }); db.store[m[1] + '/' + decodeURIComponent(m[2])] = body; return send(r, 200, { Key: p }); }
     if ((m = /^\/storage\/v1\/object\/(\w+)$/.exec(p)) && q.method === 'DELETE') { for (const k of json().prefixes) delete db.store[m[1] + '/' + k]; return send(r, 200, []); }
-    if (p === '/functions/v1/ask') { if (!signed) return send(r, 401, { error: 'sign in' }); const b = json(); db.asks.push(b); return send(r, 200, { text: 'Turn on **onion skin**: [[cmd:onion|Onion skin]] or follow [[tut:animation|Make an animation]].', left: 39 }); }
     send(r, 404, { message: 'no route ' + p });
   });
 }).listen(API);
@@ -100,14 +99,6 @@ const api = http.createServer((q, r) => {
   await pg.click('#libDlg2 [data-add]'); await pg.waitForTimeout(800);
   check('installing counts a download', db.shared[0].downloads === 1);
   await pg.keyboard.press('Escape');
-  // AI helper
-  await pg.click('#aiBtn'); await pg.fill('#aiPanel textarea', 'How do I see the previous drawing?'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(800);
-  check('AI helper answers with buttons', await pg.isVisible('#aiPanel .ai-act[data-id="onion"]'));
-  check('question sent with what the user is doing', db.asks[0] && db.asks[0].context && db.asks[0].context.version && db.asks[0].messages.slice(-1)[0].content.includes('previous drawing'));
-  await pg.screenshot({ path: out + '/cloud_ai.png' });
-  const on0 = await E(() => window.__sketchforge.state.onion.on);
-  await pg.click('#aiPanel .ai-act[data-id="onion"]');
-  check('AI action button runs the command', (await E(() => window.__sketchforge.state.onion.on)) !== on0);
   // website
   const sp = await ctx.newPage(); sp.on('pageerror', e => errs.push('site: ' + e));
   await sp.goto(`http://127.0.0.1:${SITE}/`); await sp.waitForTimeout(1500);
