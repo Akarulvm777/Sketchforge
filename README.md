@@ -188,6 +188,11 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - After updating, a "What's new" popup lists what changed and what was fixed (also in Help › What's new in this version).
 - Fixed: a new Android APK could not be installed over the previous one ("App not installed"). Android versions are now signed with the same Sketchforge key every time. One last time only: uninstall the old Android app before installing 2.6 (save your drawings first).
 
+## 2.7: smoother light pressure (Apple Pencil, pen tablets)
+- Fixed: drawing slowly with light pressure, the line trailed behind the pen tip. It now follows the pen right away.
+- Fixed: with some pens (Windows Ink tablets, Apple Pencil), the start of a light stroke was lost because the first touch reported no pressure. The line now starts exactly where the pen touches down.
+- Light touches now give a clearer line: the default pressure response is softer. Pen pressure & touch › Soft / Normal / Firm still lets you choose.
+
 ## 2.7: perfect shapes and quick colour picking
 - Draw a circle, line, square or triangle and keep the pen or finger down for half a second at the end: it becomes a perfect shape with the same brush (circle, ellipse, straight line, corner line, arc, triangle, square, rectangle, polygon). Lift to keep it, undo to get your own stroke back.
 - Touch and hold (or click and hold with the mouse) on the drawing: a circle shows the colour under your finger and it becomes your colour. Move to pick another one, lift to keep it.

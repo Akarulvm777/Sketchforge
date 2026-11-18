@@ -1,6 +1,6 @@
 {
   "name": "sketchforge",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
   "author": "Sketchforge",

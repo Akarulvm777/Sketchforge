@@ -409,7 +409,7 @@ function openPenDialog() {
       g.stroke(); g.lineWidth = 1;
       g.fillStyle = '#888'; g.font = '10px sans-serif'; g.fillText('pressure curve', 140, 14);
     };
-    const PRESETS = { soft: 0.6, normal: 1, firm: 1.7 };
+    const PRESETS = { soft: 0.55, normal: 0.8, firm: 1.4 };
     d.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { penCfg.gamma = PRESETS[b.dataset.preset]; sync(); save(); });
     $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; sync(); save(); };
     $('#penMin').oninput = e => { penCfg.min = e.target.value / 100; sync(); save(); };
@@ -417,7 +417,7 @@ function openPenDialog() {
     $('#penSide').onchange = e => { penCfg.side = e.target.value; save(); };
     $('#penPalm').onchange = e => { penCfg.palm = e.target.checked; save(); };
     $('#penUndo').onchange = e => { penCfg.twoTapUndo = e.target.checked; save(); };
-    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
+    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 0.8, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
     $('#penClose').onclick = () => d.close();
     /* calibration: collect raw pen pressures, then use the light / hard ends the pen really reaches */
     let cal = null;

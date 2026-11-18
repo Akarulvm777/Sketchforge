@@ -43,7 +43,7 @@ const curSettings = () => settings[curKey()];
 
 const newBox = () => ({ x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
 /* pen pressure with a user-adjustable response curve (Edit -> Pen pressure & touch) */
-const penCfg = { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false, side: 'pick' };
+const penCfg = { gamma: 0.8, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false, side: 'pick' };
 try { Object.assign(penCfg, JSON.parse(localStorage.getItem('sketchforge.pen') || '{}'), { penSeen: false }); } catch (e) { /* ignore */ }
 function shapePressure(p) {
   const lo = penCfg.min, hi = Math.max(lo + 0.05, penCfg.max);
@@ -546,7 +546,11 @@ function moveStroke(e) {
     const d = rulerApply(st.rlock, toDoc(ev));
     const [x, y] = st.map(d.x, d.y);
     let pr = pressureOf(ev);
-    if (st.waitPr) { if (!(ev.pressure > 0)) continue; startDeferred(st, pr); }
+    if (st.waitPr) {
+      if (!(ev.pressure > 0)) { (st.waitPts || (st.waitPts = [])).push([x, y]); continue; } // keep the first points: drawn once pressure comes
+      startDeferred(st, pr);
+      if (st.waitPts) { for (const [wx, wy] of st.waitPts) { if (st.qs) qsRecord(st, wx, wy, pr, ev); curveTo(st, wx, wy, pr); } st.waitPts = null; }
+    }
     if (st.s.speed > 0 && !st.isShape) {
       const dt = Math.max(1, ev.timeStamp - (st.lt || ev.timeStamp - 8));
       const v = Math.hypot(x - st.rx, y - st.ry) / dt;
@@ -580,22 +584,25 @@ function emitPoint(st, x, y, pr) {
   st.sp += (pr - st.sp) * Math.max(k, 0.3);
   segment(st, st.sx, st.sy, st.sp);
 }
+/* The curve keeps one point of look-ahead only when the pen moves fast (sparse points, where joining them with straight
+   lines made polygons). Slow, light strokes have dense points: those are drawn right up to the pen at once, otherwise
+   the line trailed one point behind the tip (felt like lag at low pressure). */
 function curveTo(st, x, y, pr) {
   if (st.rlock) { emitPoint(st, x, y, pr); return; }
-  const P = st.cr || (st.cr = [[st.sx, st.sy, st.sp]]);
-  const last = P[P.length - 1];
-  if (Math.hypot(x - last[0], y - last[1]) * view.scale < 1.5 && P.length > 1) { P[P.length - 1] = [x, y, pr]; return; } // ignore tiny jitter
+  const P = st.cr || (st.cr = [[st.sx, st.sy, st.sp]], st.crAt = 0, st.cr);
+  const last = P[P.length - 1], gap = Math.hypot(x - last[0], y - last[1]) * view.scale;
+  if (gap < 0.35) { if (st.crAt < P.length - 1) P[P.length - 1] = [x, y, pr]; else last[2] = pr; return; } // sensor noise
   P.push([x, y, pr]);
-  if (P.length < 3) return;
-  const n = P.length, p0 = P[Math.max(0, n - 4)], p1 = P[n - 3], p2 = P[n - 2], p3 = P[n - 1];
-  crSegment(st, p0, p1, p2, p3);
-  if (P.length > 4) P.shift();
+  const n = P.length, upTo = gap < 5 ? n - 1 : n - 2; // slow: draw to the newest point; fast: keep one point to curve towards
+  for (let i = st.crAt; i < upTo; i++) crSegment(st, P[Math.max(0, i - 1)], P[i], P[i + 1], P[Math.min(n - 1, i + 2)]);
+  st.crAt = Math.max(st.crAt, upTo);
+  if (n > 5) { const cut = Math.min(n - 4, st.crAt - 1); if (cut > 0) { P.splice(0, cut); st.crAt -= cut; } }
 }
 function curveEnd(st) {
   const P = st.cr; st.cr = null;
-  if (!P || P.length < 2) return;
-  const n = P.length, p1 = P[n - 2], p2 = P[n - 1], p0 = P[Math.max(0, n - 3)];
-  crSegment(st, p0, p1, p2, p2);
+  if (!P) return;
+  const n = P.length;
+  for (let i = st.crAt || 0; i < n - 1; i++) crSegment(st, P[Math.max(0, i - 1)], P[i], P[i + 1], P[Math.min(n - 1, i + 2)]);
 }
 function crSegment(st, p0, p1, p2, p3) {
   const len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), steps = Math.min(48, Math.ceil(len * view.scale / 3));
