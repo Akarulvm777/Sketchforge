@@ -359,7 +359,7 @@ function finishDirect(st, b) {
     t.ctx.restore();
   }
   t.cel._ink = true;
-  clearBuffers();
+  clearBuffers(st);
   pushHistory(celEntry(t, b, crop(snapCanvas, b), crop(t.cel, b)));
   afterEdit();
 }
@@ -623,6 +623,7 @@ function registerWave2() {
 function installCsFeatures() {
   registerExtraTools();
   registerWave2();
+  registerManga();
   /* every painting tool responds to pen pressure out of the box: size always, opacity for soft / light media */
   for (const k in TOOLDEF) {
     const d = TOOLDEF[k], pr = d.preset;

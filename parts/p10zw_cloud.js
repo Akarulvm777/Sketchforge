@@ -236,6 +236,9 @@ function installCloud() {
   MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the helper (free)…', 'askAI'], '-');
   const ai = document.createElement('button'); ai.id = 'aiBtn'; ai.type = 'button'; ai.textContent = '✨ Ask'; ai.title = 'Ask where things are and how they work (free, offline)'; ai.onclick = aiOpen;
   $('#menubar .grow').after(ai);
+  // phones / tablets: the top bar is full, so ✨ Ask is a round button in the corner, always in reach
+  const fab = document.createElement('button'); fab.id = 'aiFab'; fab.type = 'button'; fab.textContent = '✨'; fab.title = 'Ask the helper'; fab.setAttribute('aria-label', 'Ask the helper'); fab.onclick = aiOpen;
+  document.body.appendChild(fab);
   if (!SB().ready) return; // accounts are not set up in this copy: no sign-in buttons that lead nowhere
   Object.assign(CMD, { account: () => accountDialog(), cloudSave, cloudOpen: cloudFiles, syncPush: () => settingsPush(), syncPull: () => settingsPull(), communityLib: libraryDialog });
   const F = MENUS.find(m => m[0] === 'File')[1];

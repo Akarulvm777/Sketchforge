@@ -126,9 +126,24 @@ function celURL(c, cache) {
   if (c._su && c._suv === (c._sv || 0)) return c._su;
   c._su = c.toDataURL('image/png'); c._suv = c._sv || 0; return c._su;
 }
+/* PNG encoding off the main thread (toBlob), so saving / remembering work does not freeze drawing */
+function celURLAsync(c, cache) {
+  const v = c._sv || 0;
+  if (cache && c._su && c._suv === v) return Promise.resolve(c._su);
+  return new Promise(res => {
+    if (!c.toBlob) { res(celURL(c, cache)); return; }
+    c.toBlob(b => {
+      if (!b) { res(celURL(c, cache)); return; }
+      const fr = new FileReader();
+      fr.onload = () => { if (cache) { c._su = fr.result; c._suv = v; } res(fr.result); };
+      fr.onerror = () => res(celURL(c, cache));
+      fr.readAsDataURL(b);
+    }, 'image/png');
+  });
+}
 async function buildDocObject(src, opts = {}) {
   src = src || docSource();
-  const st = src.st, enc = c => celURL(c, opts.cache);
+  const st = src.st, enc = c => celURLAsync(c, opts.cache);
   const doc = {
     format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
     frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode,
@@ -153,7 +168,9 @@ async function buildDocObject(src, opts = {}) {
     if (r === undefined) { r = pupRests.length; rests.set(c._pup.rest, r); pupRests.push(enc(c._pup.rest)); }
     doc.layers[i].cels[j].pup = { r, pins: c._pup.pins, cur: c._pup.cur };
   }));
-  if (pupRests.length) doc.pupRests = pupRests;
+  if (pupRests.length) doc.pupRests = await Promise.all(pupRests);
+  // the cel images were encoded in the background: wait for them
+  await Promise.all(doc.layers.flatMap(l => [...l.cels, ...(l.mask ? l.mask.cels : [])].map(async cd => { if (cd.data && cd.data.then) cd.data = await cd.data; })));
   const au = typeof audioSerialize === 'function' ? await audioSerialize(src.aud, opts.quiet) : null;
   if (au) doc.audio = au;
   const tl = typeof tlSerialize === 'function' ? await tlSerialize(src.tl) : null;

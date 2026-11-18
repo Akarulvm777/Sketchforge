@@ -12,8 +12,8 @@ const tlScreenSupported = () => !!(navigator.mediaDevices && navigator.mediaDevi
 
 /* ---- snapshot renderers ---- */
 function tlRenderCanvas() {
-  const src = compositeFrame(state.frame);
   const k = Math.min(1, 960 / Math.max(state.w, state.h));
+  const src = compositeFrame(state.frame, { scale: k });
   const c = makeCanvas(Math.max(2, Math.round(state.w * k) & ~1), Math.max(2, Math.round(state.h * k) & ~1));
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(src, 0, 0, c.width, c.height);
   return c;
@@ -29,7 +29,8 @@ function tlRenderView() {
   g.save(); g.scale(k, k); g.transform(m.a, m.b, m.c, m.d, view.x, view.y);
   g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 18 / view.scale;
   g.fillStyle = '#fff'; g.fillRect(0, 0, state.w, state.h); g.shadowColor = 'transparent';
-  g.drawImage(compositeFrame(state.frame), 0, 0);
+  // the drawing at about the size it appears in the picture (not full resolution: huge pages made this very slow)
+  g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, view.scale * k * 1.25) }), 0, 0, state.w, state.h);
   if (stroke && bufCanvas) { g.globalAlpha = +bufCanvas.style.opacity || 1; g.drawImage(bufCanvas, 0, 0); g.globalAlpha = 1; }
   g.restore();
   // cursor: brush outline + crosshair
@@ -73,8 +74,11 @@ function tlCapture(force) {
   if (!force && now - TL.last < 150) { clearTimeout(TL.trail); TL.trail = setTimeout(() => tlCapture(true), 200); return; } /* never lose the last edit */
   TL.last = now;
   const gen = TL.gen;
+  const idle = () => new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 3000 }) : setTimeout(r, 60)));
   TL.chain = TL.chain.then(async () => {
     try {
+      await idle(); // let drawing go first
+      for (let i = 0; i < 40 && (stroke || active); i++) await new Promise(r => setTimeout(r, 150));
       if (gen !== TL.gen) return; // a new / other file was opened meanwhile
       const c = TL.mode === 'screen' ? tlRenderScreen() : TL.mode === 'view' ? tlRenderView() : tlRenderCanvas();
       const b = await canvasToBlob(c, 'image/jpeg');

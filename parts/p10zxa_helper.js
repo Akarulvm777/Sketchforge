@@ -23,6 +23,7 @@ const HELP_TIPS = [
   { q: 'tween move object automatically in between', t: 'Motion tween', x: 'Two keyframes with the drawing in different places (Move tool), then Tween: the frames between are made for you.', a: [['tut', 'tween', 'Tween tutorial']] },
   { q: 'time lapse record video of drawing process', t: 'Time-lapse', x: 'REC Time-lapse records how you draw; ▾ → Export video.', a: [['cmd', 'tlToggle', 'Recording on / off']] },
   { q: 'cloud account sign in login google github sync settings', t: 'Account (optional)', x: 'Sign in with Google or GitHub to keep drawings in the cloud and your settings on all your devices.', a: [['cmd', 'account', 'Sign in']] },
+  { q: 'manga tone screentone screen tone dots halftone shadow shading hatching trame ombre', t: 'Manga tones & shading', x: 'The Manga tone tool paints dot / line / cross-hatch / sand tones (pattern aligned on the page). Shading pens: shadow pen, hatching, cross-hatching, stipple. Manga › Screen tone… fills a selection.', a: [['tool', 'tone30', 'Dot tone 30%'], ['tool', 'hatchbrush', 'Hatching brush']] },
   { q: 'shortcuts keys keyboard', t: 'Shortcuts', x: 'Help › Shortcuts & help (F1) lists every key.', a: [['cmd', 'help', 'Shortcuts']] },
   { q: 'tutorial learn how start beginner new', t: 'Tutorials', x: 'Help › Tutorials has guided tours that point at the real buttons, from the first drawing to animation and rigging.', a: [['cmd', 'tutorials', 'All tutorials'], ['tut', 'welcome', 'Welcome tour']] }
 ];

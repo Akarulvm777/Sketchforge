@@ -60,6 +60,8 @@ const TUTORIALS = [
       liquify: 'Push, pull, twirl or pinch the picture like warm wax.',
       airbrush: 'Soft spray, splatter spray, droplets and noise.',
       decor: 'Stamp patterns along the stroke: sparkles, glitter, dappled light, petals, hearts, bubbles, feathers.',
+      tone: 'Manga screen tones you paint with: dot tones 10–50 %, fine and big dots, line, horizontal line and cross-hatch tones, sand tone, and a tone eraser. The pattern stays aligned on the page like a real tone sheet.',
+      shade: 'Pens for manga shadows: shadow pen (solid blacks), hatching and cross-hatching brushes, stipple pen.',
       fill: 'Fill an area: from all layers, only this layer, reference layers, enclose & fill, lasso fill.',
       gradient: 'Linear and radial gradients and ready-made skies (sunset, night, rainbow…), gradient eraser, manga gradient.',
       pick: 'Eyedropper: click to take a colour from the picture (Alt = sub colour).',
@@ -184,7 +186,7 @@ const TUTORIALS = [
     { t: 'iPad & iPhone', x: 'Open the web link in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline.' },
     { t: 'Your files', x: 'Save .sketchforge files to keep your work; open them on any device. Your last work also reopens automatically on the same device.' },
     { el: ['#acctBtn', '#aiBtn', '#btnMenu'], pre: tutNoDock, t: 'Account & cloud (optional)', x: 'When accounts are switched on, <b>Sign in</b> with Google or GitHub (top right) saves drawings in the cloud, keeps your settings on all your devices and shares brushes and themes. Everything else works without an account.' },
-    { el: ['#aiBtn', '#acctBtn', '#btnMenu'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or Help › Ask the helper on phones). It is free, works offline, and answers with buttons that take you there. It never draws for you.' },
+    { el: ['#aiBtn', '#aiFab', '#acctBtn', '#btnMenu'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or Help › Ask the helper on phones). It is free, works offline, and answers with buttons that take you there. It never draws for you.' },
     { el: menuEl('Help'), t: 'Updates', x: 'Sketchforge updates itself: you get a small card when a new version is ready. <b>Help › Check for updates</b> checks right away.' }
   ] }
 ];

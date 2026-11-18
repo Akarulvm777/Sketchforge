@@ -12,7 +12,8 @@ function sessDB() {
 async function sessKV(mode, fn) { const db = await sessDB(); if (!db) return null; return new Promise((res, rej) => { const tx = db.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && 'result' in r ? r.result : null); tx.onerror = () => rej(tx.error); }); }
 function sessionSoon(ms = 2500) {
   if (!SESS.on || SESS.restoring) return;
-  clearTimeout(SESS.t); SESS.t = setTimeout(sessionSave, ms);
+  // wait for a quiet moment (not while drawing): on phones saving big pages takes a while
+  clearTimeout(SESS.t); SESS.t = setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(sessionSave, { timeout: 4000 }) : sessionSave()), ms);
 }
 async function sessionSave() {
   if (!SESS.on || SESS.restoring || typeof DOCS === 'undefined' || !DOCS.list.length) return;

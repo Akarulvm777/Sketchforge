@@ -37,9 +37,14 @@ if (process.env.DOWNLOADS_DIR) {
 }
 // notes: the README sections of this version ("## 2.4: …")
 const mm = V.split('.').slice(0, 2).join('.');
-const notes = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8').split('\n').filter(l => l.startsWith(`## ${mm}:`)).map(l => '• ' + l.slice(mm.length + 4).trim()).join('\n');
+const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+const changes = readme.split(/\n(?=## )/).filter(sec => sec.startsWith(`## ${mm}:`)).map(sec => {
+  const [head, ...rest] = sec.split('\n');
+  return { title: head.slice(mm.length + 4).trim(), items: rest.filter(l => /^- /.test(l)).map(l => l.slice(2).replace(/\*\*/g, '').trim()) };
+});
+const notes = changes.map(c => '• ' + c.title).join('\n');
 const site = ((fs.readFileSync(path.join(ROOT, 'cloud-config.js'), 'utf8').match(/"site"\s*:\s*"([^"]*)"/) || [])[1] || '').replace(/\/+$/, '');
-const version = { version: V, date: new Date().toISOString().slice(0, 10), notes, files, downloads,
+const version = { version: V, date: new Date().toISOString().slice(0, 10), notes, changes, files, downloads,
   shell: { desktop: cfg.minShell || '2.4.0', android: cfg.minShell || '2.4.0' }, site };
 fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify(version, null, 1));
 fs.writeFileSync(path.join(OUT, '_headers'), `/version.json

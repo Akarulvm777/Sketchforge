@@ -1,4 +1,4 @@
-# Sketchforge 2.4 — drawing + animation studio
+# Sketchforge 2.5 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -164,3 +164,18 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - The official website is live on GitHub Pages: https://akarulvm777.github.io/Sketchforge/ — features, downloads for Windows / Mac / Android / Linux, and the web app (iPad: open it in Safari → Share → Add to Home Screen).
 - Installed apps check this website for new versions and update themselves.
 - The ✨ Ask helper is free and offline for everyone. Accounts / cloud stay hidden until they are switched on (docs/ONLINE-SETUP.md).
+
+## 2.5: smoother drawing, less lag
+- Fixed: on phones (and big pages) circles came out as polygons with straight sides. Strokes now follow a smooth curve through every point of your finger or pen, even when the device is busy.
+- Fixed: lag while drawing. The time-lapse took a full-size picture after every stroke (over a second on a big page); it now records at screen size, when the app is idle. Remembering your work now saves in the background, never in the middle of a stroke. Each stroke no longer clears two full-size buffers.
+- The stabiliser works on the smooth curve, so fast strokes keep their shape.
+
+## 2.5: ✨ Ask on phones and tablets
+- Fixed: the ✨ Ask helper was hidden on phones. It is now a round ✨ button in the corner on phones and tablets, and opens as a large panel.
+
+## 2.5: pictures in 🎨 Custom P
+- Colours tab › Pictures instead of colours: your own image behind the whole app, or on the side panels, menu bar, tool palette or timeline, with a "Darken pictures" slider so text stays readable.
+
+## 2.5: manga tones and shading pens
+- New Manga tone tool: dot tones 10 / 20 / 30 / 50 %, fine and big dots, line, horizontal line and cross-hatch tones, sand tone and a tone eraser. The pattern stays aligned on the page like a real tone sheet, so overlapping strokes never double the dots.
+- New Shading pens: shadow pen (solid blacks), hatching brush, cross-hatching brush, stipple pen.

@@ -189,7 +189,7 @@ function texBaseFor(id) {
   } else if (id === 'charcoal') {
     const st = latticeNoise(N, N, 16, 64, 41), gr = latticeNoise(N, N, 128, 128, 42);
     for (let i = 0; i < v.length; i++) v[i] = clamp((st[i] * 0.5 + gr[i] * 0.4 + rnd() * 0.3 - 0.25) * 1.7, 0, 1);
-  } else { for (let i = 0; i < v.length; i++) v[i] = rnd(); }
+  } else if (!(typeof toneTexture === 'function' && toneTexture(id, v, N))) { for (let i = 0; i < v.length; i++) v[i] = rnd(); } // manga tones: p10wb_manga
   c = makeCanvas(N, N);
   const g = c.getContext('2d'), im = g.createImageData(N, N);
   for (let i = 0; i < v.length; i++) { im.data[i * 4 + 3] = clamp(v[i], 0, 1) * 255; }
@@ -445,7 +445,7 @@ function drawShape(ctx, st) {
 }
 function drawShapePreview(st) {
   const prev = st.box;
-  st.ctx.clearRect(0, 0, state.w, state.h);
+  { const c = prev.x1 > prev.x0 ? clampBox(prev.x0 - 4, prev.y0 - 4, prev.x1 + 4, prev.y1 + 4) : null; if (c) st.ctx.clearRect(c.x, c.y, c.w, c.h); }
   st.box = drawShape(st.ctx, st);
   if (st.sym) for (const m of st.sym) {
     st.ctx.save(); st.ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
@@ -499,15 +499,14 @@ function beginStroke(e) {
   const d0 = rulerApply(rlock, toDoc(e));
   const [x0, y0] = lm.map(d0.x, d0.y);
   const pr = pressureOf(e);
-  snapCtx.clearRect(0, 0, state.w, state.h);
-  snapCtx.drawImage(t.cel, 0, 0);
+  snapCtx.globalCompositeOperation = 'copy'; snapCtx.drawImage(t.cel, 0, 0); snapCtx.globalCompositeOperation = 'source-over'; // one pass, no separate clear
   const isShape = def.kind === 'shape';
   const erase = !!def.erase;
   const direct = TOOLDEF[tool].preset && TOOLDEF[tool].preset.smudge != null;
   const clip = (sel.active && lm.ident && !direct) ? sel.mask : null;
   const s = { ...curSettings() };
-  bufCtx.clearRect(0, 0, state.w, state.h);
-  rawCtx.clearRect(0, 0, state.w, state.h);
+  if (!bufClean) { bufCtx.clearRect(0, 0, state.w, state.h); rawCtx.clearRect(0, 0, state.w, state.h); }
+  bufClean = false;
   stroke = {
     kind: tool, t, isShape, erase, direct, s, color: layer.isMask ? '#ff2a2a' : state.color, map: lm.map, clip,
     ctx: ((clip && !erase) || (s.tex && !direct)) ? rawCtx : bufCtx,
@@ -558,18 +557,58 @@ function moveStroke(e) {
       continue;
     }
     st.rx = x; st.ry = y; st.rp = pr;
-    const k = 1 - st.s.smooth * 0.92;
-    st.sx += (x - st.sx) * k;
-    st.sy += (y - st.sy) * k;
-    st.sp += (pr - st.sp) * Math.max(k, 0.3);
-    segment(st, st.sx, st.sy, st.sp);
+    curveTo(st, x, y, pr); // curve through the real points, then the stabiliser on the dense curve (emitPoint)
   }
   if (st.isShape) drawShapePreview(st); else afterMove(st);
 }
 
-function clearBuffers() {
-  bufCtx.clearRect(0, 0, state.w, state.h);
-  rawCtx.clearRect(0, 0, state.w, state.h);
+/* The stroke buffers are as big as the document (12+ megapixels on big pages): clearing them whole on every stroke
+   was a large part of the lag on phones. Only the area the stroke used is cleared; bufClean says they are empty. */
+let bufClean = true; // the buffers start empty (and are emptied whenever the page size changes)
+/* Smooth curves through the input points (Catmull-Rom). When the device is busy, touch points arrive far apart and
+   joining them with straight lines turned circles into polygons; the curve passes through every point instead.
+   The curve runs one point behind the finger; curveEnd() draws the last piece. Ruler strokes stay straight. */
+/* stabiliser: each curve point is pulled towards the input; dense curve points keep the lag even however
+   sparse the input is (applied to sparse points it shrank circles) */
+function emitPoint(st, x, y, pr) {
+  const k = 1 - st.s.smooth * 0.92;
+  st.sx += (x - st.sx) * k;
+  st.sy += (y - st.sy) * k;
+  st.sp += (pr - st.sp) * Math.max(k, 0.3);
+  segment(st, st.sx, st.sy, st.sp);
+}
+function curveTo(st, x, y, pr) {
+  if (st.rlock) { emitPoint(st, x, y, pr); return; }
+  const P = st.cr || (st.cr = [[st.sx, st.sy, st.sp]]);
+  const last = P[P.length - 1];
+  if (Math.hypot(x - last[0], y - last[1]) * view.scale < 1.5 && P.length > 1) { P[P.length - 1] = [x, y, pr]; return; } // ignore tiny jitter
+  P.push([x, y, pr]);
+  if (P.length < 3) return;
+  const n = P.length, p0 = P[Math.max(0, n - 4)], p1 = P[n - 3], p2 = P[n - 2], p3 = P[n - 1];
+  crSegment(st, p0, p1, p2, p3);
+  if (P.length > 4) P.shift();
+}
+function curveEnd(st) {
+  const P = st.cr; st.cr = null;
+  if (!P || P.length < 2) return;
+  const n = P.length, p1 = P[n - 2], p2 = P[n - 1], p0 = P[Math.max(0, n - 3)];
+  crSegment(st, p0, p1, p2, p2);
+}
+function crSegment(st, p0, p1, p2, p3) {
+  const len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), steps = Math.min(48, Math.ceil(len * view.scale / 3));
+  if (steps <= 1) { emitPoint(st, p2[0], p2[1], p2[2]); return; }
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps, t2 = t * t, t3 = t2 * t;
+    const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+    emitPoint(st, f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1]), p1[2] + (p2[2] - p1[2]) * t);
+  }
+}
+function clearBuffers(st) {
+  const b = st && st.box && st.box.x1 > st.box.x0 ? clampBox(st.box.x0 - 4, st.box.y0 - 4, st.box.x1 + 4, st.box.y1 + 4) : null;
+  if (st && st.box && !(st.box.x1 > st.box.x0)) { bufClean = true; return; } // nothing was drawn
+  if (b) { bufCtx.clearRect(b.x, b.y, b.w, b.h); rawCtx.clearRect(b.x, b.y, b.w, b.h); }
+  else if (!st || st.box) { bufCtx.clearRect(0, 0, state.w, state.h); rawCtx.clearRect(0, 0, state.w, state.h); }
+  bufClean = true;
 }
 
 function endStroke(cancel) {
@@ -585,7 +624,7 @@ function endStroke(cancel) {
       t.ctx.drawImage(snapCanvas, 0, 0);
       t.ctx.restore();
     }
-    clearBuffers();
+    clearBuffers(st);
     releaseCel(t);
     return;
   }
@@ -593,14 +632,15 @@ function endStroke(cancel) {
   if (st.waitPr) { startDeferred(st, shapePressure(0.35)); afterMove(st); } // a tap that never reported pressure
   if (st.isShape) {
     drawShapePreview(st);
-  } else if (st.s.smooth > 0) {
-    segment(st, st.rx, st.ry, st.rp);
+  } else {
+    curveEnd(st);
+    if (st.s.smooth > 0) segment(st, st.rx, st.ry, st.rp); // the stabiliser catches up with the pen
     afterMove(st);
   }
 
   const b = clampBox(st.box.x0, st.box.y0, st.box.x1, st.box.y1);
   if (!b) {
-    clearBuffers();
+    clearBuffers(st);
     releaseCel(t);
     return;
   }
@@ -617,7 +657,7 @@ function endStroke(cancel) {
     t.cel._ink = true;
     if (!t.layer.isMask) addRecent(st.color);
   }
-  clearBuffers();
+  clearBuffers(st);
 
   const before = crop(snapCanvas, b);
   const after = crop(t.cel, b);
@@ -651,8 +691,11 @@ function afterEdit() {
 
 /* ---------- compositing, eyedropper, flood fill ---------- */
 function compositeFrame(f, opts = {}) {
-  const c = makeCanvas(state.w, state.h);
+  // opts.scale < 1: a smaller picture (time-lapse, previews) — much less work than full size then shrinking
+  const k = opts.scale && opts.scale < 1 ? opts.scale : 1;
+  const c = makeCanvas(Math.max(1, Math.round(state.w * k)), Math.max(1, Math.round(state.h * k)));
   const g = c.getContext('2d');
+  if (k !== 1) g.scale(k, k);
   state.layers.forEach((l, i) => {
     if (!l.visible || (opts.skipPaper && l.paper)) return;
     if (l.vref) { if (opts.all) { g.save(); g.globalAlpha = l.opacity; g.drawImage(l.vref.canvas, 0, 0); g.restore(); } return; } // video reference: never exported
@@ -667,7 +710,7 @@ function compositeFrame(f, opts = {}) {
       const lc = makeCanvas(state.w, state.h);
       drawLayerOwn.frame = f; drawLayerOwn(lc.getContext('2d'), l, fp); drawLayerOwn.frame = undefined;
       if (base) clipToBase(lc, base, f);
-      g.drawImage(lc, 0, 0);
+      g.drawImage(lc, 0, 0, state.w, state.h);
     } else {
       { const m = layerMat(l, f); if (m) g.transform(...m); }
       g.drawImage(fp.cel, 0, 0);

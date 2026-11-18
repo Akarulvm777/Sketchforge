@@ -52,6 +52,16 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
 .feature li { margin: .35em 0; }
 .feature li::marker { color: var(--accent); }
 
+.news { max-width: 1160px; margin: 0 auto; padding: 30px clamp(16px, 4vw, 48px) 10px; }
+.news h2 { text-align: center; }
+.news > p { text-align: center; margin-top: -6px; }
+.newsgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 22px; }
+.newscard { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; min-width: 0; }
+.newscard h3 { font-size: 1.1rem; margin-bottom: .6em; }
+.newscard ul { margin: 0; padding-left: 1.1em; color: #c9c7c2; font-size: .95rem; }
+.newscard li { margin: .45em 0; }
+.newscard li::marker { color: var(--accent); }
+.newscard .tag { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 6px; background: rgba(63, 191, 111, .16); color: #6fdc97; vertical-align: 1px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 1100px; margin: 30px auto; padding: 0 clamp(16px, 4vw, 48px); }
 .grid3 > div, .card, .dl, .citem { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
 .grid3 h3 { font-size: 1.05rem; }

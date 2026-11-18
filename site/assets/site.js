@@ -28,6 +28,15 @@
       $('#dlVer').textContent = `Version ${v.version} · free for everyone`;
       $('#footVer').textContent = 'Version ' + v.version;
       $('#heroVer').textContent = `Version ${v.version} · free · works offline · your files stay yours`;
+      if (Array.isArray(v.changes) && v.changes.length) { // What's new: from the README notes of this version
+        $('#newsVer').textContent = 'version ' + v.version;
+        $('#newsDate').textContent = 'Released ' + new Date(v.date + 'T12:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + '. Installed apps update by themselves.';
+        $('#newsGrid').innerHTML = v.changes.map(c => `<article class="newscard"><h3>${esc(c.title.charAt(0).toUpperCase() + c.title.slice(1))}</h3><ul>${c.items.map(i => {
+          const fix = /^Fixed:/i.test(i);
+          return `<li class="${fix ? 'fix' : ''}">${fix ? '<span class="tag">Fixed</span> ' + esc(i.replace(/^Fixed:\s*/i, '')) : esc(i)}</li>`;
+        }).join('')}</ul></article>`).join('');
+        $('#news').hidden = false;
+      }
     } catch (e) { /* local preview without version.json */ }
     const label = { windows: 'Download for Windows', mac: 'Download for Mac', android: 'Download for Android', ios: 'Get it on iPad / iPhone', linux: 'Download for Linux', web: 'Download' }[os];
     $('#heroDl').textContent = label;

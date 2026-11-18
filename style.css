@@ -846,4 +846,10 @@ svg.cicon { overflow: visible; }
 #aiPanel .ai-act { margin: 4px 4px 0 0; padding: 3px 8px; font-size: 12px; }
 #aiPanel .ai-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line, #444); }
 #aiPanel textarea { flex: 1; resize: none; font: inherit; font-size: 13px; }
-@media (max-width: 560px) { #aiBtn { display: none; } }
+#aiFab { display: none; }
+@media (max-width: 900px) {
+  #aiBtn { display: none; }
+  #aiFab { display: grid; place-items: center; position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); bottom: calc(40px + env(safe-area-inset-bottom, 0px)); z-index: 9300; width: 52px; height: 52px; border-radius: 50%; border: 0; font-size: 24px; background: var(--accent, #c8875a); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+  #aiFab:active { transform: scale(.94); }
+  #aiPanel { right: 8px; left: 8px; width: auto; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); height: min(70vh, 560px); }
+}

@@ -120,6 +120,10 @@ function cpApply() {
 }
 
 /* ---- options: everything beyond the base colours ---- */
+/* pictures instead of a colour (Colours tab): asset key, label, selector ('wallpaper' = behind the whole app) */
+const CP_IMG_AREAS = [['wallpaper', 'Whole background (behind everything)', null], ['img_docks', 'Side panels', '#leftdock, #rightdock'],
+  ['img_menubar', 'Menu bar', '#menubar'], ['img_toolbox', 'Tool palette', '#toolbox'], ['img_timeline', 'Timeline', '#timeline']];
+const CP_ASSET_KEYS = ['cvImage', 'font', ...CP_IMG_AREAS.map(a => a[0])];
 const CP_AREAS = [ // key, label, background selector, text selector (auto-contrast unless a text colour is set)
   ['menubar', 'Menu bar', '#menubar', '#menubar, #menubar .menu-btn'],
   ['cmdbar', 'Command bar', '#cmdbar', '#cmdbar, #cmdbar button'],
@@ -238,6 +242,14 @@ function cpOverrides() {
   if (o.curWidth) R('#cursor', `border-width:${o.curWidth}px${I}`);
   if (o.curShadow === false) R('#cursor', `box-shadow:none${I}`);
   if (o.curCross) R('#cursor::before, #cursor::after', `content:'';position:absolute;left:50%;top:50%;background:${o.curColor || '#fff'};transform:translate(-50%,-50%)`), R('#cursor::before', 'width:9px;height:1px'), R('#cursor::after', 'width:1px;height:9px');
+  // pictures on parts of the interface (darkened a little so text stays readable)
+  const dim = (o.imgDim ?? 35) / 100;
+  for (const [k, , sel] of CP_IMG_AREAS) {
+    if (!sel || !CP_ASSETS[k]) continue;
+    R(sel, `background:linear-gradient(rgba(0,0,0,${dim}),rgba(0,0,0,${dim})),url("${CP_ASSETS[k]}") center / cover${I};color:#fff${I}`);
+    if (k === 'img_docks') R('#leftdock .pal, #rightdock .pal, .pal h4', `background:transparent${I}`);
+    if (k === 'img_timeline') R('#tlScroll, .tl-head, .tl-ruler', `background:transparent${I}`);
+  }
   // effects
   if (CP_ASSETS.wallpaper) R('body', `background:#000 url("${CP_ASSETS.wallpaper}") center / ${o.wallFit === 'tile' ? 'auto' : 'cover'} fixed${I}`), R('#app', `background:transparent${I}`);
   const a = o.panelAlpha ?? 100;
@@ -274,7 +286,7 @@ async function cpLoadFont(blob) {
   try { if (!blob) return; const f = new FontFace('SFUserFont', await blob.arrayBuffer()); await f.load(); document.fonts.add(f); } catch (e) { toast('That font file could not be read (use .ttf, .otf or .woff)'); }
 }
 async function cpLoadAssets() {
-  for (const k of ['cvImage', 'wallpaper', 'font']) {
+  for (const k of CP_ASSET_KEYS) {
     const b = await cpDBdo('assets', 'readonly', s => s.get(k)).catch(() => null);
     if (b) { CP_ASSETS[k] = URL.createObjectURL(b); if (k === 'font') await cpLoadFont(b); }
   }
@@ -313,7 +325,7 @@ const CP_SECTION_KEYS = {
 function cpResetSection(sec) {
   const o = cpO();
   for (const k of CP_SECTION_KEYS[sec] || []) delete o[k];
-  if (sec === 'colors') { CP.preset = 'default'; CP.custom = null; cpApply(); }
+  if (sec === 'colors') { CP.preset = 'default'; CP.custom = null; cpApply(); for (const [k, , sel] of CP_IMG_AREAS) if (sel) cpSetAsset(k, null); }
   if (sec === 'icons') { CP.icons = {}; for (const k in customIcons) delete customIcons[k]; cpRefreshIcons(); }
   if (sec === 'canvas') cpSetAsset('cvImage', null);
   if (sec === 'effects') cpSetAsset('wallpaper', null);
@@ -332,7 +344,7 @@ async function cpRestore(t) {
   if (!t || t.format !== 'sketchforge-theme') throw new Error('Not a Sketchforge theme file');
   CP.preset = t.preset || 'default'; CP.custom = t.custom || null; CP.icons = t.icons || {}; CP.o = t.o || {};
   for (const k in customIcons) delete customIcons[k]; Object.assign(customIcons, CP.icons);
-  for (const k of ['cvImage', 'wallpaper', 'font']) await cpSetAsset(k, t.assets && t.assets[k] ? await (await fetch(t.assets[k])).blob() : null);
+  for (const k of CP_ASSET_KEYS) await cpSetAsset(k, t.assets && t.assets[k] ? await (await fetch(t.assets[k])).blob() : null);
   cpApplyAll(); cpSave(); cpRefreshIcons(); cpRefreshDlg();
 }
 async function cpSaveTheme() {
@@ -470,7 +482,11 @@ async function cpSectionBody(sec) {
     });
     const areas = CP_AREAS.map(([k, n, sel]) => cpColor(n, C(k), CS(k), cpAutoColor(sel)));
     const texts = CP_TEXTS.map(([k, n]) => cpColor(n, C(k), CS(k)));
-    b.append(cpGroup('My colours (the whole interface follows)', cpCards(base)), cpGroup('Each part of the interface', cpCards(areas)), cpGroup('Text, lines & details', cpCards(texts)),
+    const pics = CP_IMG_AREAS.map(([k, n]) => cpImagePicker(n, k, k === 'wallpaper' ? () => { if ((o.panelAlpha ?? 100) === 100) o.panelAlpha = 80; } : null));
+    if (CP_IMG_AREAS.some(([k, , sel]) => sel && CP_ASSETS[k])) pics.push(cpRange('Darken pictures (readable text)', 0, 80, 5, O('imgDim'), S('imgDim'), v => v + '%', 35));
+    b.append(cpGroup('My colours (the whole interface follows)', cpCards(base)),
+      cpGroup('🖼 Pictures instead of colours (your own images)', ...pics),
+      cpGroup('Each part of the interface', cpCards(areas)), cpGroup('Text, lines & details', cpCards(texts)),
       Object.assign(document.createElement('p'), { className: 'muted small', textContent: 'Text on a coloured area switches between light and dark automatically so it stays readable. ↺ puts one colour back.' }));
   } else if (sec === 'text') {
     b.append(cpGroup('Font',
