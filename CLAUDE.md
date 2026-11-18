@@ -102,7 +102,7 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 ## 7. Backlog
 
 1. **Récupérer les fonctionnalités perdues** (priorité 1). Demander à l'utilisateur la liste des changements faits après la v2.0.0 (fonctions, bugs corrigés, UI). Créer une issue ou une entrée par élément, puis implémenter et tester un élément à la fois.
-2. La section « Not yet » du README est partiellement obsolète (les outils manga, la 3D et l'audio existent désormais). À mettre à jour.
+2. (Fait en 2.1) Section « Not yet » du README mise à jour.
 3. Les 11 pens intégrés viennent des `.sut` de l'utilisateur, et le mesh 3D (`assets/HumanLowPolyBaseMesh.fbx`) d'un pack fourni par l'utilisateur. Vérifier leurs licences avant toute distribution publique.
 4. Il n'y a pas de tests unitaires. À envisager si le moteur de pinceau ou la timeline évoluent beaucoup.
 
