@@ -632,7 +632,7 @@ function installCsFeatures() {
     if (!pr.pAlpha && (pr.hardness < 0.8 || pr.flow < 0.8 || pr.opacity < 0.8 || /pencil|air|water|wash|spray|chalk|charcoal|crayon|pastel|oil|paint/i.test(d.name || ''))) pr.pAlpha = true;
     settings[k] = { ...settings[k], pSize: pr.pSize, pAlpha: pr.pAlpha };
   }
-  const dlg = (title, fields, fn) => () => paramDialog(title, fields, p => runFilter(src => fn(src, p)));
+  const dlg = (title, fields, fn) => () => effectDialog(title, fields, fn); // live preview (p10qa)
   Object.assign(CMD, {
     clipLayer: () => toggleLayerFlag('clip', 'Clip to layer below'),
     alphaLock: () => toggleLayerFlag('alock', 'Lock transparent pixels'),

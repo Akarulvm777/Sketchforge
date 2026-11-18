@@ -1,4 +1,4 @@
-# Sketchforge 2.6 — drawing + animation studio
+# Sketchforge 2.7 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -187,3 +187,18 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - When a new version needs a new installer, a popup offers "Download update": install it over the old app, no need to uninstall, your drawings and settings stay.
 - After updating, a "What's new" popup lists what changed and what was fixed (also in Help › What's new in this version).
 - Fixed: a new Android APK could not be installed over the previous one ("App not installed"). Android versions are now signed with the same Sketchforge key every time. One last time only: uninstall the old Android app before installing 2.6 (save your drawings first).
+
+## 2.7: perfect shapes and quick colour picking
+- Draw a circle, line, square or triangle and keep the pen or finger down for half a second at the end: it becomes a perfect shape with the same brush (circle, ellipse, straight line, corner line, arc, triangle, square, rectangle, polygon). Lift to keep it, undo to get your own stroke back.
+- Touch and hold (or click and hold with the mouse) on the drawing: a circle shows the colour under your finger and it becomes your colour. Move to pick another one, lift to keep it.
+- Both can be turned off in the View menu.
+
+## 2.7: import pictures and sound
+- File › Import image… (Ctrl+Shift+O): PNG, JPEG, WebP, GIF, BMP, TIFF, SVG, ICO, AVIF and more, on a new layer, fitted to the page.
+- Several pictures or an animated GIF become animation frames on one layer.
+- File › Open… opens a picture as a new page of its size. Drop pictures on the canvas, or paste a picture copied in another app (Ctrl+V or Edit › Paste image from clipboard).
+- File › Import sound / music… (MP3, WAV, M4A, OGG, FLAC…) and File › Import video… are now in the File menu.
+
+## 2.7: effects with live preview
+- New effects in the Filter menu: glow, drop shadow, outline (border), bloom, extract line art (trace a photo), emboss, halftone dots, oil paint, vignette, chromatic aberration, glitch, twirl, pinch / bulge, wave / ripple, grayscale, sepia.
+- Every filter and effect now shows the result live on the canvas while you move the sliders.

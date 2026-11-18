@@ -302,6 +302,7 @@ function openAnyDocument(file) {
   const n = file.name.toLowerCase();
   if (/\.(psd|psb)$/.test(n)) return openPSDFile(file);
   if (/\.clip$/.test(n)) return openClipFile(file);
+  if (typeof isImageFile === 'function' && isImageFile(file)) return openImageDocument(file); // p10pw
   return openDocumentFile(file);
 }
 function installPSD() {

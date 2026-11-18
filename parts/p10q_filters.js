@@ -111,16 +111,16 @@ function installFilters() {
   };
   GROUPS.splice(GROUPS.findIndex(g => g.id === 'blend') + 1, 0, { id: 'liquify', name: 'Liquify', key: '', icon: 'liquify', subs: ['liquify'] });
   Object.assign(CMD, {
-    fCurve: () => proDialog('Tone curve', [{ k: 'ch', label: 'Channel', type: 'select', val: 'rgb', options: [['rgb', 'RGB'], ['r', 'Red'], ['g', 'Green'], ['b', 'Blue']] },
-      { k: 'sh', label: 'Shadows', min: -100, max: 100, val: 0 }, { k: 'mid', label: 'Midtones', min: -100, max: 100, val: 0 }, { k: 'hi', label: 'Highlights', min: -100, max: 100, val: 0 }], p => runFilter(s => toneCurve(s, p))),
-    fBalance: () => proDialog('Colour balance', [{ k: 'range', label: 'Tones', type: 'select', val: 'mid', options: [['sh', 'Shadows'], ['mid', 'Midtones'], ['hi', 'Highlights']] },
-      { k: 'cr', label: 'Cyan ↔ Red', min: -100, max: 100, val: 0 }, { k: 'mg', label: 'Magenta ↔ Green', min: -100, max: 100, val: 0 }, { k: 'yb', label: 'Yellow ↔ Blue', min: -100, max: 100, val: 0 }], p => runFilter(s => colorBalance(s, p))),
-    fGradMap: () => proDialog('Gradient map', [{ k: 'c0', label: 'Shadows', type: 'color', val: state.color }, { k: 'useMid', label: 'Middle colour', type: 'check', val: false },
-      { k: 'cm', label: 'Middle', type: 'color', val: '#c0507a' }, { k: 'c1', label: 'Highlights', type: 'color', val: state.color2 || '#ffffff' }], p => runFilter(s => gradientMap(s, p))),
-    fRadial: () => proDialog('Radial blur', [{ k: 'mode', label: 'Type', type: 'select', val: 'zoom', options: [['zoom', 'Zoom'], ['spin', 'Spin']] }, { k: 'amount', label: 'Amount', min: 1, max: 60, val: 12 }], p => runFilter(s => radialBlur(s, p))),
+    fCurve: () => effectDialog('Tone curve', [{ k: 'ch', label: 'Channel', type: 'select', val: 'rgb', options: [['rgb', 'RGB'], ['r', 'Red'], ['g', 'Green'], ['b', 'Blue']] },
+      { k: 'sh', label: 'Shadows', min: -100, max: 100, val: 0 }, { k: 'mid', label: 'Midtones', min: -100, max: 100, val: 0 }, { k: 'hi', label: 'Highlights', min: -100, max: 100, val: 0 }], (s, p) => (toneCurve(s, p))),
+    fBalance: () => effectDialog('Colour balance', [{ k: 'range', label: 'Tones', type: 'select', val: 'mid', options: [['sh', 'Shadows'], ['mid', 'Midtones'], ['hi', 'Highlights']] },
+      { k: 'cr', label: 'Cyan ↔ Red', min: -100, max: 100, val: 0 }, { k: 'mg', label: 'Magenta ↔ Green', min: -100, max: 100, val: 0 }, { k: 'yb', label: 'Yellow ↔ Blue', min: -100, max: 100, val: 0 }], (s, p) => (colorBalance(s, p))),
+    fGradMap: () => effectDialog('Gradient map', [{ k: 'c0', label: 'Shadows', type: 'color', val: state.color }, { k: 'useMid', label: 'Middle colour', type: 'check', val: false },
+      { k: 'cm', label: 'Middle', type: 'color', val: '#c0507a' }, { k: 'c1', label: 'Highlights', type: 'color', val: state.color2 || '#ffffff' }], (s, p) => (gradientMap(s, p))),
+    fRadial: () => effectDialog('Radial blur', [{ k: 'mode', label: 'Type', type: 'select', val: 'zoom', options: [['zoom', 'Zoom'], ['spin', 'Spin']] }, { k: 'amount', label: 'Amount', min: 1, max: 60, val: 12 }], (s, p) => (radialBlur(s, p))),
     fInvert: () => runFilter(s => perPixel(s, (d, i) => { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; })),
-    fPoster: () => proDialog('Posterize', [{ k: 'n', label: 'Levels', min: 2, max: 16, val: 4 }], p => runFilter(s => perPixel(s, (d, i) => { const q = 255 / (p.n - 1); d[i] = Math.round(d[i] / q) * q; d[i + 1] = Math.round(d[i + 1] / q) * q; d[i + 2] = Math.round(d[i + 2] / q) * q; }))),
-    fThreshold: () => proDialog('Binarize (black & white)', [{ k: 't', label: 'Threshold', min: 1, max: 254, val: 128 }], p => runFilter(s => perPixel(s, (d, i) => { const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], v = l < p.t ? 0 : 255; d[i] = d[i + 1] = d[i + 2] = v; })))
+    fPoster: () => effectDialog('Posterize', [{ k: 'n', label: 'Levels', min: 2, max: 16, val: 4 }], (s, p) => (perPixel(s, (d, i) => { const q = 255 / (p.n - 1); d[i] = Math.round(d[i] / q) * q; d[i + 1] = Math.round(d[i + 1] / q) * q; d[i + 2] = Math.round(d[i + 2] / q) * q; }))),
+    fThreshold: () => effectDialog('Binarize (black & white)', [{ k: 't', label: 'Threshold', min: 1, max: 254, val: 128 }], (s, p) => (perPixel(s, (d, i) => { const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], v = l < p.t ? 0 : 255; d[i] = d[i + 1] = d[i + 2] = v; })))
   });
   const F = MENUS.find(m => m[0] === 'Filter')[1];
   F.push('-', ['Radial blur…', 'fRadial'], '-', ['Tone curve…', 'fCurve'], ['Colour balance…', 'fBalance'], ['Gradient map…', 'fGradMap'], '-', ['Invert colours', 'fInvert'], ['Posterize…', 'fPoster'], ['Binarize (B&W)…', 'fThreshold']);

@@ -527,6 +527,7 @@ function beginStroke(e) {
     stroke.next = stepAt(stroke, pr);
     afterMove(stroke);
   }
+  if (typeof holdBegin === 'function') holdBegin(stroke, e); // hold: eyedropper at the start, QuickShape at the end (p10tb)
 }
 /* first real pressure of a pen stroke that started with pressure 0 */
 function startDeferred(st, pr) {
@@ -538,6 +539,7 @@ function startDeferred(st, pr) {
 
 function moveStroke(e) {
   const st = stroke;
+  if (st.snapped) return; // QuickShape replaced the stroke: keep the shape until the pen lifts
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
   const list = evs.length ? evs : [e];
   for (const ev of list) {
@@ -557,6 +559,7 @@ function moveStroke(e) {
       continue;
     }
     st.rx = x; st.ry = y; st.rp = pr;
+    if (st.qs) qsRecord(st, x, y, pr, ev);
     curveTo(st, x, y, pr); // curve through the real points, then the stabiliser on the dense curve (emitPoint)
   }
   if (st.isShape) drawShapePreview(st); else afterMove(st);
@@ -616,6 +619,7 @@ function endStroke(cancel) {
   if (!st) return;
   stroke = null;
   const t = st.t;
+  if (typeof holdCancel === 'function') holdCancel(st);
 
   if (cancel) {
     if (st.erase || st.direct) {
@@ -632,7 +636,7 @@ function endStroke(cancel) {
   if (st.waitPr) { startDeferred(st, shapePressure(0.35)); afterMove(st); } // a tap that never reported pressure
   if (st.isShape) {
     drawShapePreview(st);
-  } else {
+  } else if (!st.snapped) {
     curveEnd(st);
     if (st.s.smooth > 0) segment(st, st.rx, st.ry, st.rp); // the stabiliser catches up with the pen
     afterMove(st);

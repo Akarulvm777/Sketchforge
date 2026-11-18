@@ -218,7 +218,7 @@ function installAnim() {
   const a = document.createElement('div'); a.id = 'audioWrap'; a.hidden = true; a.innerHTML = '<canvas id="audioStrip" height="34"></canvas>';
   $('#timeline').insertBefore(a, $('#tlScroll'));
   $('#tlScroll').addEventListener('scroll', () => { a.scrollLeft = $('#tlScroll').scrollLeft; });
-  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*'; inp.hidden = true; document.body.appendChild(inp);
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'audio/*,.mp3,.wav,.ogg,.oga,.opus,.m4a,.aac,.flac,.weba,.webm,.mp4,.mov,.amr,.3gp,.caf,.aif,.aiff'; inp.hidden = true; document.body.appendChild(inp);
   inp.onchange = () => { if (inp.files[0]) audioImport(inp.files[0]); inp.value = ''; };
   Object.assign(CMD, { lightPin: lightTogglePin, lightClear: () => { lightPins.length = 0; updateOnion(); toast('Light table cleared'); }, dupFrame, copyFrame, pasteFrame, reverseFrames,
     retime: () => proDialog('Shoot on…', [{ k: 'factor', label: 'Hold each drawing', min: 1, max: 6, val: 2 }], retime), audioImport: () => inp.click(), audioRemove, pages: openPages, pageAdd, exportPSD });
