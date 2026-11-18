@@ -722,3 +722,32 @@ svg.cicon { overflow: visible; }
 .libitem span { font-size: 10px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .libitem .x { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; line-height: 16px; display: none; }
 .libitem:hover .x { display: block; }
+
+/* ---------- phones & tablets ---------- */
+#mobileMenu { position: fixed; inset: 0; z-index: 30000; background: rgba(0,0,0,.45); display: flex; justify-content: flex-start; }
+#mobileMenu[hidden] { display: none; }
+.mm-sheet { width: min(88vw, 360px); height: 100%; overflow-y: auto; background: var(--panel); color: var(--text); box-shadow: 4px 0 24px rgba(0,0,0,.5); padding-bottom: 24px; }
+.mm-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--menu); font-size: 15px; z-index: 1; }
+.mm-close { width: 36px; height: 36px; font-size: 22px; line-height: 1; border-radius: 50%; background: transparent; border: 0; color: inherit; }
+#mobileMenu details { border-bottom: 1px solid var(--line); }
+#mobileMenu summary { padding: 13px 16px; font-size: 15px; cursor: pointer; list-style: none; }
+#mobileMenu summary::after { content: '▸'; float: right; color: var(--muted); }
+#mobileMenu details[open] summary::after { content: '▾'; }
+.mm-item { display: flex; width: 100%; align-items: center; gap: 8px; padding: 11px 16px 11px 26px; background: transparent; border: 0; border-radius: 0; color: inherit; text-align: left; font-size: 14px; }
+.mm-item:active { background: var(--accent-2); }
+.mm-item kbd { margin-left: auto; color: var(--muted); font: inherit; font-size: 11px; }
+@media (max-width: 900px) {
+  #menus { display: none; }
+  #btnMenu { display: inline-block; flex: 0 0 auto; margin-left: 6px; padding: 4px 10px; font-size: 13px; }
+  #menubar { height: 40px !important; }
+  #modeSwitch button { padding-top: 4px; padding-bottom: 4px; }
+  #btnDocks { flex: 0 0 auto; margin-right: 6px; padding: 4px 12px; font-size: 13px; }
+}
+@media (max-width: 560px) {
+  #app.docks.phone-left #leftdock { display: flex !important; left: 44px; right: 0; width: auto; max-width: none; }
+  #app.docks.phone-left #rightdock { display: none !important; }
+  #app.docks.phone-right #rightdock { display: flex !important; left: 44px; right: 0; width: auto; max-width: none; }
+  #app.docks.phone-right #leftdock { display: none !important; }
+  #modeSwitch button { padding-left: 8px; padding-right: 8px; font-size: 12px; }
+  #statusbar #statusPos { display: none; }
+}

@@ -226,6 +226,7 @@ function toast(msg, ms) {
   toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms || 2200);
 }
 function download(blob, name) {
+  if (typeof isNativeApp === 'function' && isNativeApp()) { nativeSave(blob, name); return; } // Android app (p10zy_mobile)
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
