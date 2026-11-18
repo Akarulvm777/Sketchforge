@@ -740,7 +740,7 @@ const curSettings = () => settings[curKey()];
 
 const newBox = () => ({ x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
 /* pen pressure with a user-adjustable response curve (Edit -> Pen pressure & touch) */
-const penCfg = { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false };
+const penCfg = { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false, side: 'pick' };
 try { Object.assign(penCfg, JSON.parse(localStorage.getItem('sketchforge.pen') || '{}'), { penSeen: false }); } catch (e) { /* ignore */ }
 function shapePressure(p) {
   const lo = penCfg.min, hi = Math.max(lo + 0.05, penCfg.max);
@@ -753,8 +753,8 @@ let realPressureSeen = false, penSamples = 0, penFlat = true, penWarned = false;
 function pressureOf(e) {
   const pt = e.pointerType;
   if (pt === 'pen') {
-    penSamples++; if (Math.abs(e.pressure - 0.5) > 0.001 && e.pressure > 0) penFlat = false;
-    if (!penWarned && penSamples > 40 && penFlat) { penWarned = true; toast('Your pen sends no pressure data. In the tablet driver (XP-Pen: PenTablet) turn on Windows Ink, then restart the app.'); }
+    penSamples++; if (Math.abs(e.pressure - 0.5) > 0.001 && e.pressure > 0) { penFlat = false; realPressureSeen = true; }
+    if (!penWarned && penSamples > 40 && penFlat) { penWarned = true; toast('Your pen sends no pressure data: turn on Windows Ink in your tablet driver (Wacom, XP-Pen, Huion…), then restart. Help: View › Pen pressure & touch.', 7000); }
     return shapePressure(e.pressure > 0 ? Math.max(e.pressure, 0.03) : 0.03);
   }
   if (pt === 'mouse' && e.buttons && e.pressure > 0 && Math.abs(e.pressure - 0.5) > 0.001) realPressureSeen = true;
@@ -1161,15 +1161,24 @@ function beginStroke(e) {
     lx: x0, ly: y0, lp: pr, next: 0,
     startX: x0, startY: y0, cx: x0, cy: y0, shift: e.shiftKey,
     pointerId: e.pointerId, rlock,
-    sym: symOn() ? symLocal(lm.fwd) : null
+    sym: symOn() ? symLocal(lm.fwd) : null,
+    // Wacom / Huion on Windows (and others) report pressure 0 on the first sample: wait for a real value
+    waitPr: e.pointerType === 'pen' && !(e.pressure > 0) && !isShape
   };
   prepBuffer(layer, lm.fp && lm.fp.p, s.opacity, erase || direct);
   if (layer.isMask) { Object.assign(bufCanvas.style, { opacity: erase ? '0' : '0.5', zIndex: 9999, mixBlendMode: 'normal', transform: 'none' }); }
-  if (!isShape) {
+  if (!isShape && !stroke.waitPr) {
     stampAt(stroke, x0, y0, pr);
     stroke.next = stepAt(stroke, pr);
     afterMove(stroke);
   }
+}
+/* first real pressure of a pen stroke that started with pressure 0 */
+function startDeferred(st, pr) {
+  st.waitPr = false;
+  st.sp = st.lp = st.rp = pr;
+  stampAt(st, st.lx, st.ly, pr);
+  st.next = stepAt(st, pr);
 }
 
 function moveStroke(e) {
@@ -1180,6 +1189,7 @@ function moveStroke(e) {
     const d = rulerApply(st.rlock, toDoc(ev));
     const [x, y] = st.map(d.x, d.y);
     let pr = pressureOf(ev);
+    if (st.waitPr) { if (!(ev.pressure > 0)) continue; startDeferred(st, pr); }
     if (st.s.speed > 0 && !st.isShape) {
       const dt = Math.max(1, ev.timeStamp - (st.lt || ev.timeStamp - 8));
       const v = Math.hypot(x - st.rx, y - st.ry) / dt;
@@ -1224,6 +1234,7 @@ function endStroke(cancel) {
     return;
   }
 
+  if (st.waitPr) { startDeferred(st, shapePressure(0.35)); afterMove(st); } // a tap that never reported pressure
   if (st.isShape) {
     drawShapePreview(st);
   } else if (st.s.smooth > 0) {
@@ -6781,16 +6792,34 @@ async function loadAddons() {
 function openPenDialog() {
   let d = $('#penDialog');
   if (!d) {
-    d = document.createElement('dialog'); d.id = 'penDialog';
+    d = document.createElement('dialog'); d.id = 'penDialog'; d.className = 'pendlg';
     d.innerHTML = `<form method="dialog"><h2>Pen pressure & touch</h2>
-      <p class="muted small" id="penStatus">Draw on the test pad with your pen (Apple Pencil, Wacom, Surface pen…) to see the response.</p>
+      <p class="small" id="penDetect"></p>
+      <p class="muted small" id="penStatus">Draw on the test pad with your pen (Apple Pencil, Wacom, XP-Pen, Huion, Surface pen…) to see the response.</p>
       <canvas id="penPad" width="520" height="150" style="width:100%;background:#2a2a2a;border:1px solid #1c1c1c;touch-action:none;border-radius:4px"></canvas>
+      <div class="btnrow" style="margin:6px 0"><span class="muted small" style="align-self:center">Feel:</span>
+        <button type="button" data-preset="soft">Soft</button><button type="button" data-preset="normal">Normal</button><button type="button" data-preset="firm">Firm</button>
+        <span style="flex:1"></span><button type="button" id="penCal" title="Measures how light and how hard your pen really goes">Calibrate my pen…</button></div>
+      <p class="small" id="penCalMsg" hidden></p>
       <label class="slider"><span>Sensitivity</span><input type="range" id="penGamma" min="30" max="300" step="5"><output id="penGammaV"></output></label>
       <p class="muted small" style="margin:0 0 6px">Left = soft (light pressure already gives thick lines), right = firm (you must press harder).</p>
       <label class="slider"><span>Min. pressure</span><input type="range" id="penMin" min="0" max="50" step="1"><output id="penMinV"></output></label>
-      <label class="slider"><span>Max. pressure</span><input type="range" id="penMax" min="50" max="100" step="1"><output id="penMaxV"></output></label>
+      <label class="slider"><span>Max. pressure</span><input type="range" id="penMax" min="30" max="100" step="1"><output id="penMaxV"></output></label>
+      <label class="select"><span>Side button</span><select id="penSide"><option value="pick">Eyedropper (pick colour)</option><option value="pan">Move the canvas</option><option value="none">Nothing</option></select></label>
       <label class="check"><input type="checkbox" id="penPalm"> Palm rejection: once a pen is used, fingers only pan / zoom</label>
       <label class="check"><input type="checkbox" id="penUndo"> Two-finger tap = undo</label>
+      <details class="pentips"><summary>No pressure? Set up your tablet</summary>
+        <p class="small">Browsers and the desktop app read pressure through the system pen API. If lines never get thinner / thicker:</p>
+        <ul class="small">
+          <li><b>Wacom (Windows):</b> Wacom Tablet Properties → Mapping → tick <i>Use Windows Ink</i>.</li>
+          <li><b>XP-Pen (Windows):</b> Pentablet / XP-PEN driver → Pen → tick <i>Windows Ink</i>, then restart the app.</li>
+          <li><b>Huion (Windows):</b> HuionTablet → Digital Pen → tick <i>Enable Windows Ink</i>.</li>
+          <li><b>Gaomon, Veikk, Ugee, XenceLabs:</b> in the driver, turn on <i>Windows Ink</i> (sometimes called "Windows Ink support").</li>
+          <li><b>macOS:</b> install the latest tablet driver and allow it in System Settings → Privacy &amp; Security → Accessibility.</li>
+          <li><b>iPad + Apple Pencil:</b> works in Safari / the Home Screen app. If strokes stop, turn off <i>Settings → Apple Pencil → Scribble</i>.</li>
+          <li><b>Surface, Samsung S-Pen, Android styluses:</b> work out of the box in Chrome / Edge.</li>
+          <li>Then use <b>Calibrate my pen</b> above so light and hard strokes reach the full range.</li>
+        </ul></details>
       <div class="dialog-actions"><button type="button" id="penReset">Reset</button><button type="button" id="penClose" class="primary">Done</button></div></form>`;
     document.body.appendChild(d);
     const pad = $('#penPad'), g = pad.getContext('2d');
@@ -6798,10 +6827,12 @@ function openPenDialog() {
       $('#penGamma').value = Math.round(penCfg.gamma * 100); $('#penGammaV').textContent = penCfg.gamma.toFixed(2);
       $('#penMin').value = Math.round(penCfg.min * 100); $('#penMinV').textContent = Math.round(penCfg.min * 100) + '%';
       $('#penMax').value = Math.round(penCfg.max * 100); $('#penMaxV').textContent = Math.round(penCfg.max * 100) + '%';
-      $('#penPalm').checked = penCfg.palm; $('#penUndo').checked = penCfg.twoTapUndo;
+      $('#penPalm').checked = penCfg.palm; $('#penUndo').checked = penCfg.twoTapUndo; $('#penSide').value = penCfg.side || 'pick';
+      const det = $('#penDetect');
+      det.innerHTML = penCfg.penSeen ? (realPressureSeen ? '✅ Pen detected, pressure is working.' : (penSamples > 20 && penFlat ? '⚠️ Pen detected but it sends <b>no pressure</b> — see "No pressure?" below.' : '✏️ Pen detected — draw on the pad to check pressure.')) : 'No pen used yet in this session — draw on the pad with your pen.';
       drawCurve();
     };
-    const save = () => { try { localStorage.setItem('sketchforge.pen', JSON.stringify(penCfg)); } catch (e) { /* ignore */ } };
+    const save = () => { try { const { penSeen, announced, eraserPrev, ...keep } = penCfg; localStorage.setItem('sketchforge.pen', JSON.stringify(keep)); } catch (e) { /* ignore */ } };
     const drawCurve = () => {
       g.clearRect(0, 0, pad.width, pad.height);
       g.strokeStyle = '#555'; g.strokeRect(0.5, 0.5, 130, 140);
@@ -6810,24 +6841,50 @@ function openPenDialog() {
       g.stroke(); g.lineWidth = 1;
       g.fillStyle = '#888'; g.font = '10px sans-serif'; g.fillText('pressure curve', 140, 14);
     };
+    const PRESETS = { soft: 0.6, normal: 1, firm: 1.7 };
+    d.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { penCfg.gamma = PRESETS[b.dataset.preset]; sync(); save(); });
     $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; sync(); save(); };
     $('#penMin').oninput = e => { penCfg.min = e.target.value / 100; sync(); save(); };
     $('#penMax').oninput = e => { penCfg.max = e.target.value / 100; sync(); save(); };
+    $('#penSide').onchange = e => { penCfg.side = e.target.value; save(); };
     $('#penPalm').onchange = e => { penCfg.palm = e.target.checked; save(); };
     $('#penUndo').onchange = e => { penCfg.twoTapUndo = e.target.checked; save(); };
-    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true }); sync(); save(); };
+    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
     $('#penClose').onclick = () => d.close();
-    let last = null;
-    pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); last = null; padMove(e); });
-    pad.addEventListener('pointermove', e => { if (e.buttons) padMove(e); });
-    pad.addEventListener('pointerup', () => { last = null; });
+    /* calibration: collect raw pen pressures, then use the light / hard ends the pen really reaches */
+    let cal = null;
+    $('#penCal').onclick = () => {
+      cal = { samples: [] };
+      const m = $('#penCalMsg'); m.hidden = false; m.textContent = 'Calibrating: on the pad, draw 3–4 strokes going from very light to as hard as you normally press…';
+      g.clearRect(0, 0, pad.width, pad.height);
+    };
+    const finishCal = () => {
+      const s = cal.samples.sort((a, b) => a - b), m = $('#penCalMsg'); cal = null;
+      $('#penStatus').textContent = 'Calibration finished — draw on the pad to try the new range.';
+      if (s.length < 60) { m.textContent = 'Not enough pen data — make sure you draw with the pen (not a finger or mouse) and try again.'; return; }
+      const q = f => s[Math.min(s.length - 1, Math.floor(f * s.length))];
+      if (q(0.98) - q(0.02) < 0.05) { m.textContent = '⚠️ Your pen reports the same pressure everywhere: pressure is not reaching the app. See "No pressure?" below.'; return; }
+      penCfg.min = clamp(Math.round(q(0.03) * 100) / 100, 0, 0.4);
+      penCfg.max = clamp(Math.round(q(0.97) * 100) / 100, Math.max(0.3, penCfg.min + 0.15), 1);
+      m.textContent = `✅ Done: your light strokes start at ${Math.round(penCfg.min * 100)}% and your hard strokes reach ${Math.round(penCfg.max * 100)}% — now the full range is used.`;
+      sync(); save();
+    };
+    let last = null, calStrokes = 0;
+    pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); last = null; if (e.pointerType === 'pen') penCfg.penSeen = true; padMove(e); });
+    pad.addEventListener('pointermove', e => { if (e.buttons) { for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) padMove(ev); } });
+    pad.addEventListener('pointerup', e => { last = null; if (cal && e.pointerType === 'pen' && ++calStrokes >= 3 && cal.samples.length > 150) { calStrokes = 0; finishCal(); } });
     function padMove(e) {
       const r = pad.getBoundingClientRect(), k = pad.width / r.width;
       const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
-      const raw = e.pointerType === 'pen' ? e.pressure : 0.5, p = e.pointerType === 'pen' ? shapePressure(raw) : 0.5;
-      $('#penStatus').textContent = `${e.pointerType}  ·  raw pressure ${raw.toFixed(2)}  →  used ${p.toFixed(2)}`;
-      if (x > 145 || true) { g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 1 + p * 9, 0, 7); g.fill(); }
+      const isPen = e.pointerType === 'pen';
+      const raw = isPen ? e.pressure : 0.5;
+      if (isPen) pressureOf(e);
+      if (cal && isPen && e.pressure > 0) cal.samples.push(e.pressure);
+      const p = isPen ? shapePressure(raw > 0 ? raw : 0.03) : 0.5;
+      $('#penStatus').textContent = `${e.pointerType}  ·  raw pressure ${raw.toFixed(2)}  →  used ${p.toFixed(2)}` + (cal ? `  ·  calibrating (${cal.samples.length} samples)` : '');
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 1 + p * 9, 0, 7); g.fill();
       last = [x, y];
+      if (!cal) { const det = $('#penDetect'); if (isPen && realPressureSeen) det.innerHTML = '✅ Pen detected, pressure is working.'; }
     }
     d.sync = sync;
   }
@@ -7153,7 +7210,12 @@ viewport.addEventListener('pointerdown', e => {
   if (stroke || active) return;
   const k = kindOf(state.tool);
   if (e.button === 1 || spaceDown || k === 'hand' || (touch && (!state.fingerDraw || palmBlock))) { startPan(e); return; }
-  if (e.button === 2) return;
+  if (e.button === 2) {
+    // pen side (barrel) button: eyedropper or pan (Pen pressure & touch settings)
+    if (e.pointerType === 'pen' && penCfg.side === 'pick') { pickAt(e); active = { type: 'pick' }; }
+    else if (e.pointerType === 'pen' && penCfg.side === 'pan') startPan(e);
+    return;
+  }
   const d = toDoc(e);
   switch (k) {
     case 'brush': case 'shape': beginStroke(e); break;

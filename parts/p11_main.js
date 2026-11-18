@@ -52,7 +52,12 @@ viewport.addEventListener('pointerdown', e => {
   if (stroke || active) return;
   const k = kindOf(state.tool);
   if (e.button === 1 || spaceDown || k === 'hand' || (touch && (!state.fingerDraw || palmBlock))) { startPan(e); return; }
-  if (e.button === 2) return;
+  if (e.button === 2) {
+    // pen side (barrel) button: eyedropper or pan (Pen pressure & touch settings)
+    if (e.pointerType === 'pen' && penCfg.side === 'pick') { pickAt(e); active = { type: 'pick' }; }
+    else if (e.pointerType === 'pen' && penCfg.side === 'pan') startPan(e);
+    return;
+  }
   const d = toDoc(e);
   switch (k) {
     case 'brush': case 'shape': beginStroke(e); break;

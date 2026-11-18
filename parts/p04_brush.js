@@ -43,7 +43,7 @@ const curSettings = () => settings[curKey()];
 
 const newBox = () => ({ x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
 /* pen pressure with a user-adjustable response curve (Edit -> Pen pressure & touch) */
-const penCfg = { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false };
+const penCfg = { gamma: 1, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false, side: 'pick' };
 try { Object.assign(penCfg, JSON.parse(localStorage.getItem('sketchforge.pen') || '{}'), { penSeen: false }); } catch (e) { /* ignore */ }
 function shapePressure(p) {
   const lo = penCfg.min, hi = Math.max(lo + 0.05, penCfg.max);
@@ -56,8 +56,8 @@ let realPressureSeen = false, penSamples = 0, penFlat = true, penWarned = false;
 function pressureOf(e) {
   const pt = e.pointerType;
   if (pt === 'pen') {
-    penSamples++; if (Math.abs(e.pressure - 0.5) > 0.001 && e.pressure > 0) penFlat = false;
-    if (!penWarned && penSamples > 40 && penFlat) { penWarned = true; toast('Your pen sends no pressure data. In the tablet driver (XP-Pen: PenTablet) turn on Windows Ink, then restart the app.'); }
+    penSamples++; if (Math.abs(e.pressure - 0.5) > 0.001 && e.pressure > 0) { penFlat = false; realPressureSeen = true; }
+    if (!penWarned && penSamples > 40 && penFlat) { penWarned = true; toast('Your pen sends no pressure data: turn on Windows Ink in your tablet driver (Wacom, XP-Pen, Huion…), then restart. Help: View › Pen pressure & touch.', 7000); }
     return shapePressure(e.pressure > 0 ? Math.max(e.pressure, 0.03) : 0.03);
   }
   if (pt === 'mouse' && e.buttons && e.pressure > 0 && Math.abs(e.pressure - 0.5) > 0.001) realPressureSeen = true;
@@ -464,15 +464,24 @@ function beginStroke(e) {
     lx: x0, ly: y0, lp: pr, next: 0,
     startX: x0, startY: y0, cx: x0, cy: y0, shift: e.shiftKey,
     pointerId: e.pointerId, rlock,
-    sym: symOn() ? symLocal(lm.fwd) : null
+    sym: symOn() ? symLocal(lm.fwd) : null,
+    // Wacom / Huion on Windows (and others) report pressure 0 on the first sample: wait for a real value
+    waitPr: e.pointerType === 'pen' && !(e.pressure > 0) && !isShape
   };
   prepBuffer(layer, lm.fp && lm.fp.p, s.opacity, erase || direct);
   if (layer.isMask) { Object.assign(bufCanvas.style, { opacity: erase ? '0' : '0.5', zIndex: 9999, mixBlendMode: 'normal', transform: 'none' }); }
-  if (!isShape) {
+  if (!isShape && !stroke.waitPr) {
     stampAt(stroke, x0, y0, pr);
     stroke.next = stepAt(stroke, pr);
     afterMove(stroke);
   }
+}
+/* first real pressure of a pen stroke that started with pressure 0 */
+function startDeferred(st, pr) {
+  st.waitPr = false;
+  st.sp = st.lp = st.rp = pr;
+  stampAt(st, st.lx, st.ly, pr);
+  st.next = stepAt(st, pr);
 }
 
 function moveStroke(e) {
@@ -483,6 +492,7 @@ function moveStroke(e) {
     const d = rulerApply(st.rlock, toDoc(ev));
     const [x, y] = st.map(d.x, d.y);
     let pr = pressureOf(ev);
+    if (st.waitPr) { if (!(ev.pressure > 0)) continue; startDeferred(st, pr); }
     if (st.s.speed > 0 && !st.isShape) {
       const dt = Math.max(1, ev.timeStamp - (st.lt || ev.timeStamp - 8));
       const v = Math.hypot(x - st.rx, y - st.ry) / dt;
@@ -527,6 +537,7 @@ function endStroke(cancel) {
     return;
   }
 
+  if (st.waitPr) { startDeferred(st, shapePressure(0.35)); afterMove(st); } // a tap that never reported pressure
   if (st.isShape) {
     drawShapePreview(st);
   } else if (st.s.smooth > 0) {

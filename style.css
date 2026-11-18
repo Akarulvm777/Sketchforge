@@ -679,3 +679,12 @@ svg.cicon { overflow: visible; }
 .svhead button:hover { background: var(--panel2); }
 .svbody { position: relative; flex: 1; overflow: hidden; }
 .svbody canvas { display: block; cursor: grab; touch-action: none; }
+
+/* pen dialog */
+.pendlg { width: min(94vw, 560px); }
+.pendlg .btnrow { display: flex; gap: 6px; flex-wrap: wrap; }
+.pendlg .pentips { margin: 8px 0; font-size: 12px; }
+.pendlg .pentips summary { cursor: pointer; color: var(--accent); }
+.pendlg .pentips ul { margin: 6px 0 0 18px; padding: 0; line-height: 1.5; }
+/* iPad / Apple Pencil: no text selection, callouts or magnifier on the drawing area */
+#viewport, #toolbox, #timeline, #tabbar { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

@@ -80,3 +80,9 @@ New menu next to Add-ons. Colour modes: Default, Midnight blue, Graphite, Light,
 - File → Open (or drop on the canvas) now opens **.psd / .psb** with their layers: position, opacity, visibility, blend mode, clipping; RGB, grayscale and CMYK, 8 and 16 bit. Groups are flattened (their visibility / opacity apply, the group name is added before the layer name), layer masks are applied to the pixels.
 - **Save as Photoshop PSD** keeps layers, opacity, visibility, blend modes, clipping and non-English layer names.
 - **.clip** (Clip Studio) files open as one flattened picture (the full preview stored inside the file); the .clip format is not public, so separate layers are not available — export PSD from Clip Studio for layers.
+
+## 2.0.x: pen pressure for every tablet
+- Strokes no longer start with a dot or a jump on tablets that report no pressure on the first touch (Wacom / Huion on Windows and others).
+- View → Pen pressure & touch: **Calibrate my pen** (draw a few light-to-hard strokes; the app uses the range your pen really reaches — useful for XP-Pen / Huion pens that never report full pressure), Soft / Normal / Firm presets, a live "pressure is working" check, and setup steps for Wacom, XP-Pen, Huion, Gaomon / Veikk, macOS, iPad + Apple Pencil, Surface / Samsung.
+- The pen's side button works: eyedropper by default (or move the canvas / nothing).
+- iPad: no more text-selection magnifier or callout interrupting Apple Pencil strokes.
