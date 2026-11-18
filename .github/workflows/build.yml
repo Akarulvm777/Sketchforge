@@ -47,8 +47,10 @@ jobs:
         include:
           - os: windows-latest
             target: --win
-          - os: macos-latest
-            target: --mac
+          # macOS: paused (no macOS machines were free on GitHub); to build the Mac app again, put back:
+          #   - os: macos-latest
+          #     target: --mac
+          # and set "sketchforge.mac": true in package.json (website download links)
           - os: ubuntu-latest
             target: --linux
     runs-on: ${{ matrix.os }}

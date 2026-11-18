@@ -24,7 +24,7 @@
     try {
       const v = await (await fetch('version.json', { cache: 'no-store' })).json();
       const d = v.downloads || {};
-      document.querySelectorAll('[data-dl]').forEach(a => { const u = d[a.dataset.dl]; if (u) a.href = u; else { a.classList.add('disabled'); a.removeAttribute('href'); a.title = 'Coming soon'; } });
+      document.querySelectorAll('[data-dl]').forEach(a => { const u = d[a.dataset.dl]; if (u) a.href = u; else a.hidden = true; });
       $('#dlVer').textContent = `Version ${v.version} · free for everyone`;
       $('#footVer').textContent = 'Version ' + v.version;
       $('#heroVer').textContent = `Version ${v.version} · free · works offline · your files stay yours`;

@@ -29,6 +29,7 @@ for (const f of appFiles) {
 // downloads
 const names = { windows: `Sketchforge-Setup-${V}.exe`, macArm: `Sketchforge-${V}-mac-arm64.dmg`, macIntel: `Sketchforge-${V}-mac-x64.dmg`,
   android: `Sketchforge-${V}-android.apk`, linux: `Sketchforge-${V}-linux-x86_64.AppImage` };
+if (cfg.mac === false) { delete names.macArm; delete names.macIntel; } // Mac build paused: no Mac links
 const downloads = {};
 if (process.env.DOWNLOADS_DIR) {
   for (const [k, n] of Object.entries(names)) { const p = path.join(process.env.DOWNLOADS_DIR, n); if (fs.existsSync(p)) { copy(p, path.join(OUT, 'downloads', n)); downloads[k] = `downloads/${n}`; } }
