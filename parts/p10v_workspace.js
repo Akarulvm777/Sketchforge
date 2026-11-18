@@ -24,6 +24,7 @@ function setMode(m, quiet) {
   updateOnion(); updatePageBar();
   setTimeout(() => { try { fit(); } catch (e) { /* ignore */ } }, 0);
   if (!quiet) toast(m === 'draw' ? 'Drawing workspace' : 'Animation workspace');
+  if (!quiet && m === 'anim' && typeof animIntro === 'function') setTimeout(animIntro, 350);
 }
 function updatePageBar() {
   const pb = $('#pageBar'); if (!pb) return;

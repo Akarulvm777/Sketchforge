@@ -613,11 +613,15 @@ function acquireCel(layer) {
   const k = keyAt(layer, f);
   let created = false;
   if (k !== f && (k === null || state.autoKey)) {
-    const c = k !== null ? copyCel(layer.cels.get(k)) : makeCel(false);
+    const src = k !== null ? layer.cels.get(k) : null;
+    const blank = src && typeof animNewBlank === 'function' && animNewBlank(src);
+    const c = src && !blank ? copyCel(src) : makeCel(false);
+    if (blank && src._xf) c._xf = { ...src._xf, tween: false, ease: 0 }; // a new drawing keeps the layer's position
     layer.cels.set(f, c);
     layer.canvas = c;
     layer.ctx = c.getContext('2d');
     created = true;
+    if (blank && typeof animAfterBlank === 'function') animAfterBlank();
     refreshStage(); renderTimeline();
   }
   if (layer.canvas) layer.canvas._sv = (layer.canvas._sv || 0) + 1; // pixels are about to change (session autosave cache)
@@ -2880,6 +2884,39 @@ function sameDrawing(l, a, b) {
   if (!fa || !fb) return fa === fb;
   return fa.key === fb.key && paramsEq(fa.p, fb.p);
 }
+/* animation preferences (per user, not per file) */
+const ANP_KEY = 'sketchforge.anim.v1';
+const ANP = Object.assign({ newKey: 'blank', expose: 1, oMode: 'drawings', oLayers: 'active', oBefore: '#ff3b3b', oAfter: '#2ecc71', oAlpha: 45, pingpong: false },
+  (() => { try { return JSON.parse(localStorage.getItem(ANP_KEY) || '{}'); } catch (e) { return {}; } })());
+const anpSave = () => { try { localStorage.setItem(ANP_KEY, JSON.stringify(ANP)); } catch (e) { /* ignore */ } };
+/* one layer on frame f (with its keyframe transform / rig) */
+function layerFrameCanvas(l, f) {
+  const fp = frameParams(l, f); if (!fp) return null;
+  const c = makeCanvas(state.w, state.h), g = c.getContext('2d');
+  const m = layerMat(l, f); if (m) g.transform(...m);
+  g.drawImage(fp.cel, 0, 0);
+  return c;
+}
+/* Onion skin. "drawings" mode shows the previous / next DRAWINGS of the active layer (keyframes), so held
+   frames don't show the same picture twice; "frames" mode shows neighbouring frames. */
+function onionFrames() {
+  const o = state.onion, cur = state.frame, before = [], after = [];
+  const l = activeLayer();
+  if (ANP.oMode === 'drawings' && l && !l.vref) {
+    const ks = Array.from(l.cels.keys()).filter(k => k < state.frameCount).sort((a, b) => a - b);
+    const k = keyAt(l, cur), i = k === null ? -1 : ks.indexOf(k);
+    for (let j = 1; j <= o.before; j++) { const x = i < 0 ? undefined : ks[i - j]; if (x !== undefined) before.push(x); }
+    for (let j = 1; j <= o.after; j++) { const x = i < 0 ? ks[j - 1] : ks[i + j]; if (x !== undefined) after.push(x); }
+    if (state.loop && i >= 0 && ks.length > 2) { // looping animation: the first drawing follows the last one
+      if (!after.length && o.after) after.push(ks[0]);
+      if (!before.length && o.before) before.push(ks[ks.length - 1]);
+    }
+  } else {
+    for (let j = 1; j <= o.before; j++) if (cur - j >= 0) before.push(cur - j);
+    for (let j = 1; j <= o.after; j++) if (cur + j < state.frameCount) after.push(cur + j);
+  }
+  return { before, after };
+}
 function updateOnion() {
   const o = state.onion;
   onionCanvas.style.display = (o.on || lightPins.length) && !playing ? 'block' : 'none';
@@ -2887,17 +2924,21 @@ function updateOnion() {
   if (playing) return;
   drawPins();
   if (!o.on) return;
+  const l = activeLayer(), one = ANP.oLayers === 'active' && l && !l.vref;
   const draw = (f, color, alpha) => {
     if (f < 0 || f >= state.frameCount || f === state.frame) return;
-    const c = compositeFrame(f, { skipPaper: true });
+    if (one && sameDrawing(l, f, state.frame)) return;
+    const c = one ? layerFrameCanvas(l, f) : compositeFrame(f, { skipPaper: true });
+    if (!c) return;
     const g = c.getContext('2d');
     g.globalCompositeOperation = 'source-atop';
     g.fillStyle = color; g.fillRect(0, 0, state.w, state.h);
     onionCtx.globalAlpha = alpha;
     onionCtx.drawImage(c, 0, 0);
   };
-  for (let i = o.before; i >= 1; i--) draw(state.frame - i, '#ff3b3b', 0.45 / i);
-  for (let i = 1; i <= o.after; i++) draw(state.frame + i, '#2ecc71', 0.45 / i);
+  const { before, after } = onionFrames(), a = clamp(ANP.oAlpha, 5, 100) / 100;
+  for (let i = before.length; i >= 1; i--) draw(before[i - 1], ANP.oBefore, a / i);
+  for (let i = 1; i <= after.length; i++) draw(after[i - 1], ANP.oAfter, a / i);
   onionCtx.globalAlpha = 1;
 }
 let playTimer = 0, playLast = 0;
@@ -2907,8 +2948,10 @@ function play() {
   if (busy()) return;
   playing = true;
   setPlayIcon(); updateOnion();
-  if (!state.loop && state.frame >= state.frameCount - 1) gotoFrame(0, true);
+  const [lo, hi] = playRange();
+  if (state.frame < lo || state.frame > hi || (!state.loop && state.frame >= hi)) gotoFrame(lo, true);
   playLast = performance.now();
+  let dir = 1;
   audioStart();
   const tick = now => {
     if (!playing) return;
@@ -2916,15 +2959,26 @@ function play() {
     if (now - playLast >= step) {
       const n = Math.floor((now - playLast) / step);
       playLast += n * step;
-      let f = state.frame + n;
-      if (f >= state.frameCount) {
-        if (state.loop) { f %= state.frameCount; audioStart(); } else { gotoFrame(state.frameCount - 1, true); return stop(); }
+      const [lo, hi] = playRange();
+      let f = state.frame + n * dir;
+      if (ANP.pingpong && hi > lo) { // back and forth
+        while (f > hi || f < lo) { if (f > hi) { f = hi - (f - hi); dir = -1; } else { f = lo + (lo - f); dir = 1; } }
+        if (f === lo && dir === 1) audioStart();
+      } else if (f > hi) {
+        if (state.loop) { f = lo + (f - lo) % (hi - lo + 1); audioStart(); } else { gotoFrame(hi, true); return stop(); }
       }
       gotoFrame(f, true);
     }
     playTimer = requestAnimationFrame(tick);
   };
   playTimer = requestAnimationFrame(tick);
+}
+/* the frames that play: the play range (set from the timeline menu) or the whole animation */
+function playRange() {
+  const n = state.frameCount;
+  let lo = state.playIn == null ? 0 : state.playIn, hi = state.playOut == null ? n - 1 : state.playOut;
+  lo = clamp(lo, 0, n - 1); hi = clamp(hi, 0, n - 1);
+  return lo <= hi ? [lo, hi] : [0, n - 1];
 }
 function stop() {
   if (!playing) return;
@@ -3406,8 +3460,8 @@ function gifFrame(buf, rgba, w, h, delay) {
   for (let i = 0; i < data.length; i += 255) { const n = Math.min(255, data.length - i); buf.u8(n); buf.bytes(data.slice(i, i + n)); }
   buf.u8(0);
 }
-function renderExportFrame(f, scale) {
-  const full = compositeFrame(f);
+function renderExportFrame(f, scale, transparent) {
+  const full = compositeFrame(f, transparent ? { skipPaper: true } : {});
   if (scale === 1) return full;
   const c = makeCanvas(Math.max(1, Math.round(state.w * scale)), Math.max(1, Math.round(state.h * scale)));
   const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
@@ -3416,17 +3470,22 @@ function renderExportFrame(f, scale) {
 }
 async function runExport() {
   const fmt = $('#expFormat').value, scale = +$('#expScale').value, prog = $('#expProgress');
-  const n = state.frameCount;
+  const fr = typeof anExportFrames === 'function' ? anExportFrames() : Array.from({ length: state.frameCount }, (_, i) => i), n = fr.length;
+  const transp = !!($('#expTransp') && $('#expTransp').checked);
   exporting = true; $('#expGo').disabled = true;
   const base = state.name.replace(/[^\w\- ]+/g, '_');
   try {
-    if (fmt === 'zip') {
+    if (fmt === 'sheet') {
+      prog.textContent = 'Rendering…'; await sleep(0);
+      await anSpriteSheet(scale, transp);
+    } else if (fmt === 'zip') {
       const files = [];
-      for (let f = 0; f < n; f++) {
+      for (let i = 0; i < n; i++) {
+        const f = fr[i];
         if (!exporting) throw new Error('cancelled');
-        const b = await canvasToBlob(renderExportFrame(f, scale));
+        const b = await canvasToBlob(renderExportFrame(f, scale, transp));
         files.push({ name: `${base}_${String(f + 1).padStart(4, '0')}.png`, data: new Uint8Array(await b.arrayBuffer()) });
-        prog.textContent = `Rendering ${f + 1} / ${n}`; await sleep(0);
+        prog.textContent = `Rendering ${i + 1} / ${n}`; await sleep(0);
       }
       download(makeZip(files), base + '_frames.zip');
     } else if (fmt === 'gif') {
@@ -3435,11 +3494,11 @@ async function runExport() {
       buf.str('GIF89a'); buf.u16(w); buf.u16(h); buf.u8(0x70); buf.u8(0); buf.u8(0);
       if ($('#expLoop').checked) buf.bytes([0x21, 0xFF, 11, ...'NETSCAPE2.0'.split('').map(c => c.charCodeAt(0)), 3, 1, 0, 0, 0]);
       const delay = Math.max(2, Math.round(100 / state.fps));
-      for (let f = 0; f < n; f++) {
+      for (let i = 0; i < n; i++) {
         if (!exporting) throw new Error('cancelled');
-        const c = renderExportFrame(f, scale);
+        const c = renderExportFrame(fr[i], scale, transp);
         gifFrame(buf, c.getContext('2d').getImageData(0, 0, w, h).data, w, h, delay);
-        prog.textContent = `Encoding ${f + 1} / ${n}`; await sleep(0);
+        prog.textContent = `Encoding ${i + 1} / ${n}`; await sleep(0);
       }
       buf.u8(0x3B);
       download(new Blob([buf.out()], { type: 'image/gif' }), base + '.gif');
@@ -3454,12 +3513,12 @@ async function runExport() {
       rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       const done = new Promise(r => { rec.onstop = r; });
       rec.start();
-      for (let f = 0; f < n; f++) {
+      for (let i = 0; i < n; i++) {
         if (!exporting) { rec.stop(); throw new Error('cancelled'); }
         g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
-        g.drawImage(compositeFrame(f), 0, 0, w, h);
+        g.drawImage(compositeFrame(fr[i]), 0, 0, w, h);
         track.requestFrame();
-        prog.textContent = `Recording ${f + 1} / ${n}`;
+        prog.textContent = `Recording ${i + 1} / ${n}`;
         await sleep(1000 / state.fps);
       }
       rec.stop(); await done;
@@ -3480,7 +3539,7 @@ $('#expCancel').onclick = () => { exporting = false; $('#exportDialog').close();
    The app keeps one document in the globals (state, history, view, sel, layerSeq, layerCounter, dirty,
    TL, aud, lightPins). Every open document has a record in DOCS.list; switching tabs stashes the globals
    into the current record and loads the other one. Inactive records hold their data in rec.saved. */
-const DOC_FIELDS = ['name', 'w', 'h', 'layers', 'activeId', 'frame', 'frameCount', 'fps', 'loop', 'onion', 'mode', 'projectType', 'dpi'];
+const DOC_FIELDS = ['name', 'w', 'h', 'layers', 'activeId', 'frame', 'frameCount', 'fps', 'loop', 'onion', 'mode', 'projectType', 'dpi', 'playIn', 'playOut'];
 const DOCS = { list: [], cur: null, seq: 1 };
 
 function docIsCurrent(r) { return r === DOCS.cur; }
@@ -3519,6 +3578,7 @@ function docBlankGlobals() {
   if (aud.el) aud.el.pause();
   Object.assign(aud, { el: null, name: '', peaks: null, dur: 0, url: '', file: null });
   lightPins.length = 0;
+  state.playIn = state.playOut = null;
   dirty = false;
 }
 function docSettle() {
@@ -4527,6 +4587,277 @@ function puppetProps(body) {
   for (const [t, fn] of [['Create in-betweens', puppetInbetween], ['Remove pins (restore drawing)', puppetClear], ['How to rig a character…', rigHelp]]) {
     const b = document.createElement('button'); b.textContent = t; b.onclick = fn; b.style.cssText = 'display:block;width:100%;margin:4px 0'; body.appendChild(b);
   }
+}
+
+/* ---------- Animation plus ----------
+   - One layer can hold a whole animation: drawing on a held / empty frame makes a NEW BLANK drawing there
+     (ANP.newKey = 'blank'; 'copy' = start from a copy of the previous drawing; 'off' = draw on the held drawing).
+     Onion skin turns on by itself the first time, so the previous drawing shows faintly.
+   - "＋ New drawing" (Shift+→): next frame (on 1s / 2s / 3s), adds frames at the end when needed, blank drawing.
+   - Timeline: right-click menu on any cell, double-click an empty cell = new drawing, drag the selected
+     keyframe to move it (Alt = copy), play range (in / out) shown on the ruler.
+   - Onion skin options (drawings or frames, this layer or all, colours, strength), ping-pong playback.
+   - Export: play range, transparent background, sprite sheet.                                             */
+let anOnionTouched = false;
+function animNewBlank(src) {
+  if (state.mode !== 'anim' || ANP.newKey !== 'blank') return false;
+  return !xfOf(src).tween && !src._pup; // tweens and puppet poses continue from a copy
+}
+function animAfterBlank() {
+  if (state.onion.on || anOnionTouched) return;
+  state.onion.on = true; anOnionTouched = true;
+  syncTimelineFields(); setTimeout(updateOnion, 0);
+  toast('New drawing on this frame — onion skin is on so you can see the previous one (O to hide it)', 4500);
+}
+function anApplyNewKey() { state.autoKey = ANP.newKey !== 'off'; const s = $('#anNewKey'); if (s) s.value = ANP.newKey; }
+
+/* next frame (+ exposure) with a new blank drawing on the active layer */
+function newDrawing() {
+  const l = activeLayer(); if (!l) return;
+  if (l.locked) { toast('Layer is locked'); return; }
+  if (l.vref) { toast('Choose a drawing layer first'); return; }
+  const t = state.frame + Math.max(1, ANP.expose | 0);
+  if (t >= MAX_FRAMES) { toast('Maximum frames reached'); return; }
+  const k = keyAt(l, state.frame), src = k !== null ? l.cels.get(k) : null;
+  timelineOp(() => {
+    if (t >= state.frameCount) state.frameCount = t + 1;
+    const c = makeCel(false);
+    if (src && src._xf) c._xf = { ...src._xf, tween: false, ease: 0 };
+    l.cels.set(t, c);
+  });
+  gotoFrame(t);
+  if (!state.onion.on && !anOnionTouched) animAfterBlank();
+}
+
+/* shift this layer's drawings after frame f by d frames (hold longer / shorter) */
+function anHold(l, f, d) {
+  const k = keyAt(l, f); if (k === null) return;
+  const nk = nextKey(l, k);
+  if (d < 0 && (nk === null ? state.frameCount - 1 : nk - 1) <= k) { toast('This drawing is already only 1 frame long'); return; }
+  if (d > 0 && state.frameCount >= MAX_FRAMES) { toast('Maximum frames reached'); return; }
+  timelineOp(() => {
+    const m = new Map();
+    for (const [x, c] of l.cels) m.set(x > k ? x + d : x, c);
+    l.cels = m;
+    if (d > 0) { const last = Math.max(...l.cels.keys()); if (last >= state.frameCount || nk === null) state.frameCount = Math.min(MAX_FRAMES, Math.max(state.frameCount + (nk === null ? 1 : 0), last + 1)); }
+    else if (nk === null) state.frameCount = Math.max(1, state.frameCount - 1);
+  });
+}
+function anMoveKey(l, from, to, copy) {
+  if (from === to || to < 0) return;
+  if (l.cels.has(to)) { toast('There is already a drawing on frame ' + (to + 1)); return; }
+  if (to >= MAX_FRAMES) return;
+  timelineOp(() => {
+    const c = l.cels.get(from);
+    if (copy) l.cels.set(to, copyCel(c, true)); else { l.cels.delete(from); l.cels.set(to, c); if (!l.cels.size) l.cels.set(0, makeCel(false)); }
+    if (to >= state.frameCount) state.frameCount = to + 1;
+  });
+  gotoFrame(to);
+}
+function anReverse(l) { // reverse the order of this layer's drawings inside the play range (or everywhere)
+  const [lo, hi] = playRange();
+  const ks = Array.from(l.cels.keys()).filter(k => k >= lo && k <= hi).sort((a, b) => a - b);
+  if (ks.length < 2) { toast('Need at least two drawings'); return; }
+  timelineOp(() => {
+    const ends = ks.map((k, i) => (i + 1 < ks.length ? ks[i + 1] : Math.min(hi + 1, nextKey(l, k) ?? hi + 1)) - k);
+    const cels = ks.map(k => l.cels.get(k)); ks.forEach(k => l.cels.delete(k));
+    let f = ks[0];
+    for (let i = ks.length - 1; i >= 0; i--) { l.cels.set(f, cels[i]); f += ends[i]; }
+  });
+}
+function anSetRange(which, f) {
+  if (which === 'clear') { state.playIn = state.playOut = null; }
+  else if (which === 'in') { state.playIn = f; if (state.playOut != null && state.playOut < f) state.playOut = null; }
+  else { state.playOut = f; if (state.playIn != null && state.playIn > f) state.playIn = null; }
+  renderTimeline(); markDirty();
+  const [lo, hi] = playRange();
+  toast(state.playIn == null && state.playOut == null ? 'Plays all frames' : `Plays frames ${lo + 1}–${hi + 1}`);
+}
+function anEase(v) { const l = activeLayer(); const k = l && keyAt(l, state.frame); if (k === null || !l) return; if (!xfOf(l.cels.get(k)).tween) { toast('No tween here — press Tween first'); return; } timelineOp(() => { ensureXf(l.cels.get(k)).ease = v; }); }
+
+/* ---- timeline context menu ---- */
+function anMenu(x, y, items) {
+  let m = $('#anMenu');
+  if (!m) { m = document.createElement('div'); m.id = 'anMenu'; m.className = 'popover tabmenu'; document.body.appendChild(m); document.addEventListener('pointerdown', e => { if (!m.contains(e.target)) m.hidden = true; }, true); }
+  m.innerHTML = '';
+  for (const it of items) {
+    if (!it) continue;
+    if (it === '-') { m.appendChild(document.createElement('hr')); continue; }
+    const b = document.createElement('button'); b.textContent = it[0]; b.disabled = !!it[2]; b.onclick = () => { m.hidden = true; it[1](); }; m.appendChild(b);
+  }
+  m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px'; m.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+}
+function anCellAt(e) {
+  const el = document.elementFromPoint(e.clientX, e.clientY); // the timeline captures the pointer, so e.target can be the whole timeline
+  const row = el && el.closest && el.closest('#tlInner .tl-row'); if (!row) return null;
+  const r = tlInner.getBoundingClientRect(), f = Math.floor((e.clientX - r.left - nameW()) / CELL_W);
+  if (e.clientX - r.left < nameW() || f < 0) return null;
+  return { row, f, l: row.dataset.id ? state.layers.find(x => x.id === +row.dataset.id) : null, ruler: row.classList.contains('tl-ruler') };
+}
+function anCellMenu(e) {
+  const c = anCellAt(e); if (!c) return;
+  e.preventDefault();
+  if (c.l) selectLayer(c.l.id);
+  if (c.f < state.frameCount) gotoFrame(c.f);
+  const f = c.f, l = activeLayer(), key = l && keyAt(l, f) === f, has = l && keyAt(l, f) !== null;
+  const tw = has && xfOf(l.cels.get(keyAt(l, f))).tween;
+  const items = c.ruler ? [] : [
+    ['＋ New drawing here', () => { if (f >= state.frameCount) setFrameCount(f + 1); gotoFrame(f); insertKeyframe(true); }],
+    ['Copy of the previous drawing here', () => insertKeyframe(false), key || !has],
+    ['Delete this drawing', () => removeKeyframe(), !key],
+    ['Clear this drawing', () => clearLayerFrame(), !has],
+    '-',
+    ['Hold longer (+1 frame)', () => anHold(l, f, 1), !has],
+    ['Hold shorter (−1 frame)', () => anHold(l, f, -1), !has],
+    ['Copy drawing (Alt+C)', () => CMD.copyDrawing && CMD.copyDrawing(), !has],
+    ['Paste drawing (Alt+V)', () => CMD.pasteDrawing && CMD.pasteDrawing()],
+    ['Reverse the drawings (play range)', () => anReverse(l)],
+    '-',
+    ['Tween from here', () => createTween(), !has],
+    tw ? ['  Ease: linear', () => anEase(0)] : null,
+    tw ? ['  Ease in (slow start)', () => anEase(-60)] : null,
+    tw ? ['  Ease out (slow end)', () => anEase(60)] : null,
+    ['Remove tween', () => removeTween(), !tw],
+    '-'];
+  items.push(['Insert a frame (all layers)', () => insertFrame()], ['Delete this frame (all layers)', () => removeFrame()], '-',
+    ['▶ Play from here (set start)', () => anSetRange('in', f)], ['■ Play until here (set end)', () => anSetRange('out', f)],
+    ['Play all frames (clear range)', () => anSetRange('clear'), state.playIn == null && state.playOut == null]);
+  anMenu(e.clientX, e.clientY, items);
+}
+
+/* ---- keyframe drag: press on the selected keyframe and drag it (Alt = copy) ---- */
+let anDrag = null;
+function anDown(e) {
+  if (e.button !== 0) return;
+  const c = anCellAt(e); if (!c || !c.l || c.ruler) return;
+  const l = c.l, now = performance.now(), last = anDown.last;
+  anDown.last = { f: c.f, id: l.id, t: now };
+  // double-click (the timeline is redrawn between the clicks, so the browser's dblclick doesn't fire)
+  if (last && last.f === c.f && last.id === l.id && now - last.t < 400) { anDown.last = null; anDbl(e); e.stopImmediatePropagation(); return; }
+  if (c.f !== state.frame || l.id !== state.activeId || keyAt(l, c.f) !== c.f || l.locked) return;
+  anDrag = { l, from: c.f, to: c.f, copy: e.altKey, x: e.clientX, on: false };
+  e.stopImmediatePropagation(); e.preventDefault();
+  tlInner.setPointerCapture(e.pointerId);
+}
+function anMove(e) {
+  if (!anDrag) return;
+  const r = tlInner.getBoundingClientRect();
+  const f = Math.max(0, Math.floor((e.clientX - r.left - nameW()) / CELL_W));
+  if (!anDrag.on && Math.abs(e.clientX - anDrag.x) < 5) return;
+  anDrag.on = true; anDrag.to = f;
+  let g = $('#anGhost');
+  if (!g) { g = document.createElement('div'); g.id = 'anGhost'; tlInner.appendChild(g); }
+  const row = tlInner.querySelector(`.tl-row[data-id="${anDrag.l.id}"]`);
+  g.style.left = nameW() + f * CELL_W + 'px'; g.style.top = (row ? row.offsetTop : 0) + 'px'; g.style.height = (row ? row.offsetHeight : 20) + 'px';
+  g.classList.toggle('bad', f !== anDrag.from && anDrag.l.cels.has(f));
+  e.stopImmediatePropagation();
+}
+function anUp(e) {
+  if (!anDrag) return;
+  const d = anDrag; anDrag = null;
+  const g = $('#anGhost'); if (g) g.remove();
+  e.stopImmediatePropagation();
+  if (d.on && d.to !== d.from) anMoveKey(d.l, d.from, d.to, d.copy || e.altKey);
+}
+function anDbl(e) {
+  const c = anCellAt(e); if (!c || !c.l || c.ruler) return;
+  selectLayer(c.l.id);
+  if (keyAt(c.l, c.f) === c.f) return;
+  if (c.f >= state.frameCount) setFrameCount(c.f + 1);
+  gotoFrame(c.f); insertKeyframe(true);
+}
+
+/* ---- onion skin settings ---- */
+function anOnionPop(anchor) {
+  let p = $('#anOnionPop');
+  if (!p) { p = document.createElement('div'); p.id = 'anOnionPop'; p.className = 'popover'; document.body.appendChild(p); document.addEventListener('pointerdown', e => { if (!p.contains(e.target) && e.target !== anchor) p.hidden = true; }, true); }
+  p.innerHTML = `<b>Onion skin</b>
+    <label>Show <select data-k="oMode"><option value="drawings">previous / next drawings</option><option value="frames">neighbouring frames</option></select></label>
+    <label>Layers <select data-k="oLayers"><option value="active">this layer only</option><option value="all">all layers</option></select></label>
+    <label>Before <input type="number" data-o="before" min="0" max="5" value="${state.onion.before}"> colour <input type="color" data-k="oBefore" value="${ANP.oBefore}"></label>
+    <label>After <input type="number" data-o="after" min="0" max="5" value="${state.onion.after}"> colour <input type="color" data-k="oAfter" value="${ANP.oAfter}"></label>
+    <label>Strength <input type="range" data-k="oAlpha" min="10" max="100" value="${ANP.oAlpha}"></label>
+    <button data-reset>Default colours</button>`;
+  p.querySelector('[data-k="oMode"]').value = ANP.oMode; p.querySelector('[data-k="oLayers"]').value = ANP.oLayers;
+  p.querySelectorAll('[data-k]').forEach(i => i.oninput = () => { ANP[i.dataset.k] = i.type === 'range' ? +i.value : i.value; anpSave(); state.onion.on = true; anOnionTouched = true; syncTimelineFields(); updateOnion(); });
+  p.querySelectorAll('[data-o]').forEach(i => i.oninput = () => { state.onion[i.dataset.o] = clamp(+i.value || 0, 0, 5); syncTimelineFields(); updateOnion(); });
+  p.querySelector('[data-reset]').onclick = () => { ANP.oBefore = '#ff3b3b'; ANP.oAfter = '#2ecc71'; ANP.oAlpha = 45; anpSave(); anOnionPop(anchor); updateOnion(); };
+  const r = anchor.getBoundingClientRect();
+  p.hidden = false;
+  p.style.left = Math.max(4, Math.min(r.left, innerWidth - p.offsetWidth - 4)) + 'px';
+  p.style.top = Math.max(4, r.top - p.offsetHeight - 6) + 'px';
+}
+
+/* ---- export: range, transparent background, sprite sheet ---- */
+function anExportFrames() { const all = $('#expRange') && $('#expRange').value === 'range'; const [lo, hi] = all ? playRange() : [0, state.frameCount - 1]; const a = []; for (let f = lo; f <= hi; f++) a.push(f); return a; }
+async function anSpriteSheet(scale, transparent) {
+  const fr = anExportFrames(), n = fr.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
+  const w = Math.max(1, Math.round(state.w * scale)), h = Math.max(1, Math.round(state.h * scale));
+  if (cols * w > 16384 || rows * h > 16384) throw new Error('sprite sheet too big — choose a smaller size');
+  const c = makeCanvas(cols * w, rows * h), g = c.getContext('2d');
+  fr.forEach((f, i) => g.drawImage(compositeFrame(f, { skipPaper: transparent }), (i % cols) * w, Math.floor(i / cols) * h, w, h));
+  download(await canvasToBlob(c), state.name.replace(/[^\w\- ]+/g, '_') + `_sheet_${cols}x${rows}.png`);
+}
+
+function installAnimPlus() {
+  Object.assign(CMD, {
+    newDrawing, holdLonger: () => { const l = activeLayer(); if (l) anHold(l, state.frame, 1); }, holdShorter: () => { const l = activeLayer(); if (l) anHold(l, state.frame, -1); },
+    reverseDrawings: () => { const l = activeLayer(); if (l) anReverse(l); },
+    playIn: () => anSetRange('in', state.frame), playOut: () => anSetRange('out', state.frame), playAll: () => anSetRange('clear'),
+    pingpong: () => { ANP.pingpong = !ANP.pingpong; anpSave(); const c = $('#anPing'); if (c) c.checked = ANP.pingpong; toast(ANP.pingpong ? 'Ping-pong: plays forward then backward' : 'Ping-pong off'); }
+  });
+  // timeline bar: new drawing + exposure, what drawing on an empty frame does, onion settings, ping-pong
+  const head = $('#timeline .tl-head');
+  const nd = document.createElement('span'); nd.className = 'an-new';
+  nd.innerHTML = `<button data-cmd="newDrawing" id="anNewBtn" class="accent" title="Next frame with a new blank drawing (Shift+→)">＋ New drawing</button><select id="anExpose" title="How many frames each drawing lasts (on 1s / 2s / 3s)"><option value="1">on 1s</option><option value="2">on 2s</option><option value="3">on 3s</option><option value="4">on 4s</option></select>`;
+  head.insertBefore(nd, head.querySelector('[data-cmd="keyframe"]'));
+  $('#anExpose').value = String(ANP.expose);
+  $('#anExpose').onchange = e => { ANP.expose = +e.target.value; anpSave(); };
+  const ak = $('#autoKey').closest('label'); ak.hidden = true;
+  const nk = document.createElement('label'); nk.className = 'tl-field'; nk.title = 'What happens when you draw on a frame that has no drawing of its own';
+  nk.innerHTML = `Empty frame: <select id="anNewKey"><option value="blank">new drawing</option><option value="copy">copy previous</option><option value="off">edit previous</option></select>`;
+  ak.after(nk);
+  $('#anNewKey').onchange = e => { ANP.newKey = e.target.value; anpSave(); anApplyNewKey(); };
+  anApplyNewKey();
+  const on = $('#onionOn').closest('label');
+  const ob = document.createElement('button'); ob.id = 'anOnionBtn'; ob.type = 'button'; ob.textContent = '▾'; ob.title = 'Onion skin settings: drawings or frames, layers, colours, strength';
+  ob.onclick = () => anOnionPop(ob);
+  on.after(ob);
+  $('#onionOn').addEventListener('change', () => { anOnionTouched = true; });
+  const lp = $('#loop').closest('label');
+  const pp = document.createElement('label'); pp.className = 'check'; pp.title = 'Play forward then backward';
+  pp.innerHTML = `<input type="checkbox" id="anPing"> Ping-pong`; lp.after(pp);
+  $('#anPing').checked = ANP.pingpong; $('#anPing').onchange = e => { ANP.pingpong = e.target.checked; anpSave(); };
+  // timeline mouse: menu, drag keys, double-click
+  tlInner.addEventListener('contextmenu', anCellMenu);
+  tlInner.addEventListener('pointerdown', anDown, true);
+  tlInner.addEventListener('pointermove', anMove, true);
+  tlInner.addEventListener('pointerup', anUp, true);
+  // play range shading on the ruler
+  const rt = renderTimeline;
+  renderTimeline = function () {
+    rt();
+    if (state.playIn == null && state.playOut == null) return;
+    const [lo, hi] = playRange();
+    tlInner.querySelectorAll('.tl-ruler .tl-rc').forEach(c => { const f = +c.dataset.f; c.classList.toggle('out-range', f < lo || f > hi); c.classList.toggle('range-in', f === lo); c.classList.toggle('range-out', f === hi); });
+  };
+  // export dialog: range, background, sprite sheet
+  const fmt = $('#expFormat');
+  fmt.insertAdjacentHTML('beforeend', '<option value="sheet">Sprite sheet (one PNG)</option>');
+  $('#expScale').closest('label').insertAdjacentHTML('afterend', `<label class="select"><span>Frames</span><select id="expRange"><option value="all">All frames</option><option value="range">Play range only</option></select></label>
+    <label class="check" title="PNG frames, GIF and sprite sheets: leave out the paper layer"><input type="checkbox" id="expTransp"> Transparent background (no paper)</label>`);
+  // Animation menu entries
+  const A = MENUS.find(m => m[0] === 'Animation');
+  if (A) A[1].push('-', ['＋ New drawing on next frame', 'newDrawing', 'Shift+→'], ['Hold drawing longer (+1)', 'holdLonger'], ['Hold drawing shorter (−1)', 'holdShorter'],
+    ['Reverse drawings (play range)', 'reverseDrawings'], ['Play from this frame (set start)', 'playIn'], ['Play until this frame (set end)', 'playOut'], ['Play all frames', 'playAll'], ['Ping-pong playback on / off', 'pingpong']);
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (state.mode !== 'anim' || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'ArrowRight' || e.key === '>') { e.preventDefault(); e.stopImmediatePropagation(); newDrawing(); }
+  }, true);
 }
 
 /* ---------- Opening Photoshop (.psd / .psb) and Clip Studio (.clip) files ----------
@@ -5990,6 +6321,7 @@ function setMode(m, quiet) {
   updateOnion(); updatePageBar();
   setTimeout(() => { try { fit(); } catch (e) { /* ignore */ } }, 0);
   if (!quiet) toast(m === 'draw' ? 'Drawing workspace' : 'Animation workspace');
+  if (!quiet && m === 'anim' && typeof animIntro === 'function') setTimeout(animIntro, 350);
 }
 function updatePageBar() {
   const pb = $('#pageBar'); if (!pb) return;
@@ -6794,7 +7126,10 @@ function buildRigged(gender) {
   // dominant bone per vertex, for click-to-select and the selection highlight
   const dom = new Uint8Array(n);
   for (let i = 0; i < n; i++) { let best = 0; for (let k = 1; k < 4; k++) if (sw[i * 4 + k] > sw[i * 4 + best]) best = k; dom[i] = si[i * 4 + best]; }
-  mesh.userData = { color: GREY, rigged: true, vc: true, dom, boneNames: list.map(b => b.name) };
+  const names = list.map(b => b.name);
+  let minY0 = Infinity; for (let i = 1; i < n * 3; i += 3) if (p[i] < minY0) minY0 = p[i];
+  mesh.userData = { color: GREY, rigged: true, vc: true, dom, boneNames: names, p0: p.slice(), w, si, j0: d.joints, minY0,
+    parents: M.bones.map(([, par]) => par ? names.indexOf(par) : -1), bend: d.bend || {}, tips0: d.tips || {} };
   const root = new T.Group(); root.add(mesh);
   return { root, joints, parts: [mesh], legTop: joints.pelvis.position.y };
 }
@@ -6853,6 +7188,7 @@ function setModel(m) {
   M3.root.scale.setScalar(M3.heightScale);
   M3.scene.add(M3.root);
   if (!M3.joints[M3.sel]) M3.sel = Object.keys(M3.joints)[0];
+  if (riggedMesh() && !shapeIsDefault()) applyShape();
   markSel(); render3D(); buildJointUI();
 }
 function rebuildModel() {
@@ -6904,7 +7240,7 @@ function render3D() {
 function buildJointUI() {
   const box = $('#m3dJoint'); if (!box) return;
   const sel = $('#m3dJointSel'); sel.innerHTML = '';
-  const names = M3.kind === 'mannequin' ? JOINT_NAMES : [['body', 'Whole model']];
+  const names = jointNameList();
   names.forEach(([k, t]) => { const o = document.createElement('option'); o.value = k; o.textContent = t; if (k === M3.sel) o.selected = true; sel.appendChild(o); });
   syncJointSliders();
 }
@@ -6912,6 +7248,7 @@ function syncJointSliders() {
   const j = M3.joints[M3.sel]; if (!j) return;
   const e = new M3.T.Euler().setFromQuaternion(j.quaternion, 'YXZ');
   [['X', e.x], ['Y', e.y], ['Z', e.z]].forEach(([a, v]) => { const i = $('#m3d' + a); if (i) { i.value = Math.round(v / DEG); $('#m3d' + a + 'V').textContent = Math.round(v / DEG) + '°'; } });
+  syncCurl();
 }
 function setJointEuler() {
   const j = M3.joints[M3.sel]; if (!j) return;
@@ -6922,13 +7259,17 @@ function applyPose(name) {
   const p = POSES[name]; if (!p) return;
   for (const k in M3.joints) M3.joints[k].quaternion.identity();
   M3.root.position.y = 0;
+  M3.curl = {};
   for (const k in p) {
     if (k === '_y') { M3.root.position.y = p._y * M3.heightScale; continue; }
+    if (k === '_hands') continue;
     if (M3.joints[k]) M3.joints[k].quaternion.setFromEuler(new M3.T.Euler(p[k][0] * DEG, p[k][1] * DEG, p[k][2] * DEG, 'YXZ'));
   }
+  if (hasFingers()) { const hp = HAND_POSES[p._hands || 'Relaxed']; for (const s of ['L', 'R']) for (const f in hp) setCurl(f, s, hp[f]); }
   syncJointSliders(); render3D();
 }
 function fitModel() {
+  setTimeout(() => typeof syncZoom === 'function' && syncZoom(), 0);
   M3.cam = { az: 0.5, el: 0.2, dist: 4.4 / (state.w / state.h > 1 ? 1 : 1), tx: 0, ty: M3.kind === 'mannequin' ? 0.88 * M3.heightScale : 0.5 };
   if (state.w / state.h < 1) M3.cam.dist *= 1.0;
   render3D();
@@ -6957,15 +7298,22 @@ function pickRigged(mesh, rc) {
   M3.pickMesh.matrixWorld.copy(mesh.matrixWorld);
   const hit = rc.intersectObject(M3.pickMesh, false)[0];
   if (!hit) return null;
+  M3.lastHit = hit.point.clone();
   return mesh.userData.boneNames[mesh.userData.dom[hit.face.a]];
 }
 function bind3DPreview() {
   const cv = $('#m3dPreview'); let drag = null;
   cv.addEventListener('pointerdown', e => {
     cv.setPointerCapture(e.pointerId);
+    M3.lastHit = null;
     const hit = pick(e, cv);
     drag = { x: e.clientX, y: e.clientY, mode: e.shiftKey || e.button === 2 ? 'pan' : hit ? 'joint' : 'orbit' };
     if (hit && drag.mode === 'joint') { M3.sel = hit; markSel(); buildJointUI(); }
+    // move mode: the grabbed point of the part follows the mouse (inverse kinematics); the hips move the whole model
+    if (hit && drag.mode === 'joint' && M3.dragMode === 'move' && M3.lastHit && riggedMesh()) {
+      if (hit === 'pelvis') drag.mode = 'pan';
+      else { const j = M3.joints[hit]; M3.root.updateMatrixWorld(true); drag.mode = 'ik'; drag.bone = hit; drag.grab = j.worldToLocal(M3.lastHit.clone()); drag.plane = M3.lastHit.clone(); }
+    }
     render3D();
   });
   cv.addEventListener('pointermove', e => {
@@ -6976,6 +7324,9 @@ function bind3DPreview() {
     else if (drag.mode === 'pan') {
       const k = M3.cam.dist * 0.0035; const right = new T.Vector3().setFromMatrixColumn(M3.camera.matrixWorld, 0);
       M3.root.position.addScaledVector(right, dx * k); M3.root.position.y -= dy * k;
+    } else if (drag.mode === 'ik') {
+      const t = rayToPlane(e, cv, drag.plane);
+      if (t) { ikSolve(drag.bone, drag.grab, t); syncJointSliders(); }
     } else {
       const j = M3.joints[M3.sel]; if (!j) return;
       const right = new T.Vector3().setFromMatrixColumn(M3.camera.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(M3.camera.matrixWorld, 1);
@@ -7049,6 +7400,7 @@ function build3DPanel() {
   $('#m3dOp').oninput = e => { M3.overOp = e.target.value / 100; $('#m3dOpV').textContent = e.target.value + '%'; render3D(); };
   $('#m3dImport').onclick = () => pickFile('.glb,.gltf,.obj', f => importModelFile(f).catch(err => toast(err.message)));
   $('#m3dPlace').onclick = placeOnLayer;
+  install3DPlus(b);
   bind3DPreview();
 }
 function placeOnLayer() {
@@ -7074,6 +7426,207 @@ async function show3D() {
   } catch (e) { toast('3D could not start: ' + e.message); }
 }
 
+
+/* ---------- 3D model, more control ----------
+   - finger bones (3 per finger, from models3d.js v2): curl a finger, hand poses (fist, point, peace…)
+   - drag a body part to MOVE it: the limb follows the mouse (inverse kinematics, elbows / knees bend one way);
+     the old "rotate the joint" drag is still there (Drag: Rotate)
+   - body shape: head, build, shoulders, hips, torso / arm / leg length, hands, feet (the rest mesh and the bones are
+     reshaped, then the pose is applied again)
+   - zoom slider / buttons, pinch to zoom on the preview, model size 20–300 %                                  */
+const FINGER_NAMES = [['thumb', 'Thumb'], ['index', 'Index'], ['middle', 'Middle'], ['ring', 'Ring'], ['pinky', 'Little']];
+const HAND_POSES = {
+  Relaxed: { thumb: 12, index: 18, middle: 24, ring: 28, pinky: 32 },
+  Open: { thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 },
+  Fist: { thumb: 55, index: 92, middle: 95, ring: 95, pinky: 95 },
+  Point: { thumb: 50, index: 0, middle: 92, ring: 95, pinky: 95 },
+  Peace: { thumb: 55, index: 0, middle: 0, ring: 95, pinky: 95 },
+  'Thumbs up': { thumb: 0, index: 92, middle: 95, ring: 95, pinky: 95 },
+  Grip: { thumb: 35, index: 55, middle: 60, ring: 62, pinky: 65 }
+};
+const SHAPE_DEF = { head: 1, build: 1, shoulders: 1, hips: 1, torso: 1, arms: 1, legs: 1, hands: 1, feet: 1 };
+const SHAPE_UI = [['head', 'Head size', 60, 160], ['build', 'Build (thin ↔ heavy)', 60, 170], ['shoulders', 'Shoulders', 70, 140], ['hips', 'Hips', 70, 150],
+  ['torso', 'Torso length', 75, 130], ['arms', 'Arm length', 75, 130], ['legs', 'Leg length', 70, 135], ['hands', 'Hands', 70, 150], ['feet', 'Feet', 70, 150]];
+M3.shape = { ...SHAPE_DEF }; M3.dragMode = 'move'; M3.curl = {};
+const riggedMesh = () => M3.parts.find(p => p.userData.rigged) || null;
+const fingerOf = b => { const m = /^(thumb|index|middle|ring|pinky)([123])([LR])$/.exec(b || ''); return m ? { f: m[1], k: +m[2], s: m[3] } : null; };
+function hasFingers() { return !!(M3.joints && M3.joints.index1L); }
+
+/* ---- finger curl ---- */
+function setCurl(f, s, deg) {
+  const mesh = riggedMesh(); if (!mesh || !M3.joints[f + '1' + s]) return;
+  const ax = mesh.userData.bend[f + s]; if (!ax) return;
+  const axis = new M3.T.Vector3(...ax), mult = f === 'thumb' ? [0.35, 0.8, 0.85] : [0.85, 1.05, 0.75];
+  for (let k = 1; k <= 3; k++) M3.joints[f + k + s].quaternion.setFromAxisAngle(axis, deg * mult[k - 1] * DEG);
+  M3.curl[f + s] = deg;
+}
+function applyHandPose(name, side) {
+  const p = HAND_POSES[name]; if (!p) return;
+  for (const s of side === 'both' ? ['L', 'R'] : [side]) for (const f in p) setCurl(f, s, p[f]);
+  syncJointSliders(); syncCurl(); render3D();
+}
+function syncCurl() {
+  const fo = fingerOf(M3.sel), row = $('#m3dCurlRow'); if (!row) return;
+  row.hidden = !fo; if (!fo) return;
+  const v = Math.round(M3.curl[fo.f + fo.s] || 0);
+  $('#m3dCurl').value = v; $('#m3dCurlV').textContent = v + '°';
+}
+
+/* ---- body shape: reshape the rest mesh + joints, keep the pose ---- */
+function shapeScale(name) {
+  const S = M3.shape, b = name.replace(/[LR]$/, ''), lb = Math.pow(S.build, 0.8);
+  if (fingerOf(name) || b === 'hand') return [S.hands, S.hands, S.hands];
+  switch (b) {
+    case 'head': return [S.head, S.head, S.head];
+    case 'neck': return [Math.sqrt(S.build), 1, Math.sqrt(S.build)];
+    case 'spine': return [S.shoulders * S.build, S.torso, S.build];
+    case 'pelvis': return [S.hips * S.build, 1, S.build];
+    case 'arm': case 'forearm': return [lb, S.arms, lb];
+    case 'leg': case 'shin': return [lb, S.legs, lb];
+    case 'foot': return [S.feet, S.feet, S.feet];
+  }
+  return [1, 1, 1];
+}
+function applyShape() {
+  const mesh = riggedMesh(); if (!mesh) return;
+  const T = M3.T, ud = mesh.userData, n = ud.p0.length / 3, names = ud.boneNames, par = ud.parents;
+  const J0 = names.map(nm => ud.j0[nm]), A = [], D = names.map(shapeScale);
+  names.forEach((nm, i) => {
+    const pi = par[i];
+    if (pi < 0) { A[i] = J0[i].slice(); return; }
+    const j = J0[i], pj = J0[pi], d = D[pi], a = A[pi];
+    A[i] = [a[0] + d[0] * (j[0] - pj[0]), a[1] + d[1] * (j[1] - pj[1]), a[2] + d[2] * (j[2] - pj[2])];
+  });
+  const pos = mesh.geometry.attributes.position, out = pos.array, p0 = ud.p0, w = ud.w, si = ud.si;
+  let minY = Infinity;
+  for (let v = 0; v < n; v++) {
+    let x = 0, y = 0, z = 0;
+    for (let k = 0; k < 4; k++) {
+      const wt = w[v * 4 + k]; if (!wt) continue;
+      const b = si[v * 4 + k], j = J0[b], d = D[b], a = A[b];
+      x += wt * (a[0] + d[0] * (p0[v * 3] - j[0])); y += wt * (a[1] + d[1] * (p0[v * 3 + 1] - j[1])); z += wt * (a[2] + d[2] * (p0[v * 3 + 2] - j[2]));
+    }
+    out[v * 3] = x; out[v * 3 + 1] = y; out[v * 3 + 2] = z; if (y < minY) minY = y;
+  }
+  const dy = ud.minY0 - minY; // keep the feet on the ground
+  for (let v = 0; v < n; v++) out[v * 3 + 1] += dy;
+  pos.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
+  // bones: rest positions from the reshaped joints, re-bind in the rest pose, then put the pose back
+  const quats = names.map(nm => M3.joints[nm].quaternion.clone());
+  names.forEach((nm, i) => {
+    const b = M3.joints[nm], pi = par[i];
+    b.quaternion.identity();
+    if (pi < 0) b.position.set(A[i][0], A[i][1] + dy, A[i][2]); else b.position.set(A[i][0] - A[pi][0], A[i][1] - A[pi][1], A[i][2] - A[pi][2]);
+  });
+  M3.root.updateMatrixWorld(true);
+  mesh.bind(mesh.skeleton);
+  names.forEach((nm, i) => M3.joints[nm].quaternion.copy(quats[i]));
+  ud.tipsNow = {};
+  for (const k in ud.tips0) { const t = ud.tips0[k], s = k.slice(-1), f3 = names.indexOf(k.slice(0, -1) + '3' + s), d = D[f3], j = J0[f3], a = A[f3]; ud.tipsNow[k] = [a[0] + d[0] * (t[0] - j[0]), a[1] + dy + d[1] * (t[1] - j[1]), a[2] + d[2] * (t[2] - j[2])]; }
+  render3D();
+}
+function shapeIsDefault() { return Object.keys(SHAPE_DEF).every(k => Math.abs(M3.shape[k] - SHAPE_DEF[k]) < 1e-3); }
+
+/* ---- drag to move a part (CCD inverse kinematics) ---- */
+const IK_STOP = new Set(['pelvis']);
+function ikChain(bone) {
+  const fo = fingerOf(bone);
+  if (fo) { const c = []; for (let k = fo.k; k >= 1; k--) c.push(fo.f + k + fo.s); return c; }
+  if (/^(head|neck)$/.test(bone)) return ['head', 'neck', 'spine'].slice(bone === 'head' ? 0 : 1);
+  if (bone === 'spine') return ['spine'];
+  const m = /^(arm|forearm|hand|leg|shin|foot)([LR])$/.exec(bone); if (!m) return [bone];
+  const s = m[2], order = /arm|hand/.test(m[1]) ? ['hand', 'forearm', 'arm'] : ['foot', 'shin', 'leg'];
+  return order.slice(order.indexOf(m[1])).map(x => x + s);
+}
+function ikConstrain(name) {
+  const T = M3.T, j = M3.joints[name], fo = fingerOf(name);
+  if (/^(forearm|shin)[LR]$/.test(name)) { // elbows and knees are hinges
+    const e = new T.Euler().setFromQuaternion(j.quaternion, 'YXZ'), knee = name.startsWith('shin');
+    const x = clamp(e.x, knee ? 0 : -150 * DEG, knee ? 150 * DEG : 0);
+    j.quaternion.setFromEuler(new T.Euler(x, name.startsWith('forearm') ? clamp(e.y, -80 * DEG, 80 * DEG) : 0, 0, 'YXZ'));
+  } else if (fo) { // fingers bend around their bend axis only
+    const ax = riggedMesh().userData.bend[fo.f + fo.s]; if (!ax) return;
+    const axis = new T.Vector3(...ax), q = j.quaternion;
+    const tw = new T.Vector3(q.x, q.y, q.z).dot(axis), ang = 2 * Math.atan2(tw, q.w);
+    j.quaternion.setFromAxisAngle(axis, clamp(ang, -20 * DEG, (fo.f === 'thumb' ? 80 : 110) * DEG));
+  }
+}
+function ikSolve(bone, grabLocal, target) {
+  const T = M3.T, chain = ikChain(bone).filter(b => M3.joints[b] && !IK_STOP.has(b)), end = M3.joints[bone];
+  const eff = new T.Vector3(), bp = new T.Vector3(), q = new T.Quaternion(), pq = new T.Quaternion();
+  for (let it = 0; it < 10; it++) {
+    for (const name of chain) {
+      const j = M3.joints[name];
+      M3.root.updateMatrixWorld(true);
+      eff.copy(grabLocal); end.localToWorld(eff);
+      if (eff.distanceToSquared(target) < 1e-7) return;
+      j.getWorldPosition(bp);
+      const v1 = eff.clone().sub(bp), v2 = target.clone().sub(bp);
+      if (v1.lengthSq() < 1e-10 || v2.lengthSq() < 1e-10) continue;
+      q.setFromUnitVectors(v1.normalize(), v2.normalize());
+      q.slerp(new T.Quaternion(), name === bone && chain.length > 1 ? 0.6 : 0.2); // the grabbed part itself turns less
+      j.parent.getWorldQuaternion(pq);
+      j.quaternion.premultiply(pq.clone().invert().multiply(q).multiply(pq));
+      ikConstrain(name);
+    }
+  }
+}
+function rayToPlane(e, cv, point) {
+  const T = M3.T, r = cv.getBoundingClientRect();
+  const rc = new T.Raycaster(); rc.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), M3.camera);
+  const nrm = new T.Vector3(); M3.camera.getWorldDirection(nrm);
+  const plane = new T.Plane().setFromNormalAndCoplanarPoint(nrm, point);
+  return rc.ray.intersectPlane(plane, new T.Vector3());
+}
+
+/* ---- zoom ---- */
+const ZOOM_BASE = 4.4;
+function setZoom(pct) { M3.cam.dist = clamp(ZOOM_BASE * 100 / pct, 0.4, 20); syncZoom(); render3D(); }
+function syncZoom() { const z = Math.round(ZOOM_BASE * 100 / M3.cam.dist); const i = $('#m3dZoom'); if (i) { i.value = clamp(z, 20, 500); $('#m3dZoomV').textContent = z + '%'; } }
+
+/* ---- UI ---- */
+function install3DPlus(b) {
+  const after = (sel, html) => { const el = b.querySelector(sel); el.insertAdjacentHTML('afterend', html); };
+  b.querySelector('.hint').textContent = 'Drag a body part = move it (or rotate, see Drag) · drag the background = orbit · Shift / right-drag = move model · wheel or pinch = zoom';
+  after('.hint', `<div class="seg" id="m3dDrag" title="What dragging a body part does"><button data-d="move" class="on">Drag: Move part</button><button data-d="rotate">Drag: Rotate joint</button></div>
+    <label class="slider"><span>Zoom</span><input type="range" id="m3dZoom" min="20" max="500" value="100"><output id="m3dZoomV">100%</output></label>`);
+  after('#m3dJoint', `<label class="slider" id="m3dCurlRow" hidden><span>Curl finger</span><input type="range" id="m3dCurl" min="-20" max="110" value="0"><output id="m3dCurlV">0°</output></label>
+    <div class="grp">Hands</div><div class="btnrow" id="m3dHandSide"><select id="m3dHandWhich"><option value="both">Both hands</option><option value="L">Left hand</option><option value="R">Right hand</option></select></div>
+    <div class="btnrow" id="m3dHands"></div>`);
+  const look = [...b.querySelectorAll('.grp')].find(g => g.textContent === 'Look');
+  look.insertAdjacentHTML('beforebegin', `<div class="grp">Body shape</div><div id="m3dShape"></div><div class="btnrow"><button id="m3dShapeReset">Reset body shape</button></div>`);
+  const sh = $('#m3dShape');
+  for (const [k, label, mn, mx] of SHAPE_UI) {
+    sh.insertAdjacentHTML('beforeend', `<label class="slider"><span>${label}</span><input type="range" data-shape="${k}" min="${mn}" max="${mx}" value="100"><output>100%</output></label>`);
+  }
+  sh.querySelectorAll('[data-shape]').forEach(i => {
+    i.oninput = () => { M3.shape[i.dataset.shape] = i.value / 100; i.nextElementSibling.textContent = i.value + '%'; clearTimeout(M3.shT); M3.shT = setTimeout(applyShape, 30); };
+  });
+  $('#m3dShapeReset').onclick = () => { M3.shape = { ...SHAPE_DEF }; sh.querySelectorAll('[data-shape]').forEach(i => { i.value = 100; i.nextElementSibling.textContent = '100%'; }); applyShape(); };
+  Object.keys(HAND_POSES).forEach(n => { const x = document.createElement('button'); x.textContent = n; x.onclick = () => applyHandPose(n, $('#m3dHandWhich').value); $('#m3dHands').appendChild(x); });
+  $('#m3dCurl').oninput = e => { const fo = fingerOf(M3.sel); if (!fo) return; setCurl(fo.f, fo.s, +e.target.value); $('#m3dCurlV').textContent = e.target.value + '°'; syncJointSliders(); render3D(); };
+  b.querySelectorAll('#m3dDrag button').forEach(x => x.onclick = () => { M3.dragMode = x.dataset.d; b.querySelectorAll('#m3dDrag button').forEach(y => y.classList.toggle('on', y === x)); });
+  $('#m3dZoom').oninput = e => setZoom(+e.target.value);
+  const h = $('#m3dH'); h.min = 20; h.max = 300;
+  $('#m3dResetAll').addEventListener('click', () => { M3.curl = {}; syncCurl(); });
+  // pinch to zoom on the preview
+  const cv = $('#m3dPreview'), pts = new Map(); let pinch = null;
+  cv.addEventListener('pointerdown', e => { pts.set(e.pointerId, [e.clientX, e.clientY]); if (pts.size === 2) { const [a, c] = [...pts.values()]; pinch = { d: Math.hypot(a[0] - c[0], a[1] - c[1]), dist: M3.cam.dist }; } }, true);
+  cv.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pinch && pts.size === 2) { const [a, c] = [...pts.values()]; M3.cam.dist = clamp(pinch.dist * pinch.d / Math.max(10, Math.hypot(a[0] - c[0], a[1] - c[1])), 0.4, 20); syncZoom(); render3D(); e.stopImmediatePropagation(); }
+  }, true);
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+  cv.addEventListener('pointerup', up, true); cv.addEventListener('pointercancel', up, true);
+  cv.addEventListener('wheel', () => setTimeout(syncZoom, 0));
+}
+/* joint list with fingers */
+function jointNameList() {
+  if (M3.kind !== 'mannequin') return [['body', 'Whole model']];
+  const list = JOINT_NAMES.slice();
+  if (hasFingers()) for (const [s, side] of [['L', 'Left'], ['R', 'Right']]) for (const [f, nm] of FINGER_NAMES) for (let k = 1; k <= 3; k++) list.push([f + k + s, `${side} ${nm.toLowerCase()} ${['base', 'middle', 'tip'][k - 1]}`]);
+  return list;
+}
 
 /* ---------- movable / floating panels ---------- */
 const PANEL_KEY = 'sketchforge.layout.v1';
@@ -7688,21 +8241,40 @@ const TUTORIALS = [
   { id: 'features', cat: 'Features', icon: '⭐', title: 'Symmetry, time-lapse, 3D & more', desc: 'The big helpers, one after the other.', steps: [
     { el: '#symBtn', pre: tutNoDock, t: 'Symmetry', x: 'Click to mirror everything you draw. ▾ chooses mirror, 4-way, radial or kaleidoscope (Shift+M).', demo: ['Turn symmetry on', () => { if (!symOn()) CMD.symToggle(); }] },
     { el: '#tlBtn', t: 'Time-lapse', x: 'Records how you draw — each file has its own. Modes: <b>Workspace view</b> (zoom, rotation, tool, cursor), <b>Whole screen</b>, <b>Canvas only</b>. ▾ → Export video.' },
-    { el: '#btn3d', t: '3D model', x: 'Posable man / woman: drag a body part to rotate it, pick poses, light, toon shading, then <b>Place on new layer</b> to trace it.', demo: ['Open the 3D model', () => CMD.show3d()] },
+    { el: '#btn3d', t: '3D model', x: 'Posable man / woman: <b>drag a hand, foot or any part</b> and the body follows (or switch to Drag: Rotate joint), every finger bends, hand poses (fist, point, peace…), body shape (head, build, shoulders, hips, arm and leg length), zoom and size. Then <b>Place on new layer</b> to trace it.', demo: ['Open the 3D model', () => CMD.show3d()] },
     { el: '#tabbar', t: 'Many files', x: 'Open as many files as you like. Right-click a tab: <b>Move to new window</b>. Window › <b>Second view</b>: a live floating view with its own zoom / flip.' },
     { el: menuEl('File'), t: 'Photoshop & Clip Studio', x: 'File › Open reads <b>.psd</b> with layers and <b>.clip</b> (as one picture). File › Save as Photoshop PSD keeps your layers.' },
     { el: menuEl('Animation'), pre: anim, t: 'Video & sound reference', x: 'Animation › <b>Import video reference</b>: a video layer that plays with your timeline (not exported) or frames to trace over; its sound plays too.' },
     { t: 'Your work is remembered', x: 'Close the app any time: next start reopens your files on the same frame and zoom. (File › Reopen my last work: on / off.)' }
   ] },
-  { id: 'animation', cat: 'Animation & rigging', icon: '🎞', title: 'Make an animation', desc: 'Frames, keyframes, onion skin, play, export.', steps: [
-    { el: '#modeSwitch', pre: anim, t: 'Animation mode', x: 'The timeline appears at the bottom. Each column is a frame, each row a layer.' },
-    { el: '#timeline', pre: anim, t: 'The timeline', x: 'Click a frame to go there. A dot is a <b>keyframe</b> (a new drawing); a grey bar means the drawing is held.' },
+  { id: 'animation', cat: 'Animation & rigging', icon: '🎞', title: 'Make an animation', desc: 'One layer, new drawing per frame, onion skin, play, export.', steps: [
+    { el: '#modeSwitch', pre: anim, t: 'Animation mode', x: 'The timeline appears at the bottom. Each <b>column is a frame</b>, each <b>row a layer</b>.' },
+    { el: '#timeline', pre: anim, t: 'One layer is enough', x: 'You can draw a <b>whole animation on one layer</b>: every frame gets its own drawing. Use extra layers only for colours, backgrounds or effects.' },
     { el: '#viewport', pre: () => { anim(); tutNoDock(); }, t: '1. First drawing', x: 'On frame 1, draw your first pose.' },
-    { el: '.tl-transport', pre: anim, t: '2. Next drawing', x: 'Go a few frames later and press <b>Shift+K</b> (blank keyframe) — or <b>K</b> to start from a copy of the previous drawing — and draw the next pose.', demo: ['Go to frame 4 + new blank keyframe', () => { anim(); gotoFrame(Math.min(3, state.frameCount - 1)); insertKeyframe(true); }] },
-    { el: '#onionOn', pre: anim, t: '3. Onion skin', x: 'Shows the previous and next drawings faintly, so you can draw the in-between in the right place (key <b>O</b>).', demo: ['Turn onion skin on', () => { anim(); CMD.onion(); }] },
-    { el: '#btnPlay', pre: anim, t: '4. Play', x: '<b>Enter</b> plays and stops. Set the speed in <b>FPS</b> (12 = classic, 24 = smooth).' },
-    { el: menuEl('Animation'), t: 'Handy tools', x: 'Duplicate / copy / paste frames, <b>Repeat frames</b> for cycles, <b>Light table</b>, shoot on 2s, audio for lip sync.' },
-    { el: '#cmdbar [data-cmd="exportAnim"]', t: '5. Export', x: 'Export a <b>GIF</b>, a <b>video</b> or <b>PNG frames</b> (Ctrl+E).' }
+    { el: '#anNewBtn', pre: anim, t: '2. Next drawing', x: 'Press <b>＋ New drawing</b> (Shift+→): it goes to the next frame, adds it if needed, and gives you a clean page. Draw the next pose.', demo: ['＋ New drawing', () => { anim(); newDrawing(); }] },
+    { el: '#onionOn', pre: anim, t: '3. Onion skin', x: 'The previous drawing shows faintly in red (and the next one in green), so you can draw in the right place. Key <b>O</b> turns it on / off, ▾ changes colours and how many.' },
+    { el: '#anExpose', pre: anim, t: '4. Timing', x: '<b>on 1s</b> = a new drawing every frame (smooth), <b>on 2s</b> = every 2 frames (classic cartoon timing, half the work).' },
+    { el: '#btnPlay', pre: anim, t: '5. Play', x: '<b>Enter</b> plays and stops. Set the speed in <b>FPS</b> (12 = classic, 24 = smooth). <b>Loop</b> repeats, <b>Ping-pong</b> goes back and forth.' },
+    { el: '#tlInner', pre: anim, t: '6. Fix the timing', x: '<b>Right-click</b> a frame for everything: hold longer / shorter, delete, copy, reverse, play range. <b>Drag</b> the selected drawing to move it (Alt = copy). <b>Double-click</b> an empty frame for a new drawing.' },
+    { el: menuEl('Animation'), pre: anim, t: 'Handy tools', x: 'Copy / paste drawings, <b>Repeat frames</b> for cycles, <b>Light table</b>, audio for lip sync, video reference.' },
+    { el: '#cmdbar [data-cmd="exportAnim"]', t: '7. Export', x: 'Export a <b>GIF</b>, a <b>video</b>, <b>PNG frames</b> or a <b>sprite sheet</b> (Ctrl+E), with a transparent background if you like.' }
+  ] },
+  { id: 'animtools', cat: 'Animation & rigging', icon: '🎛', title: 'Every animation tool', desc: 'Each button and setting of the timeline.', steps: [
+    { el: '.tl-transport', pre: anim, t: 'Play buttons', x: 'First frame (Home), previous ( , or ←), <b>play / pause</b> (Enter), next ( . or →), last frame (End).' },
+    { el: '#curFrame', pre: anim, t: 'Frame / total', x: 'The frame you are on and how many frames the animation has. Type a bigger total to make it longer.' },
+    { el: '#fps', pre: anim, t: 'FPS', x: 'Frames per second: how fast it plays. 12 is classic hand-drawn, 24 film, 30 video.' },
+    { el: '#loop', pre: anim, t: 'Loop & ping-pong', x: '<b>Loop</b> plays again from the start. <b>Ping-pong</b> plays forward then backward (great for breathing, waving, blinking).' },
+    { el: '#anOnionBtn', pre: anim, t: 'Onion skin settings', x: 'Show the previous / next <b>drawings</b> or <b>frames</b>, this layer or all layers, how many before / after, their colours and strength.', demo: ['Open the settings', () => { anim(); anOnionPop($('#anOnionBtn')); }] },
+    { el: '#anNewBtn', pre: anim, t: '＋ New drawing', x: 'Next frame with a clean page (Shift+→). With <b>on 2s</b> it jumps 2 frames, so each drawing lasts 2 frames.' },
+    { el: '#anNewKey', pre: anim, t: 'Empty frame', x: 'What happens when you draw on a frame that has no drawing of its own: <b>new drawing</b> (frame by frame), <b>copy previous</b> (change a copy) or <b>edit previous</b> (change the drawing that is held).' },
+    { el: '#timeline [data-cmd="keyframe"]', pre: anim, t: '+ Key / + Blank', x: '<b>+ Key</b> (K) makes a keyframe from a copy of the drawing; <b>+ Blank</b> (Shift+K) an empty one.' },
+    { el: '#timeline [data-cmd="insertFrame"]', pre: anim, t: '+ Frame / − Frame', x: 'Insert or delete a frame in <b>all layers</b> at once (J / Shift+J): everything after moves.' },
+    { el: '#timeline [data-cmd="removeKey"]', pre: anim, t: '− Key', x: 'Deletes the drawing on this frame; the previous drawing is then held longer.' },
+    { el: '#timeline [data-cmd="tween"]', pre: anim, t: 'Tween / No tween', x: 'A <b>motion tween</b> moves, turns, scales or fades a drawing between two keyframes. Right-click a tweened frame for <b>ease in / ease out</b>.' },
+    { el: '#tlInner', pre: anim, t: 'The frames', x: 'Dot = a drawing, bar = held, blue = tween. Click to go there, <b>drag the selected drawing</b> to move it (Alt = copy), <b>double-click</b> an empty frame, <b>right-click</b> for the menu.' },
+    { el: '#tlInner .tl-ruler', pre: anim, t: 'Play range', x: 'Right-click a frame → <b>Play from here / Play until here</b> to loop only a part while you work on it. Frames outside are striped.' },
+    { el: '.lbtns', pre: () => { anim(); tutDock('right'); }, t: 'Layers for colour', x: 'Add a layer for colours, a background or effects: each layer has its own row of drawings in the timeline.' },
+    { el: '#cmdbar [data-cmd="exportAnim"]', pre: tutNoDock, t: 'Export', x: 'GIF, video (WebM / MP4), PNG frames, sprite sheet; all frames or only the play range; transparent background.' }
   ] },
   { id: 'tween', cat: 'Animation & rigging', icon: '🌀', title: 'Motion tweens', desc: 'Let the computer draw the in-between movement.', steps: [
     { pre: anim, t: 'What is a tween?', x: 'Draw something <b>once</b>, set where it is at two keyframes, and the frames between are calculated: moving, turning, growing, fading.' },
@@ -7747,9 +8319,10 @@ const TUTORIALS = [
 ];
 
 /* ---- the player ---- */
-const TUT = { cur: null, i: 0, steps: [] };
-function tutStart(id) {
+const TUT = { cur: null, i: 0, steps: [], queue: [] };
+function tutStart(id, queue) {
   const t = TUTORIALS.find(x => x.id === id); if (!t) return;
+  TUT.queue = queue || [];
   const c = $('#tutCenter'); if (c && c.open) c.close();
   const w = $('#tutWelcome'); if (w) w.remove();
   TUT.cur = t; TUT.i = 0; TUT.steps = typeof t.steps === 'function' ? t.steps() : t.steps;
@@ -7824,7 +8397,7 @@ function tutHost() {
 }
 function tutGo(d) {
   const n = TUT.i + d;
-  if (n >= TUT.steps.length) { tutState[TUT.cur.id] = true; tutSave(); const t = TUT.cur; tutEnd(); toast(`${t.icon} "${t.title}" finished ✓ — more in Help › Tutorials`, 4000); return; }
+  if (n >= TUT.steps.length) { tutState[TUT.cur.id] = true; tutSave(); const t = TUT.cur, q = TUT.queue; tutEnd(); if (q.length) { const nx = TUTORIALS.find(x => x.id === q[0]); toast(`${t.icon} "${t.title}" finished ✓ — next: ${nx ? nx.title : ''}`, 3000); setTimeout(() => tutStart(q[0], q.slice(1)), 600); } else toast(`${t.icon} "${t.title}" finished ✓ — more in Help › Tutorials`, 4000); return; }
   if (n < 0) return;
   TUT.i = n; tutShow();
 }
@@ -7860,6 +8433,24 @@ function tutWelcome() {
   document.body.appendChild(w);
   setTimeout(() => { if (w.isConnected) w.classList.add('fade'); }, 25000);
   setTimeout(() => w.remove(), 26000);
+}
+/* first switch to Animation: "Is this your first time?" (until they tick "Don't ask again" or finish the tour) */
+const ANI_KEY = 'sketchforge.animintro.v1';
+function animIntro() {
+  if (TUT.cur || location.hash === '#sf-child') return;
+  let v; try { v = localStorage.getItem(ANI_KEY); } catch (e) { return; }
+  if (v === 'never' || v === 'done' || $('#animIntro')) return;
+  const d = document.createElement('dialog'); d.id = 'animIntro'; d.className = 'csdlg tutdlg';
+  d.innerHTML = `<form method="dialog"><h5>🎞 Welcome to the Animation workspace</h5>
+    <p style="margin:6px 0 10px;line-height:1.5">Is this your first time making an animation in Sketchforge?<br><span class="muted small">A short guided tour shows how to draw an animation on one layer, then every timeline tool and setting.</span></p>
+    <label class="check" style="margin:0 0 10px"><input type="checkbox" id="aiNever"> Don't ask me again</label>
+    <div class="dialog-actions"><button type="button" id="aiNo">No, I know how</button><span style="flex:1"></span><button type="button" id="aiYes" class="primary">Yes, show me</button></div></form>`;
+  document.body.appendChild(d);
+  const close = () => { d.close(); d.remove(); };
+  d.querySelector('#aiYes').onclick = () => { try { localStorage.setItem(ANI_KEY, 'done'); } catch (e) { /* ignore */ } close(); tutStart('animation', ['animtools', 'tween', 'rig']); };
+  d.querySelector('#aiNo').onclick = () => { if (d.querySelector('#aiNever').checked) try { localStorage.setItem(ANI_KEY, 'never'); } catch (e) { /* ignore */ } close(); };
+  d.addEventListener('cancel', () => d.remove());
+  d.showModal();
 }
 function installTutorials() {
   Object.assign(CMD, { tutorials: tutCenter, tourWelcome: () => tutStart('welcome') });
@@ -8788,7 +9379,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

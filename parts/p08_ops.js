@@ -214,6 +214,39 @@ function sameDrawing(l, a, b) {
   if (!fa || !fb) return fa === fb;
   return fa.key === fb.key && paramsEq(fa.p, fb.p);
 }
+/* animation preferences (per user, not per file) */
+const ANP_KEY = 'sketchforge.anim.v1';
+const ANP = Object.assign({ newKey: 'blank', expose: 1, oMode: 'drawings', oLayers: 'active', oBefore: '#ff3b3b', oAfter: '#2ecc71', oAlpha: 45, pingpong: false },
+  (() => { try { return JSON.parse(localStorage.getItem(ANP_KEY) || '{}'); } catch (e) { return {}; } })());
+const anpSave = () => { try { localStorage.setItem(ANP_KEY, JSON.stringify(ANP)); } catch (e) { /* ignore */ } };
+/* one layer on frame f (with its keyframe transform / rig) */
+function layerFrameCanvas(l, f) {
+  const fp = frameParams(l, f); if (!fp) return null;
+  const c = makeCanvas(state.w, state.h), g = c.getContext('2d');
+  const m = layerMat(l, f); if (m) g.transform(...m);
+  g.drawImage(fp.cel, 0, 0);
+  return c;
+}
+/* Onion skin. "drawings" mode shows the previous / next DRAWINGS of the active layer (keyframes), so held
+   frames don't show the same picture twice; "frames" mode shows neighbouring frames. */
+function onionFrames() {
+  const o = state.onion, cur = state.frame, before = [], after = [];
+  const l = activeLayer();
+  if (ANP.oMode === 'drawings' && l && !l.vref) {
+    const ks = Array.from(l.cels.keys()).filter(k => k < state.frameCount).sort((a, b) => a - b);
+    const k = keyAt(l, cur), i = k === null ? -1 : ks.indexOf(k);
+    for (let j = 1; j <= o.before; j++) { const x = i < 0 ? undefined : ks[i - j]; if (x !== undefined) before.push(x); }
+    for (let j = 1; j <= o.after; j++) { const x = i < 0 ? ks[j - 1] : ks[i + j]; if (x !== undefined) after.push(x); }
+    if (state.loop && i >= 0 && ks.length > 2) { // looping animation: the first drawing follows the last one
+      if (!after.length && o.after) after.push(ks[0]);
+      if (!before.length && o.before) before.push(ks[ks.length - 1]);
+    }
+  } else {
+    for (let j = 1; j <= o.before; j++) if (cur - j >= 0) before.push(cur - j);
+    for (let j = 1; j <= o.after; j++) if (cur + j < state.frameCount) after.push(cur + j);
+  }
+  return { before, after };
+}
 function updateOnion() {
   const o = state.onion;
   onionCanvas.style.display = (o.on || lightPins.length) && !playing ? 'block' : 'none';
@@ -221,17 +254,21 @@ function updateOnion() {
   if (playing) return;
   drawPins();
   if (!o.on) return;
+  const l = activeLayer(), one = ANP.oLayers === 'active' && l && !l.vref;
   const draw = (f, color, alpha) => {
     if (f < 0 || f >= state.frameCount || f === state.frame) return;
-    const c = compositeFrame(f, { skipPaper: true });
+    if (one && sameDrawing(l, f, state.frame)) return;
+    const c = one ? layerFrameCanvas(l, f) : compositeFrame(f, { skipPaper: true });
+    if (!c) return;
     const g = c.getContext('2d');
     g.globalCompositeOperation = 'source-atop';
     g.fillStyle = color; g.fillRect(0, 0, state.w, state.h);
     onionCtx.globalAlpha = alpha;
     onionCtx.drawImage(c, 0, 0);
   };
-  for (let i = o.before; i >= 1; i--) draw(state.frame - i, '#ff3b3b', 0.45 / i);
-  for (let i = 1; i <= o.after; i++) draw(state.frame + i, '#2ecc71', 0.45 / i);
+  const { before, after } = onionFrames(), a = clamp(ANP.oAlpha, 5, 100) / 100;
+  for (let i = before.length; i >= 1; i--) draw(before[i - 1], ANP.oBefore, a / i);
+  for (let i = 1; i <= after.length; i++) draw(after[i - 1], ANP.oAfter, a / i);
   onionCtx.globalAlpha = 1;
 }
 let playTimer = 0, playLast = 0;
@@ -241,8 +278,10 @@ function play() {
   if (busy()) return;
   playing = true;
   setPlayIcon(); updateOnion();
-  if (!state.loop && state.frame >= state.frameCount - 1) gotoFrame(0, true);
+  const [lo, hi] = playRange();
+  if (state.frame < lo || state.frame > hi || (!state.loop && state.frame >= hi)) gotoFrame(lo, true);
   playLast = performance.now();
+  let dir = 1;
   audioStart();
   const tick = now => {
     if (!playing) return;
@@ -250,15 +289,26 @@ function play() {
     if (now - playLast >= step) {
       const n = Math.floor((now - playLast) / step);
       playLast += n * step;
-      let f = state.frame + n;
-      if (f >= state.frameCount) {
-        if (state.loop) { f %= state.frameCount; audioStart(); } else { gotoFrame(state.frameCount - 1, true); return stop(); }
+      const [lo, hi] = playRange();
+      let f = state.frame + n * dir;
+      if (ANP.pingpong && hi > lo) { // back and forth
+        while (f > hi || f < lo) { if (f > hi) { f = hi - (f - hi); dir = -1; } else { f = lo + (lo - f); dir = 1; } }
+        if (f === lo && dir === 1) audioStart();
+      } else if (f > hi) {
+        if (state.loop) { f = lo + (f - lo) % (hi - lo + 1); audioStart(); } else { gotoFrame(hi, true); return stop(); }
       }
       gotoFrame(f, true);
     }
     playTimer = requestAnimationFrame(tick);
   };
   playTimer = requestAnimationFrame(tick);
+}
+/* the frames that play: the play range (set from the timeline menu) or the whole animation */
+function playRange() {
+  const n = state.frameCount;
+  let lo = state.playIn == null ? 0 : state.playIn, hi = state.playOut == null ? n - 1 : state.playOut;
+  lo = clamp(lo, 0, n - 1); hi = clamp(hi, 0, n - 1);
+  return lo <= hi ? [lo, hi] : [0, n - 1];
 }
 function stop() {
   if (!playing) return;

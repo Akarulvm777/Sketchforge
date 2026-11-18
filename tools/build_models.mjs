@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Builds models3d.js (rigged male / female mannequins for the 3D panel) from assets/HumanLowPolyBaseMesh.fbx.
 // Usage: npm install (installs the "three" devDependency), then: node tools/build_models.mjs
-// Steps: weld vertices, scale to metres, place 16 joints from body landmarks, compute smoothed skin weights,
+// Steps: weld vertices, scale to metres, place 16 body joints from landmarks + 3 joints per finger (fingers are found
+// from the mesh: the parts of the hand that split apart away from the wrist), compute smoothed skin weights,
 // bake the A-pose arms down so the rest pose matches the panel's poses (arms hanging, facing +Z), quantize, write.
 import fs from 'fs';
 import path from 'path';
@@ -30,6 +31,10 @@ const ORDER = ['pelvis', 'spine', 'neck', 'head', 'armL', 'forearmL', 'handL', '
   'legL', 'shinL', 'footL', 'legR', 'shinR', 'footR'];
 const PARENT = { pelvis: null, spine: 'pelvis', neck: 'spine', head: 'neck', armL: 'spine', forearmL: 'armL', handL: 'forearmL',
   armR: 'spine', forearmR: 'armR', handR: 'forearmR', legL: 'pelvis', shinL: 'legL', footL: 'shinL', legR: 'pelvis', shinR: 'legR', footR: 'shinR' };
+// 3 bones per finger: thumb1L (base) -> thumb2L -> thumb3L (tip segment), parent of the first one = the hand
+const FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky'];
+for (const s of ['L', 'R']) for (const f of FINGERS) for (let k = 1; k <= 3; k++) { const b = f + k + s; ORDER.push(b); PARENT[b] = k === 1 ? 'hand' + s : f + (k - 1) + s; }
+const isFinger = b => FINGERS.some(f => b.startsWith(f));
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -89,6 +94,7 @@ function placeJoints(g, lm) {
     }
     J['toe' + s] = V(J['foot' + s].x, 0.25, best.z - 0.3);
   }
+  findFingers(g, J);
   const hipY = (J.legL.y + J.legR.y) / 2;
   J.pelvis = V(cx, hipY + 0.25, sliceCentreZ(pos, cx, hipY + 0.25, 1.0));
   J.neck = V(cx, lm.neck, sliceCentreZ(pos, cx, lm.neck, 0.4));
@@ -97,6 +103,68 @@ function placeJoints(g, lm) {
   J.head = V(cx, lm.head, sliceCentreZ(pos, cx, lm.head, 0.4));
   J.top = V(cx, bb.max.y, J.head.z);
   return J;
+}
+
+// Fingers: hand vertices far from the wrist split into separate pieces of the mesh. The thumb splits off early
+// (~25% of the hand length), the 4 fingers later (~65%). Each piece gets 3 joints; vertices get a finger label.
+function findFingers(g, J) {
+  const pos = g.attributes.position, n = pos.count, idx = g.index.array;
+  const nbr = Array.from({ length: n }, () => []);
+  for (let t = 0; t < idx.length; t += 3) for (let k = 0; k < 3; k++) { const a = idx[t + k], b = idx[t + (k + 1) % 3]; nbr[a].push(b); nbr[b].push(a); }
+  g.userData.finger = new Int16Array(n).fill(-1); // index into ORDER of the finger bone chain start, per vertex
+  const P = i => V(pos.getX(i), pos.getY(i), pos.getZ(i));
+  for (const s of ['L', 'R']) {
+    const W = J['hand' + s], T = J['tip' + s], ax = T.clone().sub(W), L = ax.length(); ax.normalize();
+    const elbowDist = W.distanceTo(J['forearm' + s]);
+    const t = new Float32Array(n), inHand = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      const p = P(i), d = p.clone().sub(W); t[i] = d.dot(ax) / L;
+      const radial = d.clone().addScaledVector(ax, -d.dot(ax)).length();
+      inHand[i] = t[i] > -0.1 && t[i] < 1.6 && radial < L * 0.9 && p.distanceTo(J['forearm' + s]) > elbowDist * 0.8 ? 1 : 0;
+    }
+    const comps = tau => {
+      const lab = new Int32Array(n).fill(-1), out = [];
+      for (let i = 0; i < n; i++) {
+        if (!inHand[i] || t[i] < tau || lab[i] >= 0) continue;
+        const st = [i], vs = []; lab[i] = out.length;
+        while (st.length) { const u = st.pop(); vs.push(u); for (const v of nbr[u]) if (inHand[v] && t[v] >= tau && lab[v] < 0) { lab[v] = out.length; st.push(v); } }
+        out.push(vs);
+      }
+      return out.filter(c => c.length > 8).sort((a, b) => b.length - a.length);
+    };
+    const cen = vs => vs.reduce((a, i) => a.add(P(i)), V(0, 0, 0)).multiplyScalar(1 / vs.length);
+    // thumb: the piece (other than the main hand) that splits off below ~0.45
+    let thumb = null;
+    for (let tau = 0.15; tau <= 0.45 && !thumb; tau += 0.05) { const c = comps(tau); if (c.length >= 2) thumb = c[1]; }
+    // fingers: 4 pieces at a higher cut, then grown back towards the knuckles
+    let seeds = null;
+    for (let tau = 0.55; tau <= 0.9 && !seeds; tau += 0.05) { const c = comps(tau); if (c.length >= 4) seeds = c.slice(0, 4); }
+    if (!thumb || !seeds) throw new Error('fingers not found on hand ' + s);
+    const lab = new Int8Array(n).fill(-1), q = [];
+    seeds.forEach((c, k) => c.forEach(i => { lab[i] = k; q.push(i); }));
+    while (q.length) { const u = q.shift(); for (const v of nbr[u]) if (lab[v] < 0 && inHand[v] && t[v] >= 0.5) { lab[v] = lab[u]; q.push(v); } }
+    const tc = cen(thumb);
+    const fingers = seeds.map((c, k) => { const vs = []; for (let i = 0; i < n; i++) if (lab[i] === k) vs.push(i); return vs; })
+      .sort((a, b) => cen(a).distanceTo(tc) - cen(b).distanceTo(tc)); // index is next to the thumb
+    const chains = [thumb, ...fingers];
+    chains.forEach((vs, fi) => {
+      const name = FINGERS[fi];
+      const tmin = Math.min(...vs.map(i => t[i]));
+      const baseVs = vs.filter(i => t[i] < tmin + 0.06), base = cen(baseVs.length ? baseVs : vs);
+      let tip = null, best = -1; for (const i of vs) { const d = P(i).distanceTo(base); if (d > best) { best = d; tip = P(i); } }
+      // pull the tip slightly inside the finger, the root back into the palm (the knuckle)
+      const dir = tip.clone().sub(base).normalize();
+      const root = name === 'thumb' ? base.clone().addScaledVector(dir, -L * 0.12) : base.clone().addScaledVector(dir, -L * 0.1);
+      const end = tip.clone().addScaledVector(dir, -L * 0.03);
+      const seg = end.clone().sub(root);
+      const fr = name === 'thumb' ? [0, 0.42, 0.72] : [0, 0.45, 0.74];
+      fr.forEach((f, k) => { J[name + (k + 1) + s] = root.clone().addScaledVector(seg, f); });
+      J[name + 'Tip' + s] = end;
+      const bi = ORDER.indexOf(name + '1' + s);
+      for (const i of vs) g.userData.finger[i] = bi;
+    });
+    J['knuckle' + s] = ['index', 'middle', 'ring', 'pinky'].reduce((a, f) => a.add(J[f + '1' + s]), V(0, 0, 0)).multiplyScalar(0.25);
+  }
 }
 
 function segDist(p, a, b) {
@@ -116,18 +184,26 @@ function computeWeights(g, J, H) {
   for (const s of ['L', 'R']) {
     segs['arm' + s] = [[J['arm' + s], J['forearm' + s]]];
     segs['forearm' + s] = [[J['forearm' + s], J['hand' + s]]];
-    segs['hand' + s] = [[J['hand' + s], J['tip' + s]]];
+    segs['hand' + s] = [[J['hand' + s], J['knuckle' + s]]];
+    for (const f of FINGERS) {
+      segs[f + '1' + s] = [[J[f + '1' + s], J[f + '2' + s]]];
+      segs[f + '2' + s] = [[J[f + '2' + s], J[f + '3' + s]]];
+      segs[f + '3' + s] = [[J[f + '3' + s], J[f + 'Tip' + s]]];
+    }
     segs['leg' + s] = [[J['leg' + s], J['shin' + s]]];
     segs['shin' + s] = [[J['shin' + s], J['foot' + s]]];
     segs['foot' + s] = [[J['foot' + s], J['toe' + s]]];
   }
-  const rad = ORDER.map(b => RAD[b.replace(/[LR]$/, '')] * H);
+  const rad = ORDER.map(b => (isFinger(b) ? 0.01 : RAD[b.replace(/[LR]$/, '')]) * H);
+  const fing = g.userData.finger;
   let W = new Float32Array(n * nb);
   const p = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
     p.fromBufferAttribute(pos, i);
     let best = 0, bd = Infinity;
+    const fb = fing[i];
     ORDER.forEach((b, bi) => {
+      if (fb >= 0 ? (bi < fb || bi > fb + 2) : isFinger(b)) return; // finger vertices: only their finger; others: no finger bones
       let d = Infinity; for (const [a, c, f = 1] of segs[b]) d = Math.min(d, segDist(p, a, c) / f);
       d /= rad[bi];
       if (d < bd) { bd = d; best = bi; }
@@ -211,7 +287,11 @@ function bakeArmsDown(g, J, si, sw) {
     NJ['tip' + s] = J['tip' + s].clone().applyMatrix4(m.multiplyMatrices(bones['hand' + s].matrixWorld, inv[ORDER.indexOf('hand' + s)]));
     NJ['toe' + s] = J['toe' + s];
   }
+  for (const s of ['L', 'R']) for (const f of FINGERS) {
+    const b = f + '3' + s; NJ[f + 'Tip' + s] = J[f + 'Tip' + s].clone().applyMatrix4(m.multiplyMatrices(bones[b].matrixWorld, inv[ORDER.indexOf(b)]));
+  }
   NJ.top = J.top;
+  NJ._handQ = { L: bones.handL.getWorldQuaternion(new THREE.Quaternion()), R: bones.handR.getWorldQuaternion(new THREE.Quaternion()) };
   return NJ;
 }
 
@@ -220,7 +300,7 @@ function build() {
   const male = meshes[LM.male.mesh];
   male.computeBoundingBox();
   const k = MALE_HEIGHT / (male.boundingBox.max.y - male.boundingBox.min.y);
-  const meta = { version: 1, bones: ORDER.map(n => [n, PARENT[n]]), models: {} };
+  const meta = { version: 2, bones: ORDER.map(n => [n, PARENT[n]]), models: {} };
   const chunks = []; let off = 0;
   const push = arr => { const u = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); const o = off; chunks.push(u); off += u.byteLength; const pad = (4 - off % 4) % 4; if (pad) { chunks.push(new Uint8Array(pad)); off += pad; } return o; };
   for (const gender of ['female', 'male']) {
@@ -245,10 +325,24 @@ function build() {
     }
     const index = n > 65535 ? Uint32Array.from(g.index.array) : Uint16Array.from(g.index.array);
     const r6 = v => Math.round(v * 1e5) / 1e5;
+    // bend axis of each finger (local = rest space): turns the finger towards the palm with a positive angle
+    const bend = {};
+    for (const [s, sx] of [['L', 1], ['R', -1]]) {
+      const palm = V(-sx, 0, 0).applyQuaternion(NJ._handQ[s]);
+      for (const f of FINGERS) {
+        const d = NJ[f + 'Tip' + s].clone().sub(NJ[f + '1' + s]).normalize();
+        let to = palm.clone();
+        if (f === 'thumb') to = NJ['middle1' + s].clone().sub(NJ['thumb1' + s]);
+        to.addScaledVector(d, -to.dot(d)).normalize();
+        const axis = d.clone().cross(to).normalize();
+        bend[f + s] = axis.toArray().map(r6);
+      }
+    }
     meta.models[gender] = {
       vertices: n, triangles: index.length / 3, index32: n > 65535,
       min: bb.min.toArray().map(r6), size: size.toArray().map(r6), height: r6(H),
-      joints: Object.fromEntries(ORDER.map(b => [b, NJ[b].toArray().map(r6)])),
+      joints: Object.fromEntries(ORDER.map(b => [b, NJ[b].toArray().map(r6)])), bend,
+      tips: Object.fromEntries(['L', 'R'].flatMap(s => FINGERS.map(f => [f + s, NJ[f + 'Tip' + s].toArray().map(r6)]))),
       pos: push(q), skinIndex: push(si), skinWeight: push(sw), index: push(index)
     };
     console.log(gender, 'vertices', n, 'triangles', index.length / 3, 'height', H.toFixed(3) + ' m');

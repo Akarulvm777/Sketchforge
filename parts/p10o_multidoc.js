@@ -2,7 +2,7 @@
    The app keeps one document in the globals (state, history, view, sel, layerSeq, layerCounter, dirty,
    TL, aud, lightPins). Every open document has a record in DOCS.list; switching tabs stashes the globals
    into the current record and loads the other one. Inactive records hold their data in rec.saved. */
-const DOC_FIELDS = ['name', 'w', 'h', 'layers', 'activeId', 'frame', 'frameCount', 'fps', 'loop', 'onion', 'mode', 'projectType', 'dpi'];
+const DOC_FIELDS = ['name', 'w', 'h', 'layers', 'activeId', 'frame', 'frameCount', 'fps', 'loop', 'onion', 'mode', 'projectType', 'dpi', 'playIn', 'playOut'];
 const DOCS = { list: [], cur: null, seq: 1 };
 
 function docIsCurrent(r) { return r === DOCS.cur; }
@@ -41,6 +41,7 @@ function docBlankGlobals() {
   if (aud.el) aud.el.pause();
   Object.assign(aud, { el: null, name: '', peaks: null, dur: 0, url: '', file: null });
   lightPins.length = 0;
+  state.playIn = state.playOut = null;
   dirty = false;
 }
 function docSettle() {

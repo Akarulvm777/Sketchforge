@@ -782,3 +782,21 @@ svg.cicon { overflow: visible; }
 #tutWelcome.fade { opacity: 0; }
 #tutWelcome div { display: flex; gap: 6px; flex-wrap: wrap; }
 .tut-list:focus, .tut-list:focus-visible { outline: none; }
+
+/* ---- animation plus ---- */
+.an-new { display: inline-flex; gap: 3px; align-items: center; }
+.an-new select, #anNewKey { height: 24px; font-size: 11.5px; }
+#anOnionBtn { padding: 0 5px; min-width: 0; margin-left: -6px; }
+#anOnionPop { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; width: 270px; font-size: 12px; }
+#anOnionPop[hidden] { display: none; }
+#anOnionPop label { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+#anOnionPop input[type=number] { width: 44px; }
+#anOnionPop input[type=color] { width: 34px; height: 22px; padding: 0; border: 0; background: none; }
+#anMenu { padding: 4px; }
+#anMenu[hidden] { display: none; }
+#anMenu button:disabled { opacity: .4; }
+#anGhost { position: absolute; width: 18px; background: rgba(90,160,255,.45); outline: 2px solid #5aa0ff; pointer-events: none; z-index: 5; }
+#anGhost.bad { background: rgba(255,80,80,.4); outline-color: #ff5050; }
+.tl-ruler .tl-rc.out-range { opacity: .35; background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(0,0,0,.25) 3px 6px); }
+.tl-ruler .tl-rc.range-in { box-shadow: inset 3px 0 0 #3fbf6f; }
+.tl-ruler .tl-rc.range-out { box-shadow: inset -3px 0 0 #e0544b; }

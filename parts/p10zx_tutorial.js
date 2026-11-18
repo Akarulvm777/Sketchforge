@@ -109,21 +109,40 @@ const TUTORIALS = [
   { id: 'features', cat: 'Features', icon: '⭐', title: 'Symmetry, time-lapse, 3D & more', desc: 'The big helpers, one after the other.', steps: [
     { el: '#symBtn', pre: tutNoDock, t: 'Symmetry', x: 'Click to mirror everything you draw. ▾ chooses mirror, 4-way, radial or kaleidoscope (Shift+M).', demo: ['Turn symmetry on', () => { if (!symOn()) CMD.symToggle(); }] },
     { el: '#tlBtn', t: 'Time-lapse', x: 'Records how you draw — each file has its own. Modes: <b>Workspace view</b> (zoom, rotation, tool, cursor), <b>Whole screen</b>, <b>Canvas only</b>. ▾ → Export video.' },
-    { el: '#btn3d', t: '3D model', x: 'Posable man / woman: drag a body part to rotate it, pick poses, light, toon shading, then <b>Place on new layer</b> to trace it.', demo: ['Open the 3D model', () => CMD.show3d()] },
+    { el: '#btn3d', t: '3D model', x: 'Posable man / woman: <b>drag a hand, foot or any part</b> and the body follows (or switch to Drag: Rotate joint), every finger bends, hand poses (fist, point, peace…), body shape (head, build, shoulders, hips, arm and leg length), zoom and size. Then <b>Place on new layer</b> to trace it.', demo: ['Open the 3D model', () => CMD.show3d()] },
     { el: '#tabbar', t: 'Many files', x: 'Open as many files as you like. Right-click a tab: <b>Move to new window</b>. Window › <b>Second view</b>: a live floating view with its own zoom / flip.' },
     { el: menuEl('File'), t: 'Photoshop & Clip Studio', x: 'File › Open reads <b>.psd</b> with layers and <b>.clip</b> (as one picture). File › Save as Photoshop PSD keeps your layers.' },
     { el: menuEl('Animation'), pre: anim, t: 'Video & sound reference', x: 'Animation › <b>Import video reference</b>: a video layer that plays with your timeline (not exported) or frames to trace over; its sound plays too.' },
     { t: 'Your work is remembered', x: 'Close the app any time: next start reopens your files on the same frame and zoom. (File › Reopen my last work: on / off.)' }
   ] },
-  { id: 'animation', cat: 'Animation & rigging', icon: '🎞', title: 'Make an animation', desc: 'Frames, keyframes, onion skin, play, export.', steps: [
-    { el: '#modeSwitch', pre: anim, t: 'Animation mode', x: 'The timeline appears at the bottom. Each column is a frame, each row a layer.' },
-    { el: '#timeline', pre: anim, t: 'The timeline', x: 'Click a frame to go there. A dot is a <b>keyframe</b> (a new drawing); a grey bar means the drawing is held.' },
+  { id: 'animation', cat: 'Animation & rigging', icon: '🎞', title: 'Make an animation', desc: 'One layer, new drawing per frame, onion skin, play, export.', steps: [
+    { el: '#modeSwitch', pre: anim, t: 'Animation mode', x: 'The timeline appears at the bottom. Each <b>column is a frame</b>, each <b>row a layer</b>.' },
+    { el: '#timeline', pre: anim, t: 'One layer is enough', x: 'You can draw a <b>whole animation on one layer</b>: every frame gets its own drawing. Use extra layers only for colours, backgrounds or effects.' },
     { el: '#viewport', pre: () => { anim(); tutNoDock(); }, t: '1. First drawing', x: 'On frame 1, draw your first pose.' },
-    { el: '.tl-transport', pre: anim, t: '2. Next drawing', x: 'Go a few frames later and press <b>Shift+K</b> (blank keyframe) — or <b>K</b> to start from a copy of the previous drawing — and draw the next pose.', demo: ['Go to frame 4 + new blank keyframe', () => { anim(); gotoFrame(Math.min(3, state.frameCount - 1)); insertKeyframe(true); }] },
-    { el: '#onionOn', pre: anim, t: '3. Onion skin', x: 'Shows the previous and next drawings faintly, so you can draw the in-between in the right place (key <b>O</b>).', demo: ['Turn onion skin on', () => { anim(); CMD.onion(); }] },
-    { el: '#btnPlay', pre: anim, t: '4. Play', x: '<b>Enter</b> plays and stops. Set the speed in <b>FPS</b> (12 = classic, 24 = smooth).' },
-    { el: menuEl('Animation'), t: 'Handy tools', x: 'Duplicate / copy / paste frames, <b>Repeat frames</b> for cycles, <b>Light table</b>, shoot on 2s, audio for lip sync.' },
-    { el: '#cmdbar [data-cmd="exportAnim"]', t: '5. Export', x: 'Export a <b>GIF</b>, a <b>video</b> or <b>PNG frames</b> (Ctrl+E).' }
+    { el: '#anNewBtn', pre: anim, t: '2. Next drawing', x: 'Press <b>＋ New drawing</b> (Shift+→): it goes to the next frame, adds it if needed, and gives you a clean page. Draw the next pose.', demo: ['＋ New drawing', () => { anim(); newDrawing(); }] },
+    { el: '#onionOn', pre: anim, t: '3. Onion skin', x: 'The previous drawing shows faintly in red (and the next one in green), so you can draw in the right place. Key <b>O</b> turns it on / off, ▾ changes colours and how many.' },
+    { el: '#anExpose', pre: anim, t: '4. Timing', x: '<b>on 1s</b> = a new drawing every frame (smooth), <b>on 2s</b> = every 2 frames (classic cartoon timing, half the work).' },
+    { el: '#btnPlay', pre: anim, t: '5. Play', x: '<b>Enter</b> plays and stops. Set the speed in <b>FPS</b> (12 = classic, 24 = smooth). <b>Loop</b> repeats, <b>Ping-pong</b> goes back and forth.' },
+    { el: '#tlInner', pre: anim, t: '6. Fix the timing', x: '<b>Right-click</b> a frame for everything: hold longer / shorter, delete, copy, reverse, play range. <b>Drag</b> the selected drawing to move it (Alt = copy). <b>Double-click</b> an empty frame for a new drawing.' },
+    { el: menuEl('Animation'), pre: anim, t: 'Handy tools', x: 'Copy / paste drawings, <b>Repeat frames</b> for cycles, <b>Light table</b>, audio for lip sync, video reference.' },
+    { el: '#cmdbar [data-cmd="exportAnim"]', t: '7. Export', x: 'Export a <b>GIF</b>, a <b>video</b>, <b>PNG frames</b> or a <b>sprite sheet</b> (Ctrl+E), with a transparent background if you like.' }
+  ] },
+  { id: 'animtools', cat: 'Animation & rigging', icon: '🎛', title: 'Every animation tool', desc: 'Each button and setting of the timeline.', steps: [
+    { el: '.tl-transport', pre: anim, t: 'Play buttons', x: 'First frame (Home), previous ( , or ←), <b>play / pause</b> (Enter), next ( . or →), last frame (End).' },
+    { el: '#curFrame', pre: anim, t: 'Frame / total', x: 'The frame you are on and how many frames the animation has. Type a bigger total to make it longer.' },
+    { el: '#fps', pre: anim, t: 'FPS', x: 'Frames per second: how fast it plays. 12 is classic hand-drawn, 24 film, 30 video.' },
+    { el: '#loop', pre: anim, t: 'Loop & ping-pong', x: '<b>Loop</b> plays again from the start. <b>Ping-pong</b> plays forward then backward (great for breathing, waving, blinking).' },
+    { el: '#anOnionBtn', pre: anim, t: 'Onion skin settings', x: 'Show the previous / next <b>drawings</b> or <b>frames</b>, this layer or all layers, how many before / after, their colours and strength.', demo: ['Open the settings', () => { anim(); anOnionPop($('#anOnionBtn')); }] },
+    { el: '#anNewBtn', pre: anim, t: '＋ New drawing', x: 'Next frame with a clean page (Shift+→). With <b>on 2s</b> it jumps 2 frames, so each drawing lasts 2 frames.' },
+    { el: '#anNewKey', pre: anim, t: 'Empty frame', x: 'What happens when you draw on a frame that has no drawing of its own: <b>new drawing</b> (frame by frame), <b>copy previous</b> (change a copy) or <b>edit previous</b> (change the drawing that is held).' },
+    { el: '#timeline [data-cmd="keyframe"]', pre: anim, t: '+ Key / + Blank', x: '<b>+ Key</b> (K) makes a keyframe from a copy of the drawing; <b>+ Blank</b> (Shift+K) an empty one.' },
+    { el: '#timeline [data-cmd="insertFrame"]', pre: anim, t: '+ Frame / − Frame', x: 'Insert or delete a frame in <b>all layers</b> at once (J / Shift+J): everything after moves.' },
+    { el: '#timeline [data-cmd="removeKey"]', pre: anim, t: '− Key', x: 'Deletes the drawing on this frame; the previous drawing is then held longer.' },
+    { el: '#timeline [data-cmd="tween"]', pre: anim, t: 'Tween / No tween', x: 'A <b>motion tween</b> moves, turns, scales or fades a drawing between two keyframes. Right-click a tweened frame for <b>ease in / ease out</b>.' },
+    { el: '#tlInner', pre: anim, t: 'The frames', x: 'Dot = a drawing, bar = held, blue = tween. Click to go there, <b>drag the selected drawing</b> to move it (Alt = copy), <b>double-click</b> an empty frame, <b>right-click</b> for the menu.' },
+    { el: '#tlInner .tl-ruler', pre: anim, t: 'Play range', x: 'Right-click a frame → <b>Play from here / Play until here</b> to loop only a part while you work on it. Frames outside are striped.' },
+    { el: '.lbtns', pre: () => { anim(); tutDock('right'); }, t: 'Layers for colour', x: 'Add a layer for colours, a background or effects: each layer has its own row of drawings in the timeline.' },
+    { el: '#cmdbar [data-cmd="exportAnim"]', pre: tutNoDock, t: 'Export', x: 'GIF, video (WebM / MP4), PNG frames, sprite sheet; all frames or only the play range; transparent background.' }
   ] },
   { id: 'tween', cat: 'Animation & rigging', icon: '🌀', title: 'Motion tweens', desc: 'Let the computer draw the in-between movement.', steps: [
     { pre: anim, t: 'What is a tween?', x: 'Draw something <b>once</b>, set where it is at two keyframes, and the frames between are calculated: moving, turning, growing, fading.' },
@@ -168,9 +187,10 @@ const TUTORIALS = [
 ];
 
 /* ---- the player ---- */
-const TUT = { cur: null, i: 0, steps: [] };
-function tutStart(id) {
+const TUT = { cur: null, i: 0, steps: [], queue: [] };
+function tutStart(id, queue) {
   const t = TUTORIALS.find(x => x.id === id); if (!t) return;
+  TUT.queue = queue || [];
   const c = $('#tutCenter'); if (c && c.open) c.close();
   const w = $('#tutWelcome'); if (w) w.remove();
   TUT.cur = t; TUT.i = 0; TUT.steps = typeof t.steps === 'function' ? t.steps() : t.steps;
@@ -245,7 +265,7 @@ function tutHost() {
 }
 function tutGo(d) {
   const n = TUT.i + d;
-  if (n >= TUT.steps.length) { tutState[TUT.cur.id] = true; tutSave(); const t = TUT.cur; tutEnd(); toast(`${t.icon} "${t.title}" finished ✓ — more in Help › Tutorials`, 4000); return; }
+  if (n >= TUT.steps.length) { tutState[TUT.cur.id] = true; tutSave(); const t = TUT.cur, q = TUT.queue; tutEnd(); if (q.length) { const nx = TUTORIALS.find(x => x.id === q[0]); toast(`${t.icon} "${t.title}" finished ✓ — next: ${nx ? nx.title : ''}`, 3000); setTimeout(() => tutStart(q[0], q.slice(1)), 600); } else toast(`${t.icon} "${t.title}" finished ✓ — more in Help › Tutorials`, 4000); return; }
   if (n < 0) return;
   TUT.i = n; tutShow();
 }
@@ -281,6 +301,24 @@ function tutWelcome() {
   document.body.appendChild(w);
   setTimeout(() => { if (w.isConnected) w.classList.add('fade'); }, 25000);
   setTimeout(() => w.remove(), 26000);
+}
+/* first switch to Animation: "Is this your first time?" (until they tick "Don't ask again" or finish the tour) */
+const ANI_KEY = 'sketchforge.animintro.v1';
+function animIntro() {
+  if (TUT.cur || location.hash === '#sf-child') return;
+  let v; try { v = localStorage.getItem(ANI_KEY); } catch (e) { return; }
+  if (v === 'never' || v === 'done' || $('#animIntro')) return;
+  const d = document.createElement('dialog'); d.id = 'animIntro'; d.className = 'csdlg tutdlg';
+  d.innerHTML = `<form method="dialog"><h5>🎞 Welcome to the Animation workspace</h5>
+    <p style="margin:6px 0 10px;line-height:1.5">Is this your first time making an animation in Sketchforge?<br><span class="muted small">A short guided tour shows how to draw an animation on one layer, then every timeline tool and setting.</span></p>
+    <label class="check" style="margin:0 0 10px"><input type="checkbox" id="aiNever"> Don't ask me again</label>
+    <div class="dialog-actions"><button type="button" id="aiNo">No, I know how</button><span style="flex:1"></span><button type="button" id="aiYes" class="primary">Yes, show me</button></div></form>`;
+  document.body.appendChild(d);
+  const close = () => { d.close(); d.remove(); };
+  d.querySelector('#aiYes').onclick = () => { try { localStorage.setItem(ANI_KEY, 'done'); } catch (e) { /* ignore */ } close(); tutStart('animation', ['animtools', 'tween', 'rig']); };
+  d.querySelector('#aiNo').onclick = () => { if (d.querySelector('#aiNever').checked) try { localStorage.setItem(ANI_KEY, 'never'); } catch (e) { /* ignore */ } close(); };
+  d.addEventListener('cancel', () => d.remove());
+  d.showModal();
 }
 function installTutorials() {
   Object.assign(CMD, { tutorials: tutCenter, tourWelcome: () => tutStart('welcome') });

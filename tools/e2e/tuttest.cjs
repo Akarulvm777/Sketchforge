@@ -3,7 +3,7 @@ process.env.SF_TUT_FIRST = '1';
 const H = require('./harness.cjs');
 async function runAll(pg, label, out, check) {
   const ids = await pg.evaluate(() => [...document.querySelectorAll('#tutCenter [data-tut]')].map(b => b.dataset.tut));
-  check(label + ': tutorial centre lists 14 tutorials', ids.length === 14);
+  check(label + ': tutorial centre lists 15 tutorials', ids.length === 15);
   await pg.evaluate(() => document.querySelector('#tutCenter').close());
   const missing = [];
   for (const id of ids) {
@@ -26,7 +26,7 @@ async function runAll(pg, label, out, check) {
   }
   console.log('     not found: ' + (missing.join(', ') || 'none'));
   check(label + ': every spotlight target found and card on screen', missing.length === 0);
-  check(label + ': all tutorials marked done', await pg.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('sketchforge.tutorials.v1'))).length) === 15);
+  check(label + ': all tutorials marked done', await pg.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('sketchforge.tutorials.v1'))).length) === 16);
 }
 (async () => {
   const root = process.argv[2], out = process.argv[3];
@@ -48,6 +48,21 @@ async function runAll(pg, label, out, check) {
   await runAll(pg, 'desktop', out, check);
   await pg.reload(); await pg.waitForTimeout(2500);
   check('card not shown again after the first start', !(await pg.isVisible('#tutWelcome')));
+  // first switch to Animation asks "first time?"
+  await pg.evaluate(() => window.__sketchforge.CMD.tutorials && document.querySelector('#tutCenter') && document.querySelector('#tutCenter').open && document.querySelector('#tutCenter').close());
+  await pg.click('#modeSwitch [data-mode="anim"]'); await pg.waitForTimeout(700);
+  check('Animation: "first time?" asked', await pg.isVisible('#animIntro'));
+  await pg.screenshot({ path: out + '/tut_animintro.png' });
+  await pg.click('#aiNo'); await pg.click('#modeSwitch [data-mode="draw"]'); await pg.click('#modeSwitch [data-mode="anim"]'); await pg.waitForTimeout(700);
+  check('"No" without the tick: asked again next time', await pg.isVisible('#animIntro'));
+  await pg.check('#aiNever'); await pg.click('#aiNo'); await pg.click('#modeSwitch [data-mode="draw"]'); await pg.click('#modeSwitch [data-mode="anim"]'); await pg.waitForTimeout(700);
+  check('"Don\'t ask me again" ticked: not asked any more', !(await pg.isVisible('#animIntro')));
+  await pg.evaluate(() => localStorage.removeItem('sketchforge.animintro.v1'));
+  await pg.click('#modeSwitch [data-mode="draw"]'); await pg.click('#modeSwitch [data-mode="anim"]'); await pg.waitForTimeout(700);
+  await pg.click('#aiYes'); await pg.waitForTimeout(400);
+  check('"Yes" starts the animation tutorials (then every tool, tweens, rig)', await pg.evaluate(() => window.__sketchforge.TUT.cur && window.__sketchforge.TUT.cur.id === 'animation' && window.__sketchforge.TUT.queue.join() === 'animtools,tween,rig'));
+  await pg.keyboard.press('Escape');
+  await pg.click('#modeSwitch [data-mode="draw"]');
   const e1 = errors.slice(); await done();
   // phone
   ({ pg, errors, done } = await H.open(root, 8799, { width: 412, height: 915 }));

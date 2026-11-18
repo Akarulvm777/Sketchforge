@@ -340,8 +340,8 @@ function gifFrame(buf, rgba, w, h, delay) {
   for (let i = 0; i < data.length; i += 255) { const n = Math.min(255, data.length - i); buf.u8(n); buf.bytes(data.slice(i, i + n)); }
   buf.u8(0);
 }
-function renderExportFrame(f, scale) {
-  const full = compositeFrame(f);
+function renderExportFrame(f, scale, transparent) {
+  const full = compositeFrame(f, transparent ? { skipPaper: true } : {});
   if (scale === 1) return full;
   const c = makeCanvas(Math.max(1, Math.round(state.w * scale)), Math.max(1, Math.round(state.h * scale)));
   const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
@@ -350,17 +350,22 @@ function renderExportFrame(f, scale) {
 }
 async function runExport() {
   const fmt = $('#expFormat').value, scale = +$('#expScale').value, prog = $('#expProgress');
-  const n = state.frameCount;
+  const fr = typeof anExportFrames === 'function' ? anExportFrames() : Array.from({ length: state.frameCount }, (_, i) => i), n = fr.length;
+  const transp = !!($('#expTransp') && $('#expTransp').checked);
   exporting = true; $('#expGo').disabled = true;
   const base = state.name.replace(/[^\w\- ]+/g, '_');
   try {
-    if (fmt === 'zip') {
+    if (fmt === 'sheet') {
+      prog.textContent = 'Rendering…'; await sleep(0);
+      await anSpriteSheet(scale, transp);
+    } else if (fmt === 'zip') {
       const files = [];
-      for (let f = 0; f < n; f++) {
+      for (let i = 0; i < n; i++) {
+        const f = fr[i];
         if (!exporting) throw new Error('cancelled');
-        const b = await canvasToBlob(renderExportFrame(f, scale));
+        const b = await canvasToBlob(renderExportFrame(f, scale, transp));
         files.push({ name: `${base}_${String(f + 1).padStart(4, '0')}.png`, data: new Uint8Array(await b.arrayBuffer()) });
-        prog.textContent = `Rendering ${f + 1} / ${n}`; await sleep(0);
+        prog.textContent = `Rendering ${i + 1} / ${n}`; await sleep(0);
       }
       download(makeZip(files), base + '_frames.zip');
     } else if (fmt === 'gif') {
@@ -369,11 +374,11 @@ async function runExport() {
       buf.str('GIF89a'); buf.u16(w); buf.u16(h); buf.u8(0x70); buf.u8(0); buf.u8(0);
       if ($('#expLoop').checked) buf.bytes([0x21, 0xFF, 11, ...'NETSCAPE2.0'.split('').map(c => c.charCodeAt(0)), 3, 1, 0, 0, 0]);
       const delay = Math.max(2, Math.round(100 / state.fps));
-      for (let f = 0; f < n; f++) {
+      for (let i = 0; i < n; i++) {
         if (!exporting) throw new Error('cancelled');
-        const c = renderExportFrame(f, scale);
+        const c = renderExportFrame(fr[i], scale, transp);
         gifFrame(buf, c.getContext('2d').getImageData(0, 0, w, h).data, w, h, delay);
-        prog.textContent = `Encoding ${f + 1} / ${n}`; await sleep(0);
+        prog.textContent = `Encoding ${i + 1} / ${n}`; await sleep(0);
       }
       buf.u8(0x3B);
       download(new Blob([buf.out()], { type: 'image/gif' }), base + '.gif');
@@ -388,12 +393,12 @@ async function runExport() {
       rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       const done = new Promise(r => { rec.onstop = r; });
       rec.start();
-      for (let f = 0; f < n; f++) {
+      for (let i = 0; i < n; i++) {
         if (!exporting) { rec.stop(); throw new Error('cancelled'); }
         g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
-        g.drawImage(compositeFrame(f), 0, 0, w, h);
+        g.drawImage(compositeFrame(fr[i]), 0, 0, w, h);
         track.requestFrame();
-        prog.textContent = `Recording ${f + 1} / ${n}`;
+        prog.textContent = `Recording ${i + 1} / ${n}`;
         await sleep(1000 / state.fps);
       }
       rec.stop(); await done;

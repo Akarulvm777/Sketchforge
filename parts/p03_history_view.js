@@ -69,11 +69,15 @@ function acquireCel(layer) {
   const k = keyAt(layer, f);
   let created = false;
   if (k !== f && (k === null || state.autoKey)) {
-    const c = k !== null ? copyCel(layer.cels.get(k)) : makeCel(false);
+    const src = k !== null ? layer.cels.get(k) : null;
+    const blank = src && typeof animNewBlank === 'function' && animNewBlank(src);
+    const c = src && !blank ? copyCel(src) : makeCel(false);
+    if (blank && src._xf) c._xf = { ...src._xf, tween: false, ease: 0 }; // a new drawing keeps the layer's position
     layer.cels.set(f, c);
     layer.canvas = c;
     layer.ctx = c.getContext('2d');
     created = true;
+    if (blank && typeof animAfterBlank === 'function') animAfterBlank();
     refreshStage(); renderTimeline();
   }
   if (layer.canvas) layer.canvas._sv = (layer.canvas._sv || 0) + 1; // pixels are about to change (session autosave cache)

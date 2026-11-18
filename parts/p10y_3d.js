@@ -89,7 +89,10 @@ function buildRigged(gender) {
   // dominant bone per vertex, for click-to-select and the selection highlight
   const dom = new Uint8Array(n);
   for (let i = 0; i < n; i++) { let best = 0; for (let k = 1; k < 4; k++) if (sw[i * 4 + k] > sw[i * 4 + best]) best = k; dom[i] = si[i * 4 + best]; }
-  mesh.userData = { color: GREY, rigged: true, vc: true, dom, boneNames: list.map(b => b.name) };
+  const names = list.map(b => b.name);
+  let minY0 = Infinity; for (let i = 1; i < n * 3; i += 3) if (p[i] < minY0) minY0 = p[i];
+  mesh.userData = { color: GREY, rigged: true, vc: true, dom, boneNames: names, p0: p.slice(), w, si, j0: d.joints, minY0,
+    parents: M.bones.map(([, par]) => par ? names.indexOf(par) : -1), bend: d.bend || {}, tips0: d.tips || {} };
   const root = new T.Group(); root.add(mesh);
   return { root, joints, parts: [mesh], legTop: joints.pelvis.position.y };
 }
@@ -148,6 +151,7 @@ function setModel(m) {
   M3.root.scale.setScalar(M3.heightScale);
   M3.scene.add(M3.root);
   if (!M3.joints[M3.sel]) M3.sel = Object.keys(M3.joints)[0];
+  if (riggedMesh() && !shapeIsDefault()) applyShape();
   markSel(); render3D(); buildJointUI();
 }
 function rebuildModel() {
@@ -199,7 +203,7 @@ function render3D() {
 function buildJointUI() {
   const box = $('#m3dJoint'); if (!box) return;
   const sel = $('#m3dJointSel'); sel.innerHTML = '';
-  const names = M3.kind === 'mannequin' ? JOINT_NAMES : [['body', 'Whole model']];
+  const names = jointNameList();
   names.forEach(([k, t]) => { const o = document.createElement('option'); o.value = k; o.textContent = t; if (k === M3.sel) o.selected = true; sel.appendChild(o); });
   syncJointSliders();
 }
@@ -207,6 +211,7 @@ function syncJointSliders() {
   const j = M3.joints[M3.sel]; if (!j) return;
   const e = new M3.T.Euler().setFromQuaternion(j.quaternion, 'YXZ');
   [['X', e.x], ['Y', e.y], ['Z', e.z]].forEach(([a, v]) => { const i = $('#m3d' + a); if (i) { i.value = Math.round(v / DEG); $('#m3d' + a + 'V').textContent = Math.round(v / DEG) + '°'; } });
+  syncCurl();
 }
 function setJointEuler() {
   const j = M3.joints[M3.sel]; if (!j) return;
@@ -217,13 +222,17 @@ function applyPose(name) {
   const p = POSES[name]; if (!p) return;
   for (const k in M3.joints) M3.joints[k].quaternion.identity();
   M3.root.position.y = 0;
+  M3.curl = {};
   for (const k in p) {
     if (k === '_y') { M3.root.position.y = p._y * M3.heightScale; continue; }
+    if (k === '_hands') continue;
     if (M3.joints[k]) M3.joints[k].quaternion.setFromEuler(new M3.T.Euler(p[k][0] * DEG, p[k][1] * DEG, p[k][2] * DEG, 'YXZ'));
   }
+  if (hasFingers()) { const hp = HAND_POSES[p._hands || 'Relaxed']; for (const s of ['L', 'R']) for (const f in hp) setCurl(f, s, hp[f]); }
   syncJointSliders(); render3D();
 }
 function fitModel() {
+  setTimeout(() => typeof syncZoom === 'function' && syncZoom(), 0);
   M3.cam = { az: 0.5, el: 0.2, dist: 4.4 / (state.w / state.h > 1 ? 1 : 1), tx: 0, ty: M3.kind === 'mannequin' ? 0.88 * M3.heightScale : 0.5 };
   if (state.w / state.h < 1) M3.cam.dist *= 1.0;
   render3D();
@@ -252,15 +261,22 @@ function pickRigged(mesh, rc) {
   M3.pickMesh.matrixWorld.copy(mesh.matrixWorld);
   const hit = rc.intersectObject(M3.pickMesh, false)[0];
   if (!hit) return null;
+  M3.lastHit = hit.point.clone();
   return mesh.userData.boneNames[mesh.userData.dom[hit.face.a]];
 }
 function bind3DPreview() {
   const cv = $('#m3dPreview'); let drag = null;
   cv.addEventListener('pointerdown', e => {
     cv.setPointerCapture(e.pointerId);
+    M3.lastHit = null;
     const hit = pick(e, cv);
     drag = { x: e.clientX, y: e.clientY, mode: e.shiftKey || e.button === 2 ? 'pan' : hit ? 'joint' : 'orbit' };
     if (hit && drag.mode === 'joint') { M3.sel = hit; markSel(); buildJointUI(); }
+    // move mode: the grabbed point of the part follows the mouse (inverse kinematics); the hips move the whole model
+    if (hit && drag.mode === 'joint' && M3.dragMode === 'move' && M3.lastHit && riggedMesh()) {
+      if (hit === 'pelvis') drag.mode = 'pan';
+      else { const j = M3.joints[hit]; M3.root.updateMatrixWorld(true); drag.mode = 'ik'; drag.bone = hit; drag.grab = j.worldToLocal(M3.lastHit.clone()); drag.plane = M3.lastHit.clone(); }
+    }
     render3D();
   });
   cv.addEventListener('pointermove', e => {
@@ -271,6 +287,9 @@ function bind3DPreview() {
     else if (drag.mode === 'pan') {
       const k = M3.cam.dist * 0.0035; const right = new T.Vector3().setFromMatrixColumn(M3.camera.matrixWorld, 0);
       M3.root.position.addScaledVector(right, dx * k); M3.root.position.y -= dy * k;
+    } else if (drag.mode === 'ik') {
+      const t = rayToPlane(e, cv, drag.plane);
+      if (t) { ikSolve(drag.bone, drag.grab, t); syncJointSliders(); }
     } else {
       const j = M3.joints[M3.sel]; if (!j) return;
       const right = new T.Vector3().setFromMatrixColumn(M3.camera.matrixWorld, 0), up = new T.Vector3().setFromMatrixColumn(M3.camera.matrixWorld, 1);
@@ -344,6 +363,7 @@ function build3DPanel() {
   $('#m3dOp').oninput = e => { M3.overOp = e.target.value / 100; $('#m3dOpV').textContent = e.target.value + '%'; render3D(); };
   $('#m3dImport').onclick = () => pickFile('.glb,.gltf,.obj', f => importModelFile(f).catch(err => toast(err.message)));
   $('#m3dPlace').onclick = placeOnLayer;
+  install3DPlus(b);
   bind3DPreview();
 }
 function placeOnLayer() {
