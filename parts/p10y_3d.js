@@ -170,7 +170,7 @@ function markSel() {
   for (const p of M3.parts) {
     if (p.userData.rigged) {
       // tint the vertices that mostly follow the selected joint
-      const sel = p.userData.boneNames.indexOf(M3.sel), dom = p.userData.dom, col = p.geometry.attributes.color;
+      const sel = M3.selShown ? p.userData.boneNames.indexOf(M3.sel) : -1, dom = p.userData.dom, col = p.geometry.attributes.color;
       for (let i = 0; i < dom.length; i++) { const on = dom[i] === sel; col.setXYZ(i, on ? 0.62 : 1, on ? 0.76 : 1, on ? 1.18 : 1); }
       col.needsUpdate = true;
     } else if (p.material.emissive) p.material.emissive.setHex(p.userData.joint === M3.sel ? 0x2a4f8f : 0x000000);
@@ -289,7 +289,7 @@ function bindPoseSurface(cv, big) {
     M3.lastHit = null;
     const hit = pick(e, cv);
     drag = { x: e.clientX, y: e.clientY, mode: e.shiftKey || e.button === 2 ? 'pan' : hit ? 'joint' : 'orbit' };
-    if (hit && drag.mode === 'joint') { M3.sel = hit; markSel(); buildJointUI(); if (big) poseBarLabel(); }
+    if (hit && drag.mode === 'joint') { M3.sel = hit; M3.selShown = true; markSel(); buildJointUI(); if (big) poseBarLabel(); }
     // move mode: the grabbed point of the part follows the pointer (inverse kinematics); the hips move the whole model
     if (hit && drag.mode === 'joint' && M3.dragMode === 'move' && M3.lastHit && riggedMesh()) {
       if (hit === 'pelvis') drag.mode = 'pan';
@@ -412,7 +412,7 @@ function build3DPanel() {
   $('#m3dKind').onchange = e => {
     if (e.target.value === 'simple' || e.target.value === 'mannequin') { M3.kind = 'mannequin'; M3.style = e.target.value === 'simple' ? 'simple' : 'vroid'; if (M3.style === 'simple' && M3.gender === 'custom') M3.gender = 'female'; syncModelButtons(); rebuildModel(); fitModel(); return; }
     M3.kind = e.target.value; if (M3.kind === 'import' && !M3.imported) { pickFile('.glb,.gltf,.obj', f => importModelFile(f).catch(err => toast(err.message))); M3.kind = 'mannequin'; e.target.value = 'mannequin'; return; } rebuildModel(); fitModel(); };
-  $('#m3dJointSel').onchange = e => { M3.sel = e.target.value; markSel(); syncJointSliders(); render3D(); };
+  $('#m3dJointSel').onchange = e => { M3.sel = e.target.value; M3.selShown = true; markSel(); syncJointSliders(); render3D(); };
   ['X', 'Y', 'Z'].forEach(a => $('#m3d' + a).oninput = setJointEuler);
   $('#m3dResetJ').onclick = () => { const j = M3.joints[M3.sel]; if (j) { j.quaternion.identity(); syncJointSliders(); render3D(); } };
   $('#m3dResetAll').onclick = () => { for (const k in M3.joints) M3.joints[k].quaternion.identity(); M3.root.position.set(0, 0, 0); syncJointSliders(); render3D(); };
