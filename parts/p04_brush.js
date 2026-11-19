@@ -87,7 +87,15 @@ function paintTip(ctx, st, cx, cy, d) {
   const s = st.s;
   if (s.shape) { drawShapeTip(ctx, s.shape, cx, cy, d, st.erase ? '#000' : st.color); return; }
   if (s.tipId && customTips.has(s.tipId)) {
-    const tip = tintedTip(s.tipId, st.erase ? '#000000' : st.color);
+    // decoration brushes: several tip images (random or one after the other), full-colour tips keep their colours,
+    // colour jitter shifts the hue a little per dab (in 24 steps, so the tinted tips stay cached)
+    let tid = s.tipId;
+    if (s.tipIds && s.tipIds.length > 1) tid = s.tipOrder === 'seq' ? s.tipIds[st.tipSeq = ((st.tipSeq ?? -1) + 1) % s.tipIds.length] : s.tipIds[Math.floor(Math.random() * s.tipIds.length)];
+    if (!customTips.has(tid)) tid = s.tipId;
+    const raw = customTips.get(tid);
+    let col = st.erase ? '#000000' : st.color;
+    if (s.hueJit && !st.erase) col = hueShift(col, Math.round((Math.random() - 0.5) * 2 * s.hueJit * 12) * 15);
+    const tip = raw._colour && !st.erase ? raw : tintedTip(tid, col);
     ctx.save();
     ctx.translate(cx, cy);
     if (s.tipRot) ctx.rotate(Math.random() * Math.PI * 2);
@@ -110,6 +118,17 @@ function paintTip(ctx, st, cx, cy, d) {
   } else {
     ctx.drawImage(getTip(st.erase ? '#000000' : st.color, s.hardness), cx - d / 2, cy - d / 2, d, d);
   }
+}
+function hueShift(hex, deg) { // rotate the hue of a #rrggbb colour
+  if (!deg) return hex;
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return hex;
+  const sat = d / (1 - Math.abs(2 * l - 1)); let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = ((h * 60 + deg) % 360 + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * sat, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  const [R, G, B] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return '#' + [R, G, B].map(v => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('');
 }
 /* decoration shapes (stars, petals, hearts ...) */
 function drawShapeTip(ctx, kind, cx, cy, d, color) {

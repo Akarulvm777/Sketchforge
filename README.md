@@ -1,4 +1,4 @@
-# Sketchforge 2.8 — drawing + animation studio
+# Sketchforge 2.9 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -221,3 +221,18 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.8: pose the 3D model right on the canvas
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
+
+## 2.9: rig with the Bone tool
+- New 🦴 Bone tool (in the tool palette, after the Shading pens). Click a part, then click the part it follows: they are linked and the joint goes where they touch. Or drag from a part onto its parent. Drag any dot to move a joint. Alt+click frees a part.
+- Sub tool Bone: pose: drag a part to turn it around its joint, everything attached follows. On the timeline each pose makes a keyframe.
+- The rigging tutorials (and the fox practice) now use the Bone tool.
+
+## 2.9: layer folders, tick boxes and colours
+- Every layer has a tick box: tick as many as you want, then put them in a folder, colour them, show / hide or delete them together.
+- Folders: open / close, hide the whole folder, rename, ungroup. Drag layers onto a folder to move them in.
+- Colour labels for layers and folders, with preset colours and your own colours (remembered).
+
+## 2.9: all your Clip Studio tools
+- Import Clip Studio tools of every kind, not only pens: pencils, brushes, airbrushes, decoration brushes, erasers, blend tools and gradients. Each one goes by itself to the right tool group and stays there.
+- Decoration brushes keep all their shapes, scatter, random rotation and colour changes; shapes in colour keep their colours.
+- Import many at once: several .sut files, a .zip of tools, or a whole folder (Add-ons menu, the + of the Sub tool panel, or drop them on it).

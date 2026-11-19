@@ -119,35 +119,62 @@ function togglePanel(pid) {
 /* ---------- add-ons: custom brush tips + script plug-ins ---------- */
 const ADDON_KEY = 'sketchforge.addons.v1';
 let addons = { brushes: [], scripts: [] };
-function saveAddons() { try { localStorage.setItem(ADDON_KEY, JSON.stringify(addons)); } catch (e) { toast('Could not save add-ons (storage full?)'); } }
-const MENU_ADDONS = ['Add-ons', [['Import Clip Studio brush (.sut)…', 'addSut'], ['Import brush tip (image)…', 'addBrushTip'], ['Install add-on script (.js)…', 'addScript'], ['Manage add-ons…', 'manageAddons'], '-']];
+/* imported tools are kept in IndexedDB (their tip images and textures do not fit in localStorage); scripts in localStorage */
+let addonDBp = null;
+const addonDB = () => addonDBp || (addonDBp = new Promise(res => { try { const rq = indexedDB.open('sketchforge-addons', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); } catch (e) { res(null); } }));
+async function saveAddons() {
+  try { localStorage.setItem(ADDON_KEY, JSON.stringify({ scripts: addons.scripts, brushes: [] })); } catch (e) { /* ignore */ }
+  const db = await addonDB();
+  if (!db) { try { localStorage.setItem(ADDON_KEY, JSON.stringify(addons)); } catch (e) { toast('Could not save the imported tools (storage full?)'); } return; }
+  await new Promise(res => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(addons.brushes, 'brushes'); tx.oncomplete = res; tx.onerror = () => { toast('Could not save the imported tools'); res(); }; });
+}
+const MENU_ADDONS = ['Add-ons', [['Import Clip Studio tools (.sut, .zip)…', 'addSut'], ['Import a folder of Clip Studio tools…', 'addSutFolder'], ['Import brush tip (image)…', 'addBrushTip'], ['Install add-on script (.js)…', 'addScript'], ['Manage add-ons…', 'manageAddons'], '-']];
 
+/* an image -> 256 px tip: transparent images keep their alpha; opaque ones: dark = ink. colour = keeps its colours */
+async function makeTip(src) {
+  const img = await loadImage(src);
+  const tip = makeCanvas(256, 256), g = tip.getContext('2d');
+  const k = Math.min(256 / img.width, 256 / img.height);
+  g.drawImage(img, (256 - img.width * k) / 2, (256 - img.height * k) / 2, img.width * k, img.height * k);
+  const d = g.getImageData(0, 0, 256, 256), px = d.data;
+  let opaque = true, colour = 0, n = 0;
+  for (let i = 0; i < px.length; i += 4) { if (px[i + 3] < 250) opaque = false; if (px[i + 3] > 60) { n++; const mx = Math.max(px[i], px[i + 1], px[i + 2]), mn = Math.min(px[i], px[i + 1], px[i + 2]); if (mx - mn > 60) colour++; } }
+  if (opaque) for (let i = 0; i < px.length; i += 4) { px[i + 3] = 255 - (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11); px[i] = px[i + 1] = px[i + 2] = 0; }
+  g.putImageData(d, 0, 0);
+  return { tip, colour: !opaque && n > 0 && colour / n > 0.15 };
+}
+const GROUP_ICON = { pen: 'pen', pencil: 'pencil', brush: 'brush', airbrush: 'airbrush', decor: 'sparkle', eraser: 'eraser', blend: 'blend' };
 async function registerBrush(def, persist) {
-  const id = def.id || 'custom_' + Date.now().toString(36) + Math.floor(Math.random() * 99);
-  let tipId;
-  if (def.tip) {
-    const img = await loadImage(def.tip);
-    const tip = makeCanvas(256, 256), g = tip.getContext('2d');
-    const k = Math.min(256 / img.width, 256 / img.height);
-    g.drawImage(img, (256 - img.width * k) / 2, (256 - img.height * k) / 2, img.width * k, img.height * k);
-    /* an image without transparency: dark = ink */
-    const d = g.getImageData(0, 0, 256, 256), px = d.data;
-    let opaque = true; for (let i = 3; i < px.length; i += 4) if (px[i] < 250) { opaque = false; break; }
-    if (opaque) for (let i = 0; i < px.length; i += 4) { px[i + 3] = 255 - (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11); px[i] = px[i + 1] = px[i + 2] = 0; }
-    g.putImageData(d, 0, 0);
-    customTips.set(id, tip); tipId = id;
+  const id = def.id || 'custom_' + Date.now().toString(36) + Math.floor(Math.random() * 999);
+  const group = def.group || (def.pen ? 'pen' : 'brush');
+  if (def.kind === 'gradient' || group === 'gradient') { // a gradient preset
+    TOOLDEF[id] = { name: def.name || 'Gradient', kind: 'gradient', icon: 'gradient', custom: true, stops: def.stops || [[0, 'fg'], [1, 'bg']], radial: !!def.radial };
+    settings[id] = {};
+    const gg = GROUPS.find(g2 => g2.id === 'gradient'); if (gg && !gg.subs.includes(id)) gg.subs.push(id);
+    if (persist) { addons.brushes.push({ ...def, id, group: 'gradient' }); saveAddons(); }
+    renderSubTools();
+    return id;
   }
   const extra = { aa: def.aa ?? 2, taperIn: def.taperIn || 0, taperRatio: def.taperRatio ?? 0.3, spacing: def.spacing || 0.15, tipRot: !!def.tipRot };
-  if (tipId) extra.tipId = tipId;
+  const tipSrcs = def.tips && def.tips.length ? def.tips : def.tip ? [def.tip] : [];
+  const ids = [];
+  for (let i = 0; i < tipSrcs.length; i++) {
+    try { const { tip, colour } = await makeTip(tipSrcs[i]); const tid = id + (i ? '_' + i : ''); customTips.set(tid, tip); if (colour) tip._colour = true; ids.push(tid); } catch (e) { /* skip a broken image */ }
+  }
+  if (ids.length === 1) extra.tipId = ids[0];
+  else if (ids.length > 1) { extra.tipId = ids[0]; extra.tipIds = ids; extra.tipOrder = def.tipOrder || 'random'; }
+  for (const k of ['scatter', 'count', 'jitter', 'hueJit', 'wet', 'smudge', 'blurTool', 'nibRatio', 'nibAngle', 'speed']) if (def[k] != null) extra[k] = def[k];
   if (def.tex) {
     extra.tex = def.tex; extra.texAmt = def.texAmt ?? 0.6; extra.texScale = def.texScale || 1;
     if (def.texImg) { try { extra.tex = registerTexture('tex_' + id, await loadImage(def.texImg), def.texInv); } catch (e) { /* keep generic paper */ } }
   }
-  TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: def.pen ? 'pen' : 'brush', custom: true,
-    preset: P(def.size || 40, tipId ? 1 : (def.hardness ?? 1), def.flow ?? 1, def.opacity ?? 1, def.pSize ?? true, def.pAlpha ?? false, def.smooth ?? 0.2, extra) };
+  TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: GROUP_ICON[group] || (def.pen ? 'pen' : 'brush'), custom: true,
+    preset: P(def.size || 40, ids.length ? 1 : (def.hardness ?? 1), def.flow ?? 1, def.opacity ?? 1, def.pSize ?? true, def.pAlpha ?? false, def.smooth ?? 0.2, extra) };
+  if (group === 'eraser' || def.erase) TOOLDEF[id].erase = true;
   settings[id] = { ...TOOLDEF[id].preset };
-  GROUPS.find(g2 => g2.id === (def.pen ? 'pen' : 'brush')).subs.push(id);
-  if (persist) { addons.brushes.push({ ...def, id }); saveAddons(); }
+  const g = GROUPS.find(g2 => g2.id === group) || GROUPS.find(g2 => g2.id === 'brush');
+  if (!g.subs.includes(id)) g.subs.push(id);
+  if (persist) { addons.brushes.push({ ...def, id, group: g.id }); saveAddons(); }
   renderSubTools();
   return id;
 }
@@ -226,7 +253,38 @@ function findPng(blob) {
   return null;
 }
 const effectorInputs = b => (b && b.length >= 16 ? new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(12) : 0);
-/* Convert Clip Studio sub tool data (.sut) into Sketchforge brush definitions. Only the parts that map are used. */
+function findPngs(blob) { // every PNG inside a blob (decoration brushes keep several tip images)
+  const out = []; if (!blob || !blob.length) return out;
+  for (let i = 0; i < blob.length - 8; i++) {
+    if (blob[i] !== 0x89 || blob[i + 1] !== 0x50 || blob[i + 2] !== 0x4e || blob[i + 3] !== 0x47) continue;
+    for (let j = i + 8; j <= blob.length - 8; j++) if (blob[j] === 0x49 && blob[j + 1] === 0x45 && blob[j + 2] === 0x4e && blob[j + 3] === 0x44) {
+      let bin = ''; blob.subarray(i, j + 8).forEach(b => { bin += String.fromCharCode(b); });
+      out.push('data:image/png;base64,' + btoa(bin)); i = j + 7; break;
+    }
+  }
+  return out;
+}
+/* what kind of tool a sub tool is: from its name (English / Japanese / Chinese / Korean words) and its settings */
+const SUT_NAMES = [['gradient', /gradient|gradation|グラデ|渐变|漸層|그라데/i], ['eraser', /eras|消しゴム|消去|橡皮|지우개/i],
+  ['blend', /blend|blur|smudge|finger|ぼかし|指先|色混ぜ|涂抹|模糊|블렌드|흐림/i], ['airbrush', /air ?brush|spray|エアブラシ|スプレー|喷枪|噴槍|에어/i],
+  ['decor', /deco|star|flower|lace|sparkle|glitter|leaf|leaves|grass|chain|ribbon|stamp|pattern|snow|heart|cloud|装飾|デコ|模様|花|星|レース|装饰|데코|꽃/i],
+  ['pencil', /pencil|crayon|chalk|charcoal|pastel|鉛筆|クレヨン|パステル|木炭|铅笔|蜡笔|연필/i],
+  ['brush', /brush|paint|water ?colou?r|oil|gouache|acrylic|wash|水彩|油彩|ブラシ|筆|画笔|油画|붓|수채/i], ['pen', /pen|ink|marker|liner|ペン|マーカー|钢笔|筆ペン|펜/i]];
+function sutKind(name, v, tips) {
+  const cols = Object.keys(v), has = re => cols.some(c => re.test(c) && v[c] != null && v[c] !== 0);
+  if (has(/Gradation|Gradient/i) || (v.BrushSize == null && SUT_NAMES[0][1].test(name))) return 'gradient';
+  if (v.BrushSize == null) return null; // fill, text, selection… not a drawing tool
+  for (const [k, re] of SUT_NAMES) if (k !== 'gradient' && re.test(name)) return k;
+  if (has(/Erase/i)) return 'eraser';
+  if (tips.length > 1 || v.BrushRibbon || (v.BrushUseSpray && v.BrushUsePatternImage)) return 'decor';
+  if (v.BrushUseSpray) return 'airbrush';
+  if (has(/WaterEdge|ColorMix|PaintMix|MixColor|MixingColor/i)) return 'brush';
+  if ((v.BrushHardness ?? 100) >= 90 && !v.TextureImage) return 'pen';
+  if (v.TextureImage) return 'pencil';
+  return 'brush';
+}
+const sutNum = (v, re) => { for (const c of Object.keys(v)) if (re.test(c) && typeof v[c] === 'number') return v[c]; return null; };
+/* Convert Clip Studio sub tool data (.sut) into Sketchforge tool definitions, each with the group it belongs to. */
 function sutToDefs(buf) {
   const t = readSqlite(buf);
   const variants = new Map((t.Variant || []).map(v => [v.VariantID, v]));
@@ -234,32 +292,97 @@ function sutToDefs(buf) {
   for (const n of (t.Node || [])) {
     const v = variants.get(n.NodeVariantID);
     if (!v || !n.NodeName) continue;
-    if (v.BrushSize == null) { defs.push({ name: n.NodeName, size: 4, hardness: 1, flow: 1, opacity: (v.Opacity ?? 100) / 100, aa: 0, smooth: 0, pSize: false, pen: true }); continue; }
-    const tip = v.BrushUsePatternImage ? findPng(v.BrushPatternImageArray) : null;
+    const tips = v.BrushUsePatternImage ? findPngs(v.BrushPatternImageArray) : [];
+    const group = sutKind(n.NodeName, v, tips);
+    if (!group) { defs.push({ name: n.NodeName, skip: true }); continue; }
+    if (group === 'gradient') {
+      defs.push({ name: n.NodeName, kind: 'gradient', group, radial: /circle|radial|円|放射/i.test(n.NodeName) || !!sutNum(v, /Circle|Radial/i), approx: true,
+        stops: /transparent|透明/i.test(n.NodeName) ? [[0, 'fg'], [1, 'fg0']] : [[0, 'fg'], [1, 'bg']] });
+      continue;
+    }
     const sz = effectorInputs(v.BrushSizeEffector), fl = effectorInputs(v.BrushFlowEffector), op = effectorInputs(v.BrushOpacityEffector);
     /* effector input bits (observed): 16 = pen pressure, 64 = drawing speed */
     const rot = v.BrushRotation || 0, thick = (v.BrushThickness ?? 100) / 100;
-    defs.push({
-      name: n.NodeName, size: clamp(Math.round(v.BrushSize * 10) / 10, 0.5, 300),
+    const def = {
+      name: n.NodeName, group, size: clamp(Math.round(v.BrushSize * 10) / 10, 0.5, 300),
       opacity: (v.Opacity ?? 100) / 100, flow: (v.BrushFlow ?? 100) / 100, hardness: (v.BrushHardness ?? 100) / 100,
       aa: v.AntiAlias ?? 2, smooth: clamp((v.FlickerReduction || 0) / 50, 0, 0.9),
       pSize: !!(sz & 16), pAlpha: !!((fl & 16) || (op & 16)), speed: (sz & 64) ? 0.5 : 0,
-      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip,
+      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip: tips[0] || null, tips: tips.length > 1 ? tips : undefined,
       taperIn: v.BrushUseIn ? (v.BrushInLength || 0) : 0, taperRatio: (v.BrushInRatio ?? 30) / 100,
       nibRatio: thick < 1 ? clamp(thick, 0.05, 1) : 1, nibAngle: rot,
-      pen: !tip && (v.BrushHardness ?? 100) >= 90,
-      // paper texture: the embedded image when it is a PNG, otherwise a generic paper grain
+      pen: group === 'pen',
       ...(v.TextureImage ? { texImg: findPng(v.TextureImage), tex: 'paper', texAmt: clamp((v.TextureDensity ?? 50) / 100, 0, 1),
         texScale: clamp((v.TextureScale2 ?? 100) / 100, 0.1, 8), texInv: !!v.TextureReverseDensity } : {})
-    });
+    };
+    if (v.BrushUseSpray) { def.scatter = clamp((v.BrushSpraySize ?? 100) / 100, 0.2, 3); def.count = clamp(Math.round((v.BrushSprayDensity ?? 10) / 8), 1, 10); }
+    if ((v.BrushRotationRandom || v.BrushRotationRandomInSpray || 0) > 0 || group === 'decor') def.tipRot = !!((v.BrushRotationRandom || v.BrushRotationRandomInSpray || 0) > 0);
+    if (group === 'decor' && v.BrushUseSpray) def.jitter = 0.35;
+    if (tips.length > 1) def.tipOrder = v.BrushPatternOrderType === 0 ? 'seq' : 'random';
+    const hue = sutNum(v, /Hue(Change|Jitter|Random)|ColorJitterHue|ChangeHue/i); if (hue) def.hueJit = clamp(hue > 1 ? hue / 100 : hue, 0, 1);
+    if (v.BrushUseWaterEdge || sutNum(v, /WaterEdge/i)) def.wet = 0.55;
+    if (group === 'blend') { def.smudge = /blur|ぼかし|模糊/i.test(n.NodeName) ? 0 : 0.85; if (def.smudge === 0) def.blurTool = true; }
+    if (group === 'eraser') def.erase = true;
+    defs.push(def);
   }
   return defs;
 }
 async function importSut(file) {
   const defs = sutToDefs(await file.arrayBuffer());
-  if (!defs.length) throw new Error('No brushes found in that file');
-  for (const def of defs) selectTool(await registerBrush(def, true));
-  return defs.length;
+  const use = defs.filter(d => !d.skip);
+  if (!use.length) throw new Error(defs.length ? 'this tool is not a drawing tool (fill, text, selection…)' : 'No tools found in that file');
+  const out = [];
+  for (const def of use) out.push({ id: await registerBrush(def, true), group: def.kind === 'gradient' ? 'gradient' : def.group || 'brush', name: def.name });
+  if (out.length) selectTool(out[out.length - 1].id);
+  out.skipped = defs.length - use.length;
+  return out;
+}
+const GROUP_LABEL = { pen: 'Pen', pencil: 'Pencil', brush: 'Brush', airbrush: 'Airbrush', decor: 'Decoration', eraser: 'Eraser', blend: 'Blend', gradient: 'Gradient' };
+/* many tools at once: .sut files, .zip files of .sut, or folders */
+async function unzipSut(file) {
+  const u = new Uint8Array(await file.arrayBuffer()), dv = new DataView(u.buffer), out = [];
+  let e = u.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error(file.name + ': not a zip file');
+  let p = dv.getUint32(e + 16, true); const n = dv.getUint16(e + 10, true);
+  for (let i = 0; i < n; i++) {
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    if (!/\.sut$/i.test(name) || name.includes('__MACOSX')) continue;
+    const dataAt = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true), raw = u.subarray(dataAt, dataAt + csize);
+    const bytes = method === 0 ? raw : method === 8 ? new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()) : null;
+    if (bytes) out.push(new File([bytes], name.split('/').pop()));
+  }
+  return out;
+}
+async function importTools(files) {
+  let list = [];
+  for (const f of files) {
+    if (/\.zip$/i.test(f.name)) { try { list.push(...await unzipSut(f)); } catch (e) { toast(e.message); } }
+    else if (/\.sut$/i.test(f.name)) list.push(f);
+  }
+  if (!list.length) { toast('No Clip Studio tools (.sut) found'); return []; }
+  const per = {}, failed = []; let skipped = 0, all = [];
+  for (const f of list) {
+    try { const r = await importSut(f); skipped += r.skipped || 0; for (const t of r) { per[t.group] = (per[t.group] || 0) + 1; all.push(t); } }
+    catch (e) { if (/not a drawing tool/.test(e.message)) skipped++; else failed.push(f.name); }
+  }
+  const parts = Object.entries(per).map(([g, k]) => `${k} → ${GROUP_LABEL[g] || g}`);
+  toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}`, 7000);
+  if (all.length) { const last = all[all.length - 1]; const grp = GROUPS.find(g => g.subs.includes(last.id)); if (grp) selectGroup(grp.id); selectTool(last.id); }
+  return all;
+}
+/* files from a drop: folders too */
+async function droppedFiles(dt) {
+  const items = [...(dt.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!items.length) return [...dt.files];
+  const out = [];
+  const walk = ent => new Promise(res => {
+    if (ent.isFile) ent.file(f => { out.push(f); res(); }, () => res());
+    else if (ent.isDirectory) { const r = ent.createReader(), all = []; const more = () => r.readEntries(async es => { if (!es.length) { for (const e of all) await walk(e); res(); } else { all.push(...es); more(); } }, () => res()); more(); }
+    else res();
+  });
+  for (const e of items) await walk(e);
+  return out;
 }
 /* the Clip Studio pen set that ships built in (replaces the original pens) */
 function loadBuiltinPens() {
@@ -314,10 +437,8 @@ CMD.addBrushTip = () => pickFile('image/*', async f => {
     selectTool(id); toast('Brush added to the Brush group');
   } catch (e) { toast('Could not read that image'); }
 });
-CMD.addSut = () => pickFile('.sut', async f => {
-  try { const n = await importSut(f); toast('Imported ' + n + ' brush' + (n > 1 ? 'es' : '') + ' from ' + f.name + ' (settings approximated)'); }
-  catch (e) { toast('Could not import: ' + e.message); }
-});
+CMD.addSut = () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.sut,.zip'; i.multiple = true; i.onchange = () => i.files.length && importTools([...i.files]); i.click(); };
+CMD.addSutFolder = () => { const i = document.createElement('input'); i.type = 'file'; i.webkitdirectory = true; i.multiple = true; i.onchange = () => i.files.length && importTools([...i.files]); i.click(); };
 CMD.addScript = () => pickFile('.js,text/javascript', async f => {
   if (!confirm('Add-on scripts can do anything in this app. Only install scripts you trust.\n\nInstall "' + f.name + '"?')) return;
   const text = await readFile(f, true);
@@ -351,6 +472,12 @@ MENUS.push(MENUS.splice(MENUS.findIndex(m => m[0] === 'Help'), 1)[0]);
 
 async function loadAddons() {
   try { addons = { brushes: [], scripts: [], ...JSON.parse(localStorage.getItem(ADDON_KEY) || '{}') }; } catch (e) { /* ignore */ }
+  const db = await addonDB();
+  if (db) {
+    const saved = await new Promise(res => { try { const rq = db.transaction('kv').objectStore('kv').get('brushes'); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); } catch (e) { res(null); } });
+    if (Array.isArray(saved)) addons.brushes = saved.concat(addons.brushes.filter(b => !saved.some(x => x.id === b.id)));
+    if (addons.brushes.length && !Array.isArray(saved)) saveAddons(); // move the old localStorage tools over
+  }
   for (const b of addons.brushes) { try { await registerBrush({ ...b }, false); } catch (e) { /* skip broken */ } }
   for (const s of addons.scripts) runScript(s.text, s.name);
 }
@@ -470,7 +597,7 @@ function openPenDialog() {
 /* ---------- Sub Tool panel footer: add / duplicate / delete brushes ---------- */
 async function importAnyFile(f) {
   try {
-    if (/\.sut$/i.test(f.name)) { const n = await importSut(f); toast('Imported ' + n + ' brush' + (n > 1 ? 'es' : '') + ' (settings approximated)'); }
+    if (/\.(sut|zip)$/i.test(f.name)) await importTools([f]);
     else if (/^image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name)) {
       const id = await registerBrush({ name: f.name.replace(/\.[^.]+$/, ''), tip: await readFile(f) }, true); selectTool(id); toast('Brush added');
     } else toast('Drop a .sut brush or an image');
@@ -497,13 +624,15 @@ function buildSubBar() {
   const list = $('#subtoolList');
   const bar = document.createElement('div'); bar.id = 'subtoolBar';
   const mk = (ic, title, fn) => { const b = document.createElement('button'); b.dataset.ic = ic; b.innerHTML = icon(ic); b.title = title; b.onclick = fn; bar.appendChild(b); };
-  mk('plus', 'Add brush: import a Clip Studio .sut file or an image', () => pickFile('.sut,image/*', importAnyFile));
+  mk('plus', 'Add tools: Clip Studio .sut files (several at once, or a .zip) or an image', () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.sut,.zip,image/*'; i.multiple = true;
+    i.onchange = async () => { const fs = [...i.files], tools = fs.filter(f => /\.(sut|zip)$/i.test(f.name)); if (tools.length) await importTools(tools); for (const f of fs) if (!tools.includes(f)) await importAnyFile(f); }; i.click(); });
   mk('copy', 'Duplicate this sub tool', duplicateBrush);
   mk('trash', 'Delete this sub tool (imported / duplicated only)', deleteBrush);
-  const hintEl = document.createElement('span'); hintEl.textContent = 'Drop a .sut file here'; bar.appendChild(hintEl);
+  const hintEl = document.createElement('span'); hintEl.textContent = 'Drop .sut tools / a folder here'; bar.appendChild(hintEl);
   list.after(bar);
   const sec = list.closest('.pal');
   sec.addEventListener('dragover', e => { e.preventDefault(); sec.classList.add('dropfile'); });
   sec.addEventListener('dragleave', () => sec.classList.remove('dropfile'));
-  sec.addEventListener('drop', e => { e.preventDefault(); sec.classList.remove('dropfile'); for (const f of e.dataTransfer.files) importAnyFile(f); });
+  sec.addEventListener('drop', async e => { e.preventDefault(); sec.classList.remove('dropfile'); const fs = await droppedFiles(e.dataTransfer), tools = fs.filter(f => /\.(sut|zip)$/i.test(f.name));
+    if (tools.length) await importTools(tools); for (const f of fs) if (!tools.includes(f) && /^image\//.test(f.type)) await importAnyFile(f); });
 }

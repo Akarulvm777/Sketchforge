@@ -199,7 +199,7 @@ async function libInstall(r) {
     toast('Downloading ' + r.name + '…');
     const res = await fetch(SB().publicUrl('shared', r.file_path)); if (!res.ok) throw new Error('download failed');
     const file = new File([await res.blob()], r.file_name);
-    if (r.kind === 'brush') { const n = await importSut(file); toast(`Added ${n} brush${n > 1 ? 'es' : ''} — see the Sub tool panel`); }
+    if (r.kind === 'brush') await importTools([file]);
     else { await cpRestore(JSON.parse(await file.text())); toast('Theme applied ✓ (🎨 Custom P to change it)'); }
     SB().rpc('count_download', { item: r.id }).catch(() => {});
   } catch (e) { toast('Could not add it: ' + e.message, 5000); }
