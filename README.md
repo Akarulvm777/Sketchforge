@@ -208,6 +208,10 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - New effects in the Filter menu: glow, drop shadow, outline (border), bloom, extract line art (trace a photo), emboss, halftone dots, oil paint, vignette, chromatic aberration, glitch, twirl, pinch / bulge, wave / ripple, grayscale, sepia.
 - Every filter and effect now shows the result live on the canvas while you move the sliders.
 
+## 2.8: learn to rig with a fox
+- Help › Tutorials › 🦊 Rig the fox: a practice file with a fox (art by bluegi), every body part on its own layer. Step by step: put the parts together, link them with bones, place the joints, pose, animate with keyframes and tweens, play. Each step has a "Show me" button.
+- A 1-minute video of the same steps, in Help › ▶ Video: rig a character and on the website.
+
 ## 2.8: new 3D characters (VRoid)
 - The 3D panel's man and woman are new VRoid characters with a full skeleton: every finger and better bending at the shoulders, elbows, knees and hips. Models by bluegi.
 - They are grey mannequins by default, with the eyes and brows still visible. 3D panel › Colours › Original colours shows their colours.
