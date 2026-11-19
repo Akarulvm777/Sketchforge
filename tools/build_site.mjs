@@ -46,7 +46,7 @@ const changes = readme.split(/\n(?=## )/).filter(sec => sec.startsWith(`## ${mm}
 const notes = changes.map(c => '• ' + c.title).join('\n');
 const site = ((fs.readFileSync(path.join(ROOT, 'cloud-config.js'), 'utf8').match(/"site"\s*:\s*"([^"]*)"/) || [])[1] || '').replace(/\/+$/, '');
 const version = { version: V, date: new Date().toISOString().slice(0, 10), notes, changes, files, downloads,
-  shell: { desktop: cfg.minShell || '2.4.0', android: cfg.minShell || '2.4.0', ios: '2.11.5' }, site };
+  shell: { desktop: cfg.minShell || '2.4.0', android: cfg.minShell || '2.4.0', ios: '2.11.6' }, site };
 fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify(version, null, 1));
 fs.writeFileSync(path.join(OUT, '_headers'), `/version.json
   Cache-Control: no-cache
