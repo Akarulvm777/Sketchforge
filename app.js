@@ -469,6 +469,7 @@ function mkMini(iconName, on, title, fn) {
   return b;
 }
 function renderLayers() {
+  if (typeof renderLayersPro === 'function') return renderLayersPro(); // tick boxes, folders, colours (p10wc)
   const list = $('#layerList');
   list.innerHTML = '';
   for (let i = state.layers.length - 1; i >= 0; i--) {
@@ -2733,7 +2734,7 @@ function snapshotTimeline() {
     frameCount: state.frameCount, frame: state.frame, activeId: state.activeId,
     layers: state.layers.map(l => ({
       l, name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked,
-      paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null,
+      paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null, folder: l.folder || null, tag: l.tag || null,
       cels: Array.from(l.cels.entries()).map(([k, c]) => [k, c, c._xf ? { ...c._xf } : null])
     }))
   };
@@ -2743,7 +2744,7 @@ function applyTimeline(s) {
   state.activeId = s.activeId;
   state.layers = s.layers.map(e => {
     const l = e.l;
-    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null });
+    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null, folder: e.folder || null, tag: e.tag || null });
     l.cels = new Map(e.cels.map(([k, c, xf]) => { c._xf = xf ? { ...xf } : undefined; return [k, c]; }));
     return l;
   });
@@ -3323,6 +3324,7 @@ function celURLAsync(c, cache) {
 async function buildDocObject(src, opts = {}) {
   src = src || docSource();
   const st = src.st, enc = c => celURLAsync(c, opts.cache);
+  const folderList = []; for (const l of st.layers) if (l.folder && !folderList.includes(l.folder)) folderList.push(l.folder);
   const doc = {
     format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
     frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode,
@@ -3331,6 +3333,7 @@ async function buildDocObject(src, opts = {}) {
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
       active: l.id === st.activeId,
       parent: l.parent ? st.layers.findIndex(x => x.id === l.parent) : -1,
+      tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null,
@@ -3338,6 +3341,7 @@ async function buildDocObject(src, opts = {}) {
       }))
     }))
   };
+  if (folderList.length) doc.folders = folderList.map(f => ({ name: f.name, open: f.open !== false, visible: f.visible !== false, color: f.color || null }));
   for (let i = 0; i < st.layers.length; i++) if (st.layers[i].vref) doc.layers[i].vref = await vrefSerialize(st.layers[i], opts.quiet);
   // puppet warp pins: each keyframe keeps its pins; the original drawings are stored once (shared by keys)
   const rests = new Map(), pupRests = [];
@@ -3397,6 +3401,8 @@ async function openDocumentFile(file) {
       if (ld.active) state.activeId = l.id;
     }
     doc.layers.forEach((ld, i) => { if (ld.parent >= 0 && state.layers[ld.parent] && ld.parent !== i) state.layers[i].parent = state.layers[ld.parent].id; });
+    const folders = (doc.folders || []).map(fd => (typeof newFolder === 'function' ? Object.assign(newFolder(fd.name), { open: fd.open !== false, visible: fd.visible !== false, color: fd.color || null }) : null));
+    doc.layers.forEach((ld, i) => { state.layers[i].tag = ld.tag || null; if (ld.folder >= 0 && folders[ld.folder]) state.layers[i].folder = folders[ld.folder]; });
     if (!state.layers.find(l => l.id === state.activeId)) state.activeId = state.layers[state.layers.length - 1].id;
     history.undo.length = 0; history.redo.length = 0;
     resetSelection();
@@ -7941,6 +7947,254 @@ function registerManga() {
     { id: 'shade', name: 'Shading pens', key: '', icon: 'shade', subs: shade });
 }
 
+/* ---------- Layer panel: tick boxes, folders, colour labels ----------
+   - a tick box on every layer: tick as many as you like, then act on all of them (put in a folder, colour, show /
+     hide, delete) from the bar above the list
+   - folders: l.folder = { id, name, open, visible, color } shared by its layers (they stay next to each other);
+     a folder exists while it has layers. Click ▸ to open / close, 👁 hides the whole folder, ⋯ = rename / colour /
+     ungroup / delete. Drag layers onto a folder (or onto a layer inside it) to move them in.
+   - colour labels: l.tag / folder.color, preset colours + your own (sketchforge.tagcolors.v1)
+   Saved in the .sketchforge file (layers[].folder index + doc.folders, layers[].tag) and in undo snapshots.        */
+const LSEL = new Set();          // ticked layer ids (this tab)
+let folderSeq = 1;
+const TAG_COLORS = ['#e5484d', '#f08c2e', '#f5d90a', '#46a758', '#3e8ef7', '#8e4ec6', '#e93d82', '#8b8d98'];
+const TAG_KEY = 'sketchforge.tagcolors.v1';
+const tagRecent = () => { try { return JSON.parse(localStorage.getItem(TAG_KEY) || '[]'); } catch (e) { return []; } };
+const newFolder = name => ({ id: folderSeq++, name: name || 'Folder ' + folderSeq, open: true, visible: true, color: null });
+const foldersOf = () => { const s = []; for (const l of state.layers) if (l.folder && !s.includes(l.folder)) s.push(l.folder); return s; };
+/* members of a folder stay together (at the place of the topmost one) */
+function folderNormalize() {
+  for (const f of foldersOf()) {
+    const idx = state.layers.map((l, i) => l.folder === f ? i : -1).filter(i => i >= 0);
+    if (idx[idx.length - 1] - idx[0] === idx.length - 1) continue;
+    const mem = idx.map(i => state.layers[i]), top = idx[idx.length - 1];
+    const rest = state.layers.filter(l => l.folder !== f);
+    const at = rest.indexOf(state.layers.slice(top + 1).find(l => l.folder !== f)); // first non-member above the top member
+    rest.splice(at < 0 ? rest.length : at, 0, ...mem);
+    state.layers = rest;
+  }
+}
+const ticked = () => state.layers.filter(l => LSEL.has(l.id));
+const targets = () => { const t = ticked(); return t.length ? t : [activeLayer()].filter(Boolean); };
+
+/* ---------- rendering ---------- */
+function renderLayersPro() {
+  const list = $('#layerList');
+  for (const id of [...LSEL]) if (!state.layers.some(l => l.id === id)) LSEL.delete(id);
+  folderNormalize();
+  list.innerHTML = '';
+  const done = new Set();
+  for (let i = state.layers.length - 1; i >= 0; i--) {
+    const l = state.layers[i], f = l.folder;
+    if (f && !done.has(f)) { done.add(f); list.appendChild(folderRow(f)); }
+    if (f && !f.open) continue;
+    list.appendChild(layerRow(l, !!f));
+  }
+  renderSelBar();
+}
+function mkTick(on, title, fn) {
+  const b = document.createElement('input'); b.type = 'checkbox'; b.className = 'ltick'; b.checked = on; b.title = title;
+  b.onclick = e => e.stopPropagation(); b.onchange = () => fn(b.checked);
+  return b;
+}
+function layerRow(l, inFolder) {
+  const item = document.createElement('div');
+  item.className = 'layer-item' + (l.id === state.activeId ? ' active' : '') + (inFolder ? ' infolder' : '') + (LSEL.has(l.id) ? ' ticked' : '');
+  item.dataset.lid = l.id;
+  if (l.tag) item.style.setProperty('--tag', l.tag);
+  if (inFolder && l.folder.color) item.style.setProperty('--ftag', l.folder.color);
+  const th = Math.max(16, Math.min(48, Math.round(40 * state.h / state.w)));
+  const thumb = makeCanvas(40, th); thumb.className = 'thumb';
+  if (l.canvas) thumb.getContext('2d').drawImage(l.canvas, 0, 0, thumb.width, thumb.height);
+  const name = document.createElement('span'); name.className = 'name';
+  const meta = document.createElement('small');
+  meta.textContent = Math.round(l.opacity * 100) + ' %  ' + (l.blend === 'normal' ? 'Normal' : l.blend) + layerFlags(l);
+  const nm2 = document.createElement('span'); nm2.textContent = l.name;
+  name.append(meta, nm2);
+  name.ondblclick = ev => { ev.stopPropagation(); renameLayer(l); };
+  item.append(
+    mkTick(LSEL.has(l.id), 'Tick to select several layers', on => { on ? LSEL.add(l.id) : LSEL.delete(l.id); renderLayers(); }),
+    mkMini('eye', l.visible, 'Show / hide', () => toggleVisible(l)),
+    thumb, name,
+    mkMini('lock', l.locked, 'Lock / unlock', () => toggleLock(l)));
+  item.onclick = e => { if (e.shiftKey || e.ctrlKey || e.metaKey) { LSEL.has(l.id) ? LSEL.delete(l.id) : LSEL.add(l.id); renderLayers(); return; } selectLayer(l.id); };
+  item.oncontextmenu = e => { e.preventDefault(); if (!LSEL.has(l.id)) selectLayer(l.id); layerMenu(e.clientX, e.clientY, l); };
+  dragRow(item, () => (LSEL.has(l.id) ? ticked() : [l]), l);
+  return item;
+}
+function folderRow(f) {
+  const mem = state.layers.filter(l => l.folder === f);
+  const row = document.createElement('div');
+  row.className = 'layer-folder' + (mem.some(l => l.id === state.activeId) ? ' hasactive' : '');
+  if (f.color) row.style.setProperty('--ftag', f.color);
+  const all = mem.every(l => LSEL.has(l.id));
+  const arrow = document.createElement('button'); arrow.className = 'mini farrow'; arrow.textContent = f.open ? '▾' : '▸'; arrow.title = f.open ? 'Close folder' : 'Open folder';
+  arrow.onclick = e => { e.stopPropagation(); f.open = !f.open; renderLayers(); };
+  const name = document.createElement('span'); name.className = 'name';
+  name.innerHTML = `<span class="ficon">📁</span> <b></b> <small>${mem.length}</small>`; name.querySelector('b').textContent = f.name;
+  name.ondblclick = e => { e.stopPropagation(); renameFolder(f); };
+  const more = document.createElement('button'); more.className = 'mini'; more.textContent = '⋯'; more.title = 'Folder options';
+  more.onclick = e => { e.stopPropagation(); const r = more.getBoundingClientRect(); folderMenu(r.left, r.bottom, f); };
+  row.append(
+    mkTick(all, 'Tick every layer in this folder', on => { for (const l of mem) on ? LSEL.add(l.id) : LSEL.delete(l.id); renderLayers(); }),
+    arrow, mkMini('eye', f.visible !== false, 'Show / hide the folder', () => folderVisible(f, f.visible === false)), name, more);
+  row.onclick = () => { f.open = !f.open; renderLayers(); };
+  row.oncontextmenu = e => { e.preventDefault(); folderMenu(e.clientX, e.clientY, f); };
+  dropTarget(row, f, null);
+  return row;
+}
+/* the bar above the list when layers are ticked */
+function renderSelBar() {
+  let bar = $('#layerSelBar');
+  if (!bar) { bar = document.createElement('div'); bar.id = 'layerSelBar'; $('#layerList').before(bar); }
+  const n = ticked().length;
+  bar.hidden = !n;
+  if (!n) return;
+  bar.innerHTML = `<b>${n} ticked</b><button data-a="folder" title="Put them in a new folder">📁 Folder</button><button data-a="move" title="Move them into a folder">➜ Move to…</button><button data-a="color" title="Colour label">🎨</button><button data-a="eye" title="Show / hide">👁</button><button data-a="del" title="Delete">🗑</button><button data-a="clear" title="Untick all">✕</button>`;
+  bar.querySelector('[data-a=folder]').onclick = () => groupIntoFolder();
+  bar.querySelector('[data-a=move]').onclick = e => { const r = e.target.getBoundingClientRect(); moveToFolderMenu(r.left, r.bottom, ticked()); };
+  bar.querySelector('[data-a=color]').onclick = e => { const r = e.target.getBoundingClientRect(); colorPicker(r.left, r.bottom, ticked(), null); };
+  bar.querySelector('[data-a=eye]').onclick = () => { const t = ticked(), show = t.some(l => !l.visible); t.forEach(l => { l.visible = show; }); markDirty(); refreshStage(); renderLayers(); renderTimeline(); updateOnion(); };
+  bar.querySelector('[data-a=del]').onclick = () => deleteLayers(ticked());
+  bar.querySelector('[data-a=clear]').onclick = () => { LSEL.clear(); renderLayers(); };
+}
+
+/* ---------- actions ---------- */
+function groupIntoFolder(list) {
+  list = (list || targets()).filter(l => !l.paper || state.layers.length > 1);
+  if (!list.length) return;
+  timelineOp(() => {
+    const f = newFolder(); f.name = 'Folder ' + (foldersOf().length + 1);
+    const top = Math.max(...list.map(l => state.layers.indexOf(l)));
+    const ordered = state.layers.filter(l => list.includes(l));
+    const rest = state.layers.filter(l => !list.includes(l)), anchor = state.layers.slice(top + 1).find(l => !list.includes(l));
+    const at = anchor ? rest.indexOf(anchor) : rest.length;
+    rest.splice(at, 0, ...ordered); state.layers = rest;
+    for (const l of ordered) l.folder = f;
+  });
+  LSEL.clear(); renderLayers();
+  toast('Folder made. Double-click its name to rename it.');
+}
+function moveIntoFolder(list, f, above) {
+  if (!list.length) return;
+  timelineOp(() => {
+    const rest = state.layers.filter(l => !list.includes(l)), ordered = state.layers.filter(l => list.includes(l));
+    let at;
+    if (above) at = rest.indexOf(above) + 1;
+    else if (f) { const mem = rest.filter(l => l.folder === f); at = mem.length ? rest.indexOf(mem[mem.length - 1]) + 1 : rest.length; }
+    else at = rest.length;
+    rest.splice(at, 0, ...ordered); state.layers = rest;
+    for (const l of ordered) l.folder = f || null;
+  });
+  renderLayers();
+}
+function ungroup(f) { timelineOp(() => { for (const l of state.layers) if (l.folder === f) l.folder = null; }); }
+function deleteLayers(list) {
+  if (!list.length) return;
+  if (list.length >= state.layers.length) { toast('A document needs at least one layer'); return; }
+  timelineOp(() => { for (const l of list) removeLayerObj(l); });
+  LSEL.clear(); renderLayers();
+}
+function folderVisible(f, show) {
+  f.visible = show;
+  for (const l of state.layers) if (l.folder === f) { if (!show) { l._fv = l.visible; l.visible = false; } else { l.visible = l._fv !== undefined ? l._fv : true; delete l._fv; } }
+  markDirty(); refreshStage(); renderLayers(); renderTimeline(); updateOnion();
+}
+function renameFolder(f) { askText('Folder name', f.name, v => { if (v) { f.name = v.slice(0, 40); markDirty(); renderLayers(); } }); }
+function setTag(list, folder, color) {
+  if (folder) folder.color = color; else for (const l of list) l.tag = color;
+  if (color && !TAG_COLORS.includes(color)) { const r = [color, ...tagRecent().filter(c => c !== color)].slice(0, 8); try { localStorage.setItem(TAG_KEY, JSON.stringify(r)); } catch (e) { /* ignore */ } }
+  markDirty(); renderLayers(); renderTimeline();
+}
+
+/* ---------- small popups ---------- */
+function popMenu(x, y, items) {
+  document.querySelectorAll('.lpop').forEach(p => p.remove());
+  const m = document.createElement('div'); m.className = 'lpop';
+  for (const it of items) {
+    if (it === '-') { m.appendChild(document.createElement('hr')); continue; }
+    const b = document.createElement('button'); b.textContent = it[0]; if (it[2]) b.disabled = true;
+    b.onclick = e => { e.stopPropagation(); m.remove(); it[1](b); }; m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px'; m.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
+  return m;
+}
+function layerMenu(x, y, l) {
+  const list = LSEL.has(l.id) ? ticked() : [l], many = list.length > 1;
+  popMenu(x, y, [
+    [many ? `🎨 Colour label (${list.length} layers)…` : '🎨 Colour label…', () => colorPicker(x, y, list, null)],
+    ['📁 Put in a new folder', () => groupIntoFolder(list)],
+    ['➜ Move to folder…', () => moveToFolderMenu(x, y, list)],
+    ['Take out of the folder', () => moveIntoFolder(list, null, list[0].folder ? state.layers.filter(m => m.folder === list[0].folder).pop() : null), !list.some(m => m.folder)],
+    '-', ['Rename…', () => renameLayer(l), many], ['Delete', () => deleteLayers(list)]
+  ]);
+}
+function folderMenu(x, y, f) {
+  popMenu(x, y, [
+    ['Rename…', () => renameFolder(f)], ['🎨 Folder colour…', () => colorPicker(x, y, [], f)],
+    [f.open ? 'Close' : 'Open', () => { f.open = !f.open; renderLayers(); }],
+    ['Tick all its layers', () => { for (const l of state.layers) if (l.folder === f) LSEL.add(l.id); renderLayers(); }],
+    '-', ['Ungroup (keep the layers)', () => ungroup(f)], ['Delete folder and its layers', () => deleteLayers(state.layers.filter(l => l.folder === f))]
+  ]);
+}
+function moveToFolderMenu(x, y, list) {
+  const fs = foldersOf();
+  popMenu(x, y, [...fs.map(f => ['📁 ' + f.name, () => moveIntoFolder(list, f)]), ...(fs.length ? ['-'] : []), ['📁 New folder', () => groupIntoFolder(list)], ['No folder', () => moveIntoFolder(list, null, list[0].folder ? state.layers.filter(m => m.folder === list[0].folder).pop() : null)]]);
+}
+function colorPicker(x, y, list, folder) {
+  document.querySelectorAll('.lpop').forEach(p => p.remove());
+  const m = document.createElement('div'); m.className = 'lpop lcolors';
+  const cur = folder ? folder.color : (list[0] && list[0].tag);
+  const sw = (c, title) => `<button class="lsw${c === cur ? ' on' : ''}" data-c="${c || ''}" title="${title || c}" style="${c ? 'background:' + c : ''}">${c ? '' : '⦸'}</button>`;
+  m.innerHTML = `<div class="small muted">${folder ? 'Folder colour' : 'Colour label'}</div><div class="lswrow">${sw(null, 'No colour')}${TAG_COLORS.map(c => sw(c)).join('')}</div>
+    ${tagRecent().length ? `<div class="small muted">Your colours</div><div class="lswrow">${tagRecent().map(c => sw(c)).join('')}</div>` : ''}
+    <label class="lcustom small">Your own colour <input type="color" value="${cur || '#3e8ef7'}"></label>`;
+  document.body.appendChild(m);
+  m.querySelectorAll('.lsw').forEach(b => b.onclick = () => { setTag(list, folder, b.dataset.c || null); m.remove(); });
+  m.querySelector('input[type=color]').onchange = e => { setTag(list, folder, e.target.value); m.remove(); };
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px'; m.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('pointerdown', off, true); } }, true), 0);
+}
+
+/* ---------- drag layers into folders / between layers ---------- */
+let dragList = null;
+function dragRow(item, getList, l) {
+  item.draggable = true;
+  item.addEventListener('dragstart', e => { dragList = getList(); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/x-sf-layer', String(l.id)); item.classList.add('dragging'); });
+  item.addEventListener('dragend', () => { dragList = null; item.classList.remove('dragging'); document.querySelectorAll('.dropover').forEach(x => x.classList.remove('dropover')); });
+  dropTarget(item, null, l);
+}
+function dropTarget(el, f, above) {
+  el.addEventListener('dragover', e => { if (!dragList) return; e.preventDefault(); el.classList.add('dropover'); });
+  el.addEventListener('dragleave', () => el.classList.remove('dropover'));
+  el.addEventListener('drop', e => {
+    if (!dragList) return; e.preventDefault(); el.classList.remove('dropover');
+    const list = dragList.filter(x => x !== above); dragList = null;
+    if (f) moveIntoFolder(list, f); else if (above) moveIntoFolder(list, above.folder || null, above);
+  });
+}
+
+function installLayersPro() {
+  Object.assign(CMD, {
+    layerFolder: () => groupIntoFolder(),
+    layerTag: () => { const r = $('#layerList').getBoundingClientRect(); colorPicker(r.left, r.top, targets(), null); },
+    layerTickAll: () => { state.layers.forEach(l => LSEL.add(l.id)); renderLayers(); },
+    layerTickNone: () => { LSEL.clear(); renderLayers(); }
+  });
+  const LY = MENUS.find(m => m[0] === 'Layer')[1];
+  LY.splice(LY.findIndex(x => Array.isArray(x) && x[1] === 'layerDel') + 1, 0, '-', ['📁 New folder from ticked / this layer', 'layerFolder'], ['🎨 Colour label…', 'layerTag'],
+    ['Tick all layers', 'layerTickAll'], ['Untick all layers', 'layerTickNone']);
+  IC.folder = '<path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2h9a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/>';
+  const tb = document.querySelector('button[data-cmd="layerDup"][data-ic]'); // the panel button, not the menu item
+  if (tb && !document.querySelector('button[data-cmd="layerFolder"][data-ic]')) {
+    const b = document.createElement('button'); b.dataset.cmd = 'layerFolder'; b.dataset.ic = 'folder'; b.title = 'New folder (from the ticked layers or this layer)'; b.innerHTML = icon('folder'); tb.after(b);
+  }
+}
+
 /* ---------- Bone tool: rig a character by clicking ----------
    Its own tool group (after the Shading pens), two sub tools:
    - Bone: link parts. Click a part (the child), then click the part it should follow (the parent): they are linked and
@@ -10270,6 +10524,7 @@ function installTutorials() {
    open the tutorial at the right step). English and French words are understood. It never draws for anyone:
    asked why, it says "AI is not supposed to steal your job." */
 const HELP_TIPS = [
+  { q: 'layer folder group organise tick select several layers many checkbox colour label color layer folder', t: 'Folders, tick boxes and colours', x: 'Tick the box on several layers, then 📁 Folder in the bar above the list. Right-click a layer for a colour label (or your own colour). Drag layers onto a folder to move them in; ▸ opens / closes it, its eye hides all of it.', a: [['cmd', 'layerFolder', 'New folder'], ['cmd', 'layerTag', 'Colour label…']] },
   { q: 'bone tool rig link parent joint click part follow skeleton easy rig', t: 'Bone tool (easy rig)', x: '🦴 Bone tool (after the Shading pens): click a part, then the part it follows. The joint goes where they touch; drag a dot to move it. Sub tool Bone: pose turns parts around their joints.', a: [['cmd', 'boneTool', 'Bone tool'], ['cmd', 'tut_fox', 'Practice with the fox']] },
   { q: 'rig rigging bones character cut out animate parts joints tutorial fox practice video learn', t: 'Learn to rig (fox practice)', x: 'Help › Tutorials › 🦊 Rig the fox: a practice character with every part on its own layer, step by step with "Show me" buttons. There is also a 1-minute video.', a: [['cmd', 'tut_fox', 'Start the fox tutorial'], ['cmd', 'foxVideo', 'Watch the video']] },
   { q: 'pose 3d model canvas click body part move arm leg hand drag pose directly', t: 'Pose the 3D model on the canvas', x: '3D panel › ✋ Pose on canvas, then drag any body part of the big model: Move pulls it (the arm or leg follows), Rotate turns the joint. Done goes back to drawing.', a: [['cmd', 'show3d', 'Open the 3D model']] },
@@ -11491,7 +11746,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installFoxRig(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installLayersPro(); installFoxRig(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

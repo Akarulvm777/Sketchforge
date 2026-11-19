@@ -216,6 +216,7 @@ function mkMini(iconName, on, title, fn) {
   return b;
 }
 function renderLayers() {
+  if (typeof renderLayersPro === 'function') return renderLayersPro(); // tick boxes, folders, colours (p10wc)
   const list = $('#layerList');
   list.innerHTML = '';
   for (let i = state.layers.length - 1; i >= 0; i--) {

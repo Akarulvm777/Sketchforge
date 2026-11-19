@@ -4,7 +4,7 @@ function snapshotTimeline() {
     frameCount: state.frameCount, frame: state.frame, activeId: state.activeId,
     layers: state.layers.map(l => ({
       l, name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked,
-      paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null,
+      paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null, folder: l.folder || null, tag: l.tag || null,
       cels: Array.from(l.cels.entries()).map(([k, c]) => [k, c, c._xf ? { ...c._xf } : null])
     }))
   };
@@ -14,7 +14,7 @@ function applyTimeline(s) {
   state.activeId = s.activeId;
   state.layers = s.layers.map(e => {
     const l = e.l;
-    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null });
+    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null, folder: e.folder || null, tag: e.tag || null });
     l.cels = new Map(e.cels.map(([k, c, xf]) => { c._xf = xf ? { ...xf } : undefined; return [k, c]; }));
     return l;
   });

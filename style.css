@@ -877,3 +877,31 @@ dialog.fxdlg::backdrop { background: transparent; backdrop-filter: none; -webkit
 #m3dPoseBar button.on { background: var(--accent, #d0884f); color: #fff; }
 #m3dPoseCanvas.on { outline: 2px solid #fff; }
 #m3dPoseBar[hidden] { display: none; }
+/* layer panel: tick boxes, folders, colour labels (p10wc) */
+.layer-item { position: relative; }
+.layer-item .ltick, .layer-folder .ltick { margin: 0 1px 0 0; width: 15px; height: 15px; flex: 0 0 15px; accent-color: var(--accent, #d0884f); cursor: pointer; }
+.layer-item[style*="--tag"] { box-shadow: inset 4px 0 0 var(--tag); }
+.layer-item.infolder { margin-left: 14px; border-left: 3px solid var(--ftag, #5a5d63); }
+.layer-item.ticked:not(.active) { background: #3a3f48; }
+.layer-folder { display: flex; align-items: center; gap: 5px; padding: 4px; border: 1px solid #000; background: #2c2f34; cursor: pointer; box-shadow: inset 4px 0 0 var(--ftag, transparent); }
+.layer-folder.hasactive { border-color: #6b7d95; }
+.layer-folder .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-folder .name small { opacity: .6; margin-left: 2px; }
+.layer-folder .farrow { width: 18px; padding: 0; }
+.layer-item.dragging { opacity: .45; }
+.layer-item.dropover { outline: 2px dashed var(--accent, #d0884f); outline-offset: -2px; }
+.layer-folder.dropover { outline: 2px dashed var(--accent, #d0884f); outline-offset: -2px; background: #3a3424; }
+#layerSelBar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 6px; background: #33302a; border: 1px solid #000; font-size: 12px; }
+#layerSelBar[hidden] { display: none; }
+#layerSelBar b { margin-right: auto; }
+#layerSelBar button { padding: 2px 7px; min-height: 24px; }
+.lpop { position: fixed; z-index: 100000; min-width: 180px; background: #26282c; border: 1px solid #45484e; border-radius: 8px; padding: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.45); display: flex; flex-direction: column; }
+.lpop > button { text-align: left; background: transparent; border: 0; padding: 6px 10px; border-radius: 5px; }
+.lpop > button:hover:not(:disabled) { background: #3a3d43; }
+.lpop hr { border: 0; border-top: 1px solid #3a3d43; margin: 3px 0; }
+.lcolors { padding: 8px 10px; gap: 6px; min-width: 210px; }
+.lswrow { display: flex; flex-wrap: wrap; gap: 5px; }
+.lsw { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid #1b1d20; font-size: 13px; line-height: 1; }
+.lsw.on { outline: 2px solid #fff; }
+.lcustom { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.lcustom input { width: 44px; height: 26px; padding: 0; border: 0; background: none; }

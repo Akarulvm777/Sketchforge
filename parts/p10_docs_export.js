@@ -144,6 +144,7 @@ function celURLAsync(c, cache) {
 async function buildDocObject(src, opts = {}) {
   src = src || docSource();
   const st = src.st, enc = c => celURLAsync(c, opts.cache);
+  const folderList = []; for (const l of st.layers) if (l.folder && !folderList.includes(l.folder)) folderList.push(l.folder);
   const doc = {
     format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
     frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode,
@@ -152,6 +153,7 @@ async function buildDocObject(src, opts = {}) {
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
       active: l.id === st.activeId,
       parent: l.parent ? st.layers.findIndex(x => x.id === l.parent) : -1,
+      tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null,
@@ -159,6 +161,7 @@ async function buildDocObject(src, opts = {}) {
       }))
     }))
   };
+  if (folderList.length) doc.folders = folderList.map(f => ({ name: f.name, open: f.open !== false, visible: f.visible !== false, color: f.color || null }));
   for (let i = 0; i < st.layers.length; i++) if (st.layers[i].vref) doc.layers[i].vref = await vrefSerialize(st.layers[i], opts.quiet);
   // puppet warp pins: each keyframe keeps its pins; the original drawings are stored once (shared by keys)
   const rests = new Map(), pupRests = [];
@@ -218,6 +221,8 @@ async function openDocumentFile(file) {
       if (ld.active) state.activeId = l.id;
     }
     doc.layers.forEach((ld, i) => { if (ld.parent >= 0 && state.layers[ld.parent] && ld.parent !== i) state.layers[i].parent = state.layers[ld.parent].id; });
+    const folders = (doc.folders || []).map(fd => (typeof newFolder === 'function' ? Object.assign(newFolder(fd.name), { open: fd.open !== false, visible: fd.visible !== false, color: fd.color || null }) : null));
+    doc.layers.forEach((ld, i) => { state.layers[i].tag = ld.tag || null; if (ld.folder >= 0 && folders[ld.folder]) state.layers[i].folder = folders[ld.folder]; });
     if (!state.layers.find(l => l.id === state.activeId)) state.activeId = state.layers[state.layers.length - 1].id;
     history.undo.length = 0; history.redo.length = 0;
     resetSelection();
