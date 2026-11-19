@@ -144,7 +144,10 @@ jobs:
     # other downloads or the website back.
     needs: gate
     if: needs.gate.outputs.build == 'true'
-    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix: { os: [macos-15, macos-13, macos-latest, macos-15-intel] } # which macOS machines this account can use (probe)
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +180,7 @@ jobs:
           zip -qry ../../out/Sketchforge-$VER-ios-unsigned.ipa Payload
           ls -la ../../out
       - uses: actions/upload-artifact@v4
-        with: { name: ios-ipa, path: out/*.ipa, if-no-files-found: error }
+        with: { name: 'ios-ipa-${{ matrix.os }}', path: out/*.ipa, if-no-files-found: error }
       - name: Add the .ipa to the release
         if: needs.gate.outputs.release == 'true'
         env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
