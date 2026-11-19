@@ -250,6 +250,7 @@ function refreshProps() {
   body.innerHTML = '';
   const id = state.tool, k = kindOf(id);
   $('#toolName').textContent = TOOLDEF[id].name;
+  if (TOOLDEF[id].props) { TOOLDEF[id].props(body); return; } // a tool can bring its own options (Bone tool…)
   if (k === 'dragdraw') { if (id === 'liquify') liqProps(body); else proProps(body, id); return; }
   if (k === 'puppet') { puppetProps(body); return; }
   if (k === 'brush' || k === 'shape' || k === 'poly') {

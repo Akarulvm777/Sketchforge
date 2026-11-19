@@ -154,9 +154,9 @@ const TUTORIALS = [
   ] },
   { id: 'rig', cat: 'Animation & rigging', icon: '🦴', title: 'Rig a character (bones)', desc: 'Cut-out animation: arms that bend at the joints.', steps: [
     { t: 'Bone rig', x: 'Draw each body part on <b>its own layer</b>: body, upper arm, forearm, hand… Then link them so that moving the upper arm carries the forearm and hand.' },
-    { el: menuEl('Layer'), t: '1. Link the parts', x: 'Select the forearm layer, then <b>Layer › Bone rig: set parent…</b> and choose the upper arm. Do the same for hand → forearm, upper arm → body.', demo: ['Open "set parent"', () => CMD.rigParent()] },
-    { el: toolEl('move'), pre: tutGroup('move'), t: '2. Put the joints', x: 'With the Move tool, <b>Alt+drag the orange dot</b> of each part onto its joint (shoulder, elbow, wrist). Bones are drawn between the joints.' },
-    { el: '#viewport', pre: tutNoDock, t: '3. Pose', x: 'Rotate a part with the round handle: everything attached follows.' },
+    { el: toolEl('bone'), pre: tutGroup('bone'), t: '1. Link the parts', x: 'Take the <b>🦴 Bone</b> tool. <b>Click the forearm, then click the upper arm</b>: the forearm follows. Do the same for hand → forearm, upper arm → body. The joint goes where they touch.' },
+    { el: toolEl('bone'), pre: tutGroup('bone'), t: '2. Put the joints', x: 'With the Bone tool, <b>drag a dot</b> onto its joint (shoulder, elbow, wrist). Bones are drawn between the joints. Alt+click a part frees it.' },
+    { el: toolEl('bone'), pre: () => { tutGroup('bone')(); selectTool('bonepose'); }, t: '3. Pose', x: 'Sub tool <b>Bone: pose</b>: drag a part to turn it around its joint, everything attached follows.' },
     { el: '#timeline', pre: anim, t: '4. Animate', x: 'Pose on a keyframe, make another keyframe (K), change the pose, then <b>Tween</b>: the whole limb animates.' }
   ] },
   { id: 'puppet', cat: 'Animation & rigging', icon: '📌', title: 'Bend a drawing (puppet pins)', desc: 'Pins on a drawing, drag to animate it.', steps: [

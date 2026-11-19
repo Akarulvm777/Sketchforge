@@ -4,6 +4,7 @@
    open the tutorial at the right step). English and French words are understood. It never draws for anyone:
    asked why, it says "AI is not supposed to steal your job." */
 const HELP_TIPS = [
+  { q: 'bone tool rig link parent joint click part follow skeleton easy rig', t: 'Bone tool (easy rig)', x: '🦴 Bone tool (after the Shading pens): click a part, then the part it follows. The joint goes where they touch; drag a dot to move it. Sub tool Bone: pose turns parts around their joints.', a: [['cmd', 'boneTool', 'Bone tool'], ['cmd', 'tut_fox', 'Practice with the fox']] },
   { q: 'rig rigging bones character cut out animate parts joints tutorial fox practice video learn', t: 'Learn to rig (fox practice)', x: 'Help › Tutorials › 🦊 Rig the fox: a practice character with every part on its own layer, step by step with "Show me" buttons. There is also a 1-minute video.', a: [['cmd', 'tut_fox', 'Start the fox tutorial'], ['cmd', 'foxVideo', 'Watch the video']] },
   { q: 'pose 3d model canvas click body part move arm leg hand drag pose directly', t: 'Pose the 3D model on the canvas', x: '3D panel › ✋ Pose on canvas, then drag any body part of the big model: Move pulls it (the arm or leg follows), Rotate turns the joint. Done goes back to drawing.', a: [['cmd', 'show3d', 'Open the 3D model']] },
   { q: 'vrm vroid own character model load my avatar import vrm', t: 'Your own VRoid character', x: '3D panel › Load VRM… (or My VRM…): pose your own VRoid Studio character with the same poses, hands and drag tools.', a: [['cmd', 'show3d', 'Open the 3D model']] },

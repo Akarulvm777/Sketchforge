@@ -67,13 +67,13 @@ const foxTogether = () => FOX_PARTS.every(p => { const l = foxLayer(p.id), b = l
 async function foxLink() {
   await foxEnsure(); if (!foxTogether()) await foxAssemble(false);
   timelineOp(() => { for (const id in FOX_RIG) { const l = foxLayer(id), par = FOX_RIG[id].parent && foxLayer(FOX_RIG[id].parent); if (l) setLayerParent(l, par ? par.id : null); } });
-  selectTool('move'); toast('Linked: arm → shoulder → body, head → body, feet and tail → lower body');
+  selectTool('bone'); toast('Linked: arm → shoulder → body, head → body, feet and tail → lower body');
 }
 /* step 3: joints (the orange dot of each part = where it turns) */
 async function foxJoints() {
   await foxEnsure(); if (!state.layers.some(l => l.parent)) await foxLink();
   timelineOp(() => { for (const id in FOX_RIG) { const l = foxLayer(id); if (l) { l.px = FOX_RIG[id].joint[0] * FOX_K; l.py = FOX_RIG[id].joint[1] * FOX_K; } } });
-  selectTool('move'); state.activeId = foxLayer('right_shoulder').id; refreshAll(); drawOverlay();
+  selectTool('bone'); state.activeId = foxLayer('right_shoulder').id; refreshAll(); drawOverlay();
   toast('Joints placed: neck, shoulders, elbows, hips, tail base');
 }
 const foxRigged = () => FOX_PARTS.every(p => { const l = foxLayer(p.id); return l && l.px != null; });
@@ -87,7 +87,7 @@ async function foxPose() {
   await new Promise(res => { const step = () => { const k = clamp((performance.now() - t0) / 900, 0, 1);
     set('right_shoulder', 125 * k); set('right_arm', 25 * k); set('head', -8 * k); set('tail', -15 * k); refreshAll();
     if (k < 1) requestAnimationFrame(step); else res(); }; step(); });
-  state.activeId = foxLayer('right_shoulder').id; refreshAll(); drawOverlay();
+  selectTool('bonepose'); state.activeId = foxLayer('right_shoulder').id; refreshAll(); drawOverlay();
   toast('The shoulder turned and the arm came with it');
 }
 /* step 5: animate: a wave, a head bob and a tail wag, on 3 keyframes with tweens */
@@ -132,9 +132,9 @@ function installFoxRig() {
   TUTORIALS.splice(TUTORIALS.findIndex(t => t.id === 'rig') + 1, 0, { id: 'fox', cat: 'Animation & rigging', icon: '🦊', title: 'Rig the fox (practice)', desc: 'Step by step with a ready-made character: assemble, link, joints, pose, animate.', steps: [
     { el: '#layerList', pre: async () => { await foxEnsure(); tutDock('right'); }, t: '🦊 Your practice fox', x: 'A new tab opened with a fox (art by bluegi). Each body part is on <b>its own layer</b>, look at the Layer panel. That is all a cut-out rig needs.' + vtip },
     { el: toolEl('move'), pre: async () => { await foxEnsure(); tutGroup('move')(); }, t: '1. Put the parts together', x: 'With the <b>Move</b> tool (V), click a part and drag it to its place: head on top, jacket, shoulders and arms on the sides, trousers, feet, tail behind. Then <b>Layer › Bake transform</b>.', demo: ['Show me', () => foxAssemble(true)] },
-    { el: menuEl('Layer'), pre: foxEnsure, t: '2. Link the parts', x: 'Select a part, then <b>Layer › Bone rig: set parent…</b>: the <i>arm</i> follows the <i>shoulder</i>, the shoulder follows the <i>body</i>, the head follows the body, the feet and the tail follow the <i>lower body</i>.', demo: ['Show me', foxLink] },
-    { el: ['#propBody', '#viewport'], pre: async () => { await foxEnsure(); tutDock('left'); }, t: '3. Place the joints', x: 'Move tool: each part has an <b>orange dot</b>, the point it turns around. <b>Alt+drag</b> it onto the joint: neck, shoulder, elbow, hip, base of the tail. Lines (bones) join the dots.', demo: ['Show me', foxJoints] },
-    { el: ['#propBody', '#viewport'], pre: async () => { await foxEnsure(); tutDock('left'); }, t: '4. Pose', x: 'Select the shoulder and drag the <b>round handle</b> to turn it: the arm turns with it. Turn the head and the tail too.', demo: ['Show me', foxPose] },
+    { el: toolEl('bone'), pre: async () => { await foxEnsure(); tutNoDock(); selectTool('bone'); }, t: '2. Link the parts (Bone tool)', x: 'Take the <b>🦴 Bone</b> tool (after the Shading pens). <b>Click the arm, then click the shoulder</b>: the arm now follows the shoulder. Same for shoulder → body, head → body, feet and tail → lower body. The joint goes where the parts touch.', demo: ['Show me', foxLink] },
+    { el: ['#propBody', '#viewport'], pre: async () => { await foxEnsure(); tutDock('left'); }, t: '3. Place the joints', x: 'Each part has a <b>dot</b>: the point it turns around. With the Bone tool, <b>drag a dot</b> onto the joint you want: neck, shoulder, elbow, hip, base of the tail. Bones join the dots.', demo: ['Show me', foxJoints] },
+    { el: ['#propBody', '#viewport'], pre: async () => { await foxEnsure(); tutDock('left'); }, t: '4. Pose', x: 'Sub tool <b>Bone: pose</b>: drag the shoulder to turn it around its joint, the arm turns with it. Turn the head and the tail too.', demo: ['Show me', foxPose] },
     { el: '#timeline', pre: async () => { await foxEnsure(); anim(); }, t: '5. Animate', x: 'Frame 1: pose. Go to frame 9, press <b>K</b> (keyframe) and change the pose. Frame 17: the first pose again. Then <b>Create motion tween</b> on the first keyframes: every frame in between is made for you.', demo: ['Show me', foxAnimate] },
     { el: ['#btnPlay', '#timeline'], pre: foxEnsure, t: '6. Play it', x: 'Press <b>Play</b> (Enter). The fox waves, nods and wags its tail. Export it with <b>File › Export animation</b> (GIF or video).', demo: ['Play', foxPlay] }
   ] });

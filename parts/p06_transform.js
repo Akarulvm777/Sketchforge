@@ -344,6 +344,7 @@ function drawOverlay() {
   }
   drawPolyOverlay(g, S);
   drawRulers(g, S); drawDDOverlay(g, S); drawPuppet(g);
+  if (TOOLDEF[state.tool] && TOOLDEF[state.tool].overlay) TOOLDEF[state.tool].overlay(g, S); // Bone tool joints / bones
   if (state.tool === 'move' && !sel.active && !(a && a.type === 'pixmove')) {
     drawBones(g, S);
     const h = handlesOf(activeLayer());

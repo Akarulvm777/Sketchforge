@@ -293,7 +293,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installFoxRig(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installFoxRig(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
@@ -308,7 +308,7 @@ function init() {
     state, view, history, sel, CMD, M3, TL, tlIdle, TOOLDEF, GROUPS, settings, sessionSave, TUT, TUTORIALS, MENUS, get stroke() { return stroke; }, get active() { return active; },
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
-    makeZip, crc32, lzw, newDocument, layerMat, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,
+    makeZip, crc32, lzw, newDocument, layerMat, foxOpen, foxAssemble, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,
     renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, applyRuler: () => 0
   };
 }
