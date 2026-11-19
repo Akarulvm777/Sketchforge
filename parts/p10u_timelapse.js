@@ -20,7 +20,7 @@ function tlRenderCanvas() {
 }
 /* The viewport as the user sees it, plus a cursor and a small HUD with tool / size / colour / zoom / angle. */
 function tlRenderView() {
-  const vr = viewport.getBoundingClientRect();
+  const vr = vpRect();
   if (vr.width < 10 || vr.height < 10) return tlRenderCanvas();
   const k = Math.min(1, 1280 / vr.width), W = Math.max(2, Math.round(vr.width * k) & ~1), H = Math.max(2, Math.round(vr.height * k) & ~1);
   const c = makeCanvas(W, H), g = c.getContext('2d');
@@ -78,7 +78,7 @@ function tlCapture(force) {
   TL.chain = TL.chain.then(async () => {
     try {
       await idle(); // let drawing go first
-      for (let i = 0; i < 40 && (stroke || active); i++) await new Promise(r => setTimeout(r, 150));
+      for (let i = 0; i < 60 && (stroke || active || !inputQuiet(700)); i++) await new Promise(r => setTimeout(r, 150)); // never between two quick strokes
       if (gen !== TL.gen) return; // a new / other file was opened meanwhile
       const c = TL.mode === 'screen' ? tlRenderScreen() : TL.mode === 'view' ? tlRenderView() : tlRenderCanvas();
       const b = await canvasToBlob(c, 'image/jpeg');
@@ -239,7 +239,7 @@ function installTimelapse() {
   b.innerHTML = '<span class="lbl"></span><span class="caret">▾</span>';
   b.onclick = e => { if (e.target.classList.contains('caret')) openTimelapse(); else CMD.tlToggle(); };
   $('#cmdbar').insertBefore(b, $('#pageBar') || null);
-  viewport.addEventListener('pointermove', e => { const r = viewport.getBoundingClientRect(); TL.cursor = { x: e.clientX - r.left, y: e.clientY - r.top }; }, { passive: true });
+  viewport.addEventListener('pointermove', e => { const r = vpRect(); TL.cursor = { x: e.clientX - r.left, y: e.clientY - r.top }; }, { passive: true });
   viewport.addEventListener('pointerleave', () => { TL.cursor = null; });
   tlUpdateBtn(); buildMenus();
   setTimeout(() => tlCapture(true), 500);

@@ -162,6 +162,8 @@ function paintTip(ctx, st, cx, cy, d) {
     if (s.tipThick && s.tipThick !== 1) ctx.scale(1, s.tipThick);
     ctx.drawImage(tip, -d / 2, -d / 2, d, d);
     ctx.restore();
+  } else if (s.hardness >= 0.97 && !s.nib && !(s.nibRatio < 1)) { // plain round pen: no save / restore per dab
+    ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(cx, cy, d / 2, 0, Math.PI * 2); ctx.fill();
   } else if (s.hardness >= 0.97) {
     ctx.save();
     ctx.fillStyle = ink;
@@ -330,7 +332,7 @@ function texTemp(sz) {
 }
 function drawOne(st, x, y, d, a) {
   const s = st.s, ctx = st.ctx;
-  if (!s.tex || st.tex) { ctx.save(); ctx.globalAlpha = a; paintTip(ctx, st, x, y, d); ctx.restore(); return; } // st.tex: texture is applied to the whole stroke (texSync)
+  if (!s.tex || st.tex) { const ga = ctx.globalAlpha; ctx.globalAlpha = a; paintTip(ctx, st, x, y, d); ctx.globalAlpha = ga; return; } // st.tex: texture is applied to the whole stroke (texSync)
   const sz = Math.ceil(d) + 6, tc = texTemp(sz), tg = tc.getContext('2d');
   const ox = Math.round(x - sz / 2), oy = Math.round(y - sz / 2);
   tg.setTransform(1, 0, 0, 1, 0, 0);
@@ -412,9 +414,13 @@ function applyWet(st, b) {
   const level = st.s.wet;
   const reg = makeCanvas(b.w, b.h);
   reg.getContext('2d').drawImage(bufCanvas, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
-  const bl = makeCanvas(b.w, b.h);
-  bl.getContext('2d').drawImage(reg, 0, 0);
-  gaussianBlur(bl, Math.max(1.5, st.s.size * 0.09));
+  // the edge only needs a soft copy of the stroke: blur a smaller copy (blurring big strokes at full size froze iPads)
+  const sig = Math.max(1.5, st.s.size * 0.09), f = clamp(sig / 1.5, 1, 8);
+  const sw = Math.max(1, Math.round(b.w / f)), sh = Math.max(1, Math.round(b.h / f)), small = makeCanvas(sw, sh), sg = small.getContext('2d');
+  sg.imageSmoothingQuality = 'high'; sg.drawImage(reg, 0, 0, sw, sh);
+  gaussianBlur(small, sig / f);
+  const bl = makeCanvas(b.w, b.h), blg = bl.getContext('2d');
+  blg.imageSmoothingQuality = 'high'; blg.drawImage(small, 0, 0, b.w, b.h);
   const rg = reg.getContext('2d'), im = rg.getImageData(0, 0, b.w, b.h), d = im.data;
   const bd = bl.getContext('2d').getImageData(0, 0, b.w, b.h).data;
   for (let i = 3; i < d.length; i += 4) {
@@ -448,9 +454,9 @@ function clipSync(clip, b) {
   bufCtx.beginPath(); bufCtx.rect(b.x, b.y, b.w, b.h); bufCtx.clip();
   bufCtx.globalCompositeOperation = 'source-over';
   bufCtx.clearRect(b.x, b.y, b.w, b.h);
-  bufCtx.drawImage(rawCanvas, 0, 0);
+  bufCtx.drawImage(rawCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   bufCtx.globalCompositeOperation = 'destination-in';
-  bufCtx.drawImage(clip, 0, 0);
+  bufCtx.drawImage(clip, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   bufCtx.restore();
 }
 /* Eraser: rebuild region b from the pre-stroke snapshot, minus the stroke. */
@@ -461,22 +467,22 @@ function eraseRegion(st, b) {
   g.globalCompositeOperation = 'source-over';
   g.globalAlpha = 1;
   g.clearRect(b.x, b.y, b.w, b.h);
-  g.drawImage(snapCanvas, 0, 0);
+  g.drawImage(snapCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   let src = bufCanvas;
   if (st.clip) {
     tmpCtx.save();
     tmpCtx.beginPath(); tmpCtx.rect(b.x, b.y, b.w, b.h); tmpCtx.clip();
     tmpCtx.globalCompositeOperation = 'source-over';
     tmpCtx.clearRect(b.x, b.y, b.w, b.h);
-    tmpCtx.drawImage(bufCanvas, 0, 0);
+    tmpCtx.drawImage(bufCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
     tmpCtx.globalCompositeOperation = 'destination-in';
-    tmpCtx.drawImage(st.clip, 0, 0);
+    tmpCtx.drawImage(st.clip, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
     tmpCtx.restore();
     src = tmpCanvas;
   }
   g.globalCompositeOperation = 'destination-out';
   g.globalAlpha = st.s.opacity;
-  g.drawImage(src, 0, 0);
+  g.drawImage(src, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   g.restore();
 }
 function afterMove(st) {
@@ -502,10 +508,10 @@ function texSync(st, b) {
   bufCtx.beginPath(); bufCtx.rect(b.x, b.y, b.w, b.h); bufCtx.clip();
   bufCtx.globalCompositeOperation = 'source-over';
   bufCtx.clearRect(b.x, b.y, b.w, b.h);
-  bufCtx.drawImage(rawCanvas, 0, 0);
+  bufCtx.drawImage(rawCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   bufCtx.globalCompositeOperation = 'destination-in';
   bufCtx.fillStyle = st.texPat; bufCtx.fillRect(b.x, b.y, b.w, b.h);
-  if (st.clip && !st.erase) bufCtx.drawImage(st.clip, 0, 0);
+  if (st.clip && !st.erase) bufCtx.drawImage(st.clip, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
   bufCtx.restore();
 }
 
@@ -607,10 +613,12 @@ function beginStroke(e) {
   const d0 = rulerApply(rlock, toDoc(e));
   const [x0, y0] = lm.map(d0.x, d0.y);
   const pr = pressureOf(e);
-  snapCtx.globalCompositeOperation = 'copy'; snapCtx.drawImage(t.cel, 0, 0); snapCtx.globalCompositeOperation = 'source-over'; // one pass, no separate clear
   const isShape = def.kind === 'shape';
   const erase = !!def.erase;
   const direct = TOOLDEF[tool].preset && TOOLDEF[tool].preset.smudge != null;
+  // a copy of the whole picture is only needed when the stroke changes the layer while drawing (eraser, blend / mixing);
+  // normal strokes draw into the buffer and keep "before" from the stroke's area only (copying 12+ MP per stroke lagged)
+  if (erase || direct) { snapCtx.globalCompositeOperation = 'copy'; snapCtx.drawImage(t.cel, 0, 0); snapCtx.globalCompositeOperation = 'source-over'; }
   const clip = (sel.active && lm.ident && !direct) ? sel.mask : null;
   const s = { ...curSettings() };
   if (typeof paperGrain === 'function') paperGrain(s, erase, direct, isShape); // the paper's grain for brushes without a texture
@@ -778,6 +786,7 @@ function endStroke(cancel) {
   if (st.direct) { finishDirect(st, b); return; }
   if (!st.erase && !st.isShape) applyAA(st.s.aa, b);
   if (st.s.wet && !st.erase && !st.isShape) applyWet(st, b);
+  const beforeNormal = st.erase ? null : crop(t.cel, b); // the stroke's area before it is committed
   if (!st.erase) {
     t.ctx.save();
     t.ctx.globalAlpha = st.s.opacity;
@@ -789,7 +798,7 @@ function endStroke(cancel) {
   }
   clearBuffers(st);
 
-  const before = crop(snapCanvas, b);
+  const before = beforeNormal || crop(snapCanvas, b);
   const after = crop(t.cel, b);
   pushHistory(celEntry(t, b, before, after));
   afterEdit();

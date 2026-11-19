@@ -2,13 +2,18 @@
 const pointers = new Map();
 let pinch = null, spaceDown = false;
 
-function vpXY(e) { const r = viewport.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+let _stPos = null;
+function statusPosAt(e) {
+  const first = !_stPos; _stPos = [e.clientX, e.clientY];
+  if (first) requestAnimationFrame(() => { const r = vpRect(), dd = screenToDoc(_stPos[0] - r.left, _stPos[1] - r.top); _stPos = null; $('#statusPos').textContent = `${Math.floor(dd.x)}, ${Math.floor(dd.y)}`; });
+}
+function vpXY(e) { const r = vpRect(); return [e.clientX - r.left, e.clientY - r.top]; }
 function startPan(e) {
   active = { type: 'pan', sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
 }
 function pinchStart() {
   const [a, b] = Array.from(pointers.values());
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top;
   pinch = {
     d: Math.hypot(a.x - b.x, a.y - b.y) || 1, ang: Math.atan2(b.y - a.y, b.x - a.x),
@@ -17,7 +22,7 @@ function pinchStart() {
 }
 function pinchMove() {
   const [a, b] = Array.from(pointers.values());
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top;
   view.scale = clamp(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.d), 0.05, 32);
   view.rot = ((pinch.rot + (Math.atan2(b.y - a.y, b.x - a.x) - pinch.ang) / DEG * (view.flip ? -1 : 1) + 540) % 360) - 180;
@@ -26,6 +31,7 @@ function pinchMove() {
 }
 
 viewport.addEventListener('pointerdown', e => {
+  lastInputAt = performance.now();
   if (playing) stop();
   try { viewport.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
@@ -82,6 +88,7 @@ function pickAt(e) {
   if (e.altKey) { state.color2 = c; syncColorUI(); } else setColor(c);
 }
 viewport.addEventListener('pointermove', e => {
+  if (e.buttons) lastInputAt = performance.now();
   const p = pointers.get(e.pointerId);
   if (p) { p.x = e.clientX; p.y = e.clientY; }
   /* cursor ring + status */
@@ -91,8 +98,7 @@ viewport.addEventListener('pointermove', e => {
     const d = parseFloat(cursorEl.style.width) || 10;
     cursorEl.style.transform = `translate(${vx - d / 2}px,${vy - d / 2}px)`;
   } else cursorEl.style.display = 'none';
-  const dd = toDoc(e);
-  $('#statusPos').textContent = `${Math.floor(dd.x)}, ${Math.floor(dd.y)}`;
+  statusPosAt(e); // once per frame (a text change before measuring forced a layout on every pen event)
   if (pinch && pointers.size === 2) { pinchMove(); return; }
   if (stroke) { if (e.pointerId === stroke.pointerId) moveStroke(e); return; }
   const a = active;

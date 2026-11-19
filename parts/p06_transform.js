@@ -1,7 +1,7 @@
 /* ---------- overlay canvas (screen space) ---------- */
 const ovl = overlay;
 function resizeOverlay() {
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const dpr = window.devicePixelRatio || 1;
   ovl.width = Math.max(1, Math.round(r.width * dpr));
   ovl.height = Math.max(1, Math.round(r.height * dpr));
@@ -67,7 +67,7 @@ function hitHandle(e) {
   const layer = activeLayer();
   const h = handlesOf(layer);
   if (!h) return null;
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const X = e.clientX - r.left, Y = e.clientY - r.top;
   const near = (p, rad = 10) => Math.hypot(p[0] - X, p[1] - Y) <= rad;
   if (e.altKey && near(h.pv, 14)) return 'pivot';
@@ -90,7 +90,7 @@ function moveDown(e) {
   if (!cel) return;
   const x = ensureXf(cel);
   const h = handlesOf(layer);
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const sx0 = e.clientX - r.left, sy0 = e.clientY - r.top;
   active = {
     type: 'xf', mode: hit || 'move', layer, cel, x, before,
@@ -103,7 +103,7 @@ function moveDown(e) {
 }
 function moveMove(e) {
   const a = active;
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const X = e.clientX - r.left, Y = e.clientY - r.top;
   if (a.type === 'pixmove') return pixelMoveMove(e);
   a.changed = true;

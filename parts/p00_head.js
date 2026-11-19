@@ -15,6 +15,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const DEG = Math.PI / 180;
 
 const viewport = $('#viewport');
+/* the viewport's screen rectangle, measured once per frame: getBoundingClientRect forces a layout, and pens send many
+   events per frame (240 Hz Apple Pencil), which made drawing lag on iPad */
+let _vpR = null;
+function vpRect() {
+  if (!_vpR) { _vpR = viewport.getBoundingClientRect(); requestAnimationFrame(() => { _vpR = null; }); }
+  return _vpR;
+}
+window.addEventListener('resize', () => { _vpR = null; });
+/* last pen / finger activity on the canvas: background work (time-lapse, auto-save) waits for a quiet moment */
+let lastInputAt = 0;
+const inputQuiet = ms => performance.now() - lastInputAt > ms;
 const stage = $('#stage');
 const cursorEl = $('#cursor');
 const toastEl = $('#toast');

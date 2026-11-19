@@ -308,17 +308,23 @@ function smudgeStamp(st, x, y, pr) {
   const tv = paint && s.tex ? texBaseFor(s.tex)._vals : null, tN = TEX_N, tk = s.texScale || 1, tA = clamp(s.texAmt ?? 0.6, 0, 1);
   tg.globalCompositeOperation = 'source-over';
   tg.clearRect(0, 0, C, C);
+  // the area under the brush, copied 1:1 first: scaling straight from the full-size picture made the browser process
+  // the whole picture on every dab (over a second per pen move on big pages)
+  const D0 = Math.ceil(d) + 2, ox = Math.floor(sx), oy = Math.floor(sy);
+  if (!st.grab || st.grab.width < D0) st.grab = makeCanvas(D0, D0);
+  const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0); gg.drawImage(st.t.cel, ox, oy, D0, D0, 0, 0, D0, D0);
+  const gx = sx - ox, gy = sy - oy, src = st.grab;
   if (s.blurTool) {
     const n = clamp(Math.round(d / 7), 3, 64);
     const sg = st.small.getContext('2d');
     sg.clearRect(0, 0, 64, 64);
     sg.imageSmoothingQuality = 'high';
-    sg.drawImage(st.t.cel, sx, sy, d, d, 0, 0, n, n);
+    sg.drawImage(src, gx, gy, d, d, 0, 0, n, n);
     tg.imageSmoothingQuality = 'high';
     tg.drawImage(st.small, 0, 0, n, n, 0, 0, C, C);
   } else {
-    if (!st.carryInit) { st.carryInit = true; cg.drawImage(st.t.cel, sx, sy, d, d, 0, 0, C, C); }
-    else { cg.globalAlpha = 1 - s.smudge; cg.drawImage(st.t.cel, sx, sy, d, d, 0, 0, C, C); cg.globalAlpha = 1; }
+    if (!st.carryInit) { st.carryInit = true; cg.drawImage(src, gx, gy, d, d, 0, 0, C, C); }
+    else { cg.globalAlpha = 1 - s.smudge; cg.drawImage(src, gx, gy, d, d, 0, 0, C, C); cg.globalAlpha = 1; }
     tg.drawImage(st.carry, 0, 0);
   }
   const rx = Math.max(0, Math.floor(sx)), ry = Math.max(0, Math.floor(sy));

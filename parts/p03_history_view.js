@@ -106,7 +106,7 @@ function screenToDoc(X, Y) {
   return { x: (m.d * dx - m.c * dy) / det, y: (-m.b * dx + m.a * dy) / det };
 }
 function toDoc(e) {
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   return screenToDoc(e.clientX - r.left, e.clientY - r.top);
 }
 function applyView() {
@@ -132,7 +132,7 @@ function zoomAt(cx, cy, factor) {
   applyView();
 }
 function vpCenter() {
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   return [r.width / 2, r.height / 2];
 }
 function zoomCenter(factor) { const [cx, cy] = vpCenter(); zoomAt(cx, cy, factor); }
@@ -160,7 +160,7 @@ function flipView() {
   applyView();
 }
 function fit() {
-  const r = viewport.getBoundingClientRect();
+  const r = vpRect();
   const a = view.rot * DEG;
   const bw = Math.abs(state.w * Math.cos(a)) + Math.abs(state.h * Math.sin(a));
   const bh = Math.abs(state.w * Math.sin(a)) + Math.abs(state.h * Math.cos(a));

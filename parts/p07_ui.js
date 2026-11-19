@@ -428,7 +428,7 @@ function updateNav() {
     const ox = (W - state.w * k) / 2, oy = (H - state.h * k) / 2;
     navG.fillStyle = '#555'; navG.fillRect(ox, oy, state.w * k, state.h * k);
     try { navG.drawImage(compositeFrame(state.frame), ox, oy, state.w * k, state.h * k); } catch (e) { /* ignore */ }
-    const r = viewport.getBoundingClientRect();
+    const r = vpRect();
     navG.strokeStyle = '#ff4d4d'; navG.lineWidth = 1.5; navG.beginPath();
     [[0, 0], [r.width, 0], [r.width, r.height], [0, r.height]].forEach(([x, y], i) => {
       const p = screenToDoc(x, y);

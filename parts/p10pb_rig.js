@@ -142,7 +142,7 @@ function pupRender(cel) {
 const pupClone = P => P ? { rest: P.rest, pins: P.pins.map(p => p.slice()), cur: P.cur.map(p => p.slice()) } : null;
 function pupLayerToScreen(l, x, y) { const m = layerMat(l, state.frame) || [1, 0, 0, 1, 0, 0]; return docToScreen(...applyMat(m, x, y)); }
 function pupHit(l, P, e) {
-  const r = viewport.getBoundingClientRect(), X = e.clientX - r.left, Y = e.clientY - r.top;
+  const r = vpRect(), X = e.clientX - r.left, Y = e.clientY - r.top;
   let best = -1, bd = PUP_HIT;
   P.cur.forEach((p, i) => { const s = pupLayerToScreen(l, p[0], p[1]), d = Math.hypot(s[0] - X, s[1] - Y); if (d < bd) { bd = d; best = i; } });
   return best;
