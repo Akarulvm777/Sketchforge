@@ -223,6 +223,8 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
 ## 2.11: your colours, paper and brushes
+- New: make an imported Clip Studio tool match. ⓘ › ⚙ Adjust opens it in the brush editor with a list of what Clip Studio does differently; tune it with the live preview (pressure, tilt and speed curves too). Everything the import translated is kept.
+- New tutorial: Help › Tutorials › Clip Studio tools & your own brushes (and ✨ Ask knows about it).
 - New: colour sets. Keep as many sets of favourite colours as you like, each with its own name (Color panel: ＋ adds the main colour, ⋯ › New colour set…, right-click or long-press to remove, export / import, GIMP palettes too).
 - New: colour history. The colours you painted with stay below the sets, even after a restart.
 - New: paper texture for new files (drawing paper, watercolour, rough, canvas, charcoal…) with paper colour presets (cream, kraft, black…). Brushes can pick up the paper grain. Change it any time: Layer › Paper colour & texture….

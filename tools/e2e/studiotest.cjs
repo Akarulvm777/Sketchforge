@@ -98,6 +98,18 @@ const path = require('path'), fs = require('fs');
   const [fc2] = await Promise.all([pg.waitForEvent('filechooser'), pg.click('#subtoolBar button[data-ic=plus]')]);
   await fc2.setFiles(bf); await pg.waitForTimeout(700);
   check('a .sfbrush file added with ＋ becomes a brush', await pg.evaluate(() => Object.values(window.__sketchforge.TOOLDEF).filter(t => t.name === 'Test scatter brush').length === 2));
+  // an imported Clip Studio tool: ⓘ › Adjust opens it in the editor, with what Clip Studio does differently; saving keeps every translated setting
+  require('child_process').execSync(`python3 -I ${JSON.stringify(path.join(__dirname, 'mksut.py'))} ${JSON.stringify(out)}`);
+  const [fc3] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.addSut())]);
+  await fc3.setFiles(path.join(out, 'sut', 'real_settings.sut')); await pg.waitForTimeout(1500);
+  const lid = await pg.evaluate(() => { const SF = window.__sketchforge, id = Object.keys(SF.TOOLDEF).find(k => SF.TOOLDEF[k].name === 'Multiply liner'); SF.selectTool(id); return id; });
+  await pg.click('#subtoolBar button[data-ic=info]'); await pg.waitForTimeout(200);
+  await pg.click('dialog.toolreport [data-a=tune]'); await pg.waitForTimeout(500);
+  check('ⓘ › Adjust opens the imported tool in the brush editor with what Clip Studio does differently', await pg.evaluate(() => { const d = document.querySelector('dialog.brushedit'); return !!d && d.open && /Imported from Clip Studio/.test(d.textContent) && /Ink stickiness/.test(d.textContent) && document.querySelector('.brushedit .berow[data-k=name] input').value === 'Multiply liner'; }));
+  await setRange('spacing', 0.05); await pg.click('.brushedit [data-a=save]'); await pg.waitForTimeout(500);
+  const kept = await pg.evaluate(id => { const SF = window.__sketchforge, s = SF.settings[id], t = SF.TOOLDEF[id]; return { sp: s.spacing, blend: s.blendOp, out: s.taperOut, curve: !!s.pCurve, min1: s.min1, rep: (t.report || []).length, grp: SF.groupOf(id).id }; }, lid);
+  console.log('     after tuning', JSON.stringify(kept));
+  check('the tuned tool keeps its translated settings (blending mode, curve, thin end, report) and the new spacing', kept.sp === 0.05 && kept.blend === 'multiply' && kept.out === 60 && kept.curve && kept.min1 && kept.rep > 3 && kept.grp === 'pen');
   // restart: colour sets, history, brushes kept
   await pg.reload(); await pg.waitForTimeout(3000);
   const after = await pg.evaluate(() => ({ sets: document.querySelector('#csSel').textContent, hist: [...document.querySelectorAll('#recent .swatch')].slice(0, 2).map(b => b.title),

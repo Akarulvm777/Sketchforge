@@ -886,9 +886,10 @@ function toolReport(id) {
     <ul class="trep">${list}</ul>
     ${top.length ? `<details><summary>Clip Studio settings seen in your tools that Sketchforge does not use yet</summary><p class="sub">${top.map(([k, c]) => `${SUT_LABEL[k] || k} (${c})`).join(' · ')}</p></details>` : ''}
     ${others.length ? `<p class="sub">Other tools from the last import: ${others.map(t => `<a href="#" data-id="${t.id}">${TOOLDEF[t.id].name.replace(/[<&]/g, '')}</a>`).join(' · ')}</p>` : ''}
-    <div class="row"><button value="ok">Close</button></div></form>`;
+    <div class="row"><button type="button" data-a="tune">⚙ Adjust in the brush editor…</button><button value="ok">Close</button></div></form>`;
   dlg.querySelectorAll('a[data-id]').forEach(a => a.onclick = e => { e.preventDefault(); dlg.close(); selectTool(a.dataset.id); toolReport(a.dataset.id); });
   dlg.addEventListener('close', () => dlg.remove());
+  const tune = dlg.querySelector('[data-a=tune]'); if (kindOf(id) !== 'brush') tune.remove(); else tune.onclick = () => { dlg.close(); openBrushEditor(id); };
   document.body.appendChild(dlg); dlg.showModal();
 }
 function deleteBrush() {

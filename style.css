@@ -951,3 +951,7 @@ dialog.brushedit form { display: flex; flex-direction: column; max-height: calc(
 .brushedit .dialog-actions { display: flex; gap: 6px; padding: 10px 16px; border-top: 1px solid rgba(128,128,128,.25); flex-wrap: wrap; }
 .beopen { margin-top: 8px; width: 100%; }
 @media (max-width: 600px) { .berow > span { flex-basis: 100%; } .begrid { grid-template-columns: 1fr; } }
+.bemsg { margin: 8px 0 4px; padding: 6px 10px; border-radius: 6px; background: rgba(212,167,44,.12); font-size: 13px; }
+.bemsg summary { cursor: pointer; font-weight: 600; }
+.bemsg ul { margin: 4px 0; padding-left: 18px; }
+dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }

@@ -9,14 +9,16 @@ const BE_BLEND = [['', 'Normal'], ['multiply', 'Multiply'], ['darken', 'Darken']
 const BE_FORM = [
   ['Brush', [['name', 'Name', 'text'], ['group', 'Sub tool group', 'select', BE_GROUPS], ['mode', 'Works as', 'select', [['paint', 'Paint'], ['erase', 'Eraser'], ['smudge', 'Smudge / blend'], ['blur', 'Blur']]]]],
   ['Size & ink', [['size', 'Size', 'range', 0.5, 1000, 0.5, 'px'], ['opacity', 'Opacity', 'range', 0.01, 1, 0.01, '%'], ['flow', 'Density (flow)', 'range', 0.01, 1, 0.01, '%'],
-    ['hardness', 'Hardness (round tip)', 'range', 0, 1, 0.01, '%'], ['spacing', 'Spacing', 'range', 0.02, 3, 0.01, '%'], ['smooth', 'Stabiliser', 'range', 0, 0.9, 0.01, '%'],
+    ['hardness', 'Hardness (round tip)', 'range', 0, 1, 0.01, '%'], ['spacing', 'Spacing', 'range', 0.02, 3, 0.01, '%'], ['flowSp', 'Density follows spacing', 'check'], ['smooth', 'Stabiliser', 'range', 0, 0.9, 0.01, '%'],
     ['aa', 'Anti-aliasing', 'select', [[0, 'None'], [1, 'Weak'], [2, 'Medium'], [3, 'Strong']]], ['blendOp', 'Blending mode', 'select', BE_BLEND], ['min1', 'At least 1 px', 'check']]],
   ['Tip shape', [['tipimg', 'Tip pictures', 'tipimg'], ['tipDensity', 'Picture: dark = ink (off: use its transparency)', 'check'], ['tipOrder', 'Several pictures', 'select', [['random', 'Random'], ['seq', 'One after the other']]],
     ['thick', 'Thickness (flat tip)', 'range', 0.05, 1, 0.01, '%'], ['angle', 'Angle', 'range', 0, 360, 1, '°'], ['rotP', 'Angle follows pen pressure', 'check'],
     ['tipRotAmt', 'Random rotation', 'range', 0, 1, 0.01, '%'], ['tipFollow', 'Tip turns with the stroke direction', 'check']]],
   ['Pen pressure', [['pSize', 'Pressure → size', 'check'], ['pMin', 'Minimum size', 'range', 0, 1, 0.01, '%'], ['pCurve', 'Size pressure curve', 'curve'],
     ['pAlpha', 'Pressure → opacity', 'check'], ['aMin', 'Minimum opacity', 'range', 0, 1, 0.01, '%'], ['aCurve', 'Opacity pressure curve', 'curve'],
-    ['speed', 'Faster = thinner', 'range', 0, 1, 0.01, '%'], ['sRandOn', 'Random size per dab', 'check'], ['sRand', 'Random size: minimum', 'range', 0, 1, 0.01, '%'],
+    ['speed', 'Faster = thinner', 'range', 0, 1, 0.01, '%'], ['vOn', 'Drawing speed → size (own curve)', 'check'], ['vMin', 'Speed: minimum size', 'range', 0, 1, 0.01, '%'], ['vCurve', 'Speed curve (slow → fast)', 'curve'],
+    ['tOn', 'Pen tilt → size', 'check'], ['tMin', 'Tilt: minimum size', 'range', 0, 1, 0.01, '%'], ['tCurve', 'Tilt curve (upright → flat)', 'curve'],
+    ['atOn', 'Pen tilt → opacity', 'check'], ['atMin', 'Tilt: minimum opacity', 'range', 0, 1, 0.01, '%'], ['atCurve', 'Tilt → opacity curve', 'curve'], ['sRandOn', 'Random size per dab', 'check'], ['sRand', 'Random size: minimum', 'range', 0, 1, 0.01, '%'],
     ['aRandOn', 'Random opacity per dab', 'check'], ['aRand', 'Random opacity: minimum', 'range', 0, 1, 0.01, '%']]],
   ['Start & end', [['taperIn', 'Thin start (length)', 'range', 0, 400, 1, 'px'], ['taperRatio', 'Start from', 'range', 0, 1, 0.01, '%'], ['taperOut', 'Thin end (length)', 'range', 0, 400, 1, 'px'],
     ['taperOutRatio', 'End at', 'range', 0, 1, 0.01, '%'], ['fadeIn', 'Fade in (opacity) at the start', 'check'], ['fadeOut', 'Fade out (opacity) at the end', 'check']]],
@@ -39,6 +41,7 @@ function beFromDef(def) {
   d.mixOn = d.paint != null; d.paint = d.paint ?? 0.5; d.paintDensity = d.paintDensity ?? 0.6; d.smudgeAmt = d.smudge ?? 0.6;
   d.texSel = d.texImg ? 'image' : (d.tex || ''); d.texAmt = d.texAmt ?? 0.6; d.texScale = d.texScale ?? 1;
   d.tipDensity = !!d.tipDensity; d.tipOrder = d.tipOrder || 'random';
+  d.vOn = d.vCurve != null; d.vMin = d.vMin ?? 0.3; d.tOn = d.tCurve != null; d.tMin = d.tMin ?? 0.3; d.atOn = d.atCurve != null; d.atMin = d.atMin ?? 0.3;
   return d;
 }
 /* form values → definition */
@@ -52,6 +55,10 @@ function beToDef(f) {
   def.nibRatio = def.tipThick = f.thick; def.nibAngle = def.tipAngle = f.angle;
   if (f.tipRotAmt > 0) { def.tipRot = true; def.tipRotAmt = f.tipRotAmt; }
   if (f.sRandOn) def.sRand = f.sRand; if (f.aRandOn) def.aRand = f.aRand;
+  if (f.vOn) { def.vMin = f.vMin; def.vCurve = f.vCurve || [[0, 1], [1, 0]]; }
+  if (f.tOn) { def.tMin = f.tMin; def.tCurve = f.tCurve || [[0, 0], [1, 1]]; }
+  if (f.atOn) { def.atMin = f.atMin; def.atCurve = f.atCurve || [[0, 0], [1, 1]]; }
+  if (f.flowSp) def.flowSp = true;
   if (f.scatter > 0) def.sprayFix = true;
   if (f.speed > 0) def.speed = f.speed;
   if (f.mode === 'erase') { def.erase = true; if (def.group !== 'eraser' && def.group !== 'blend') def.group = def.group || 'eraser'; }
@@ -62,6 +69,11 @@ function beToDef(f) {
   if (!def.tips || def.tips.length < 2) delete def.tips;
   return def;
 }
+/* keys the form manages; anything else of the original definition is kept as it was */
+const BE_MANAGED = new Set(('name group size opacity flow hardness spacing smooth aa min1 tipDensity tipOrder rotP tipFollow pSize pMin pCurve pAlpha aMin aCurve taperIn taperRatio taperOut taperOutRatio ' +
+  'fadeIn fadeOut scatter count sprayBias jitter hueJit satJit valJit wet texAmt texScale texRot texInv texBright texContrast tip tips texImg blendOp nibRatio tipThick nibAngle tipAngle tipRot ' +
+  'tipRotAmt sRand aRand sprayFix speed erase smudge blurTool paint paintDensity tex vMin vCurve tMin tCurve atMin atCurve flowSp').split(' '));
+function beMerge(base, def) { const out = {}; for (const [k, v] of Object.entries(base || {})) if (!BE_MANAGED.has(k) && k !== 'id') out[k] = v; return Object.assign(out, def); }
 /* a definition from any tool (built-in tools: from their current settings) */
 function beDefOf(id) {
   const rec = addons.brushes.find(b => b.id === id);
@@ -131,6 +143,14 @@ async function openBrushEditor(id) {
     <div class="dialog-actions"><button type="button" data-a="import">Open .sfbrush…</button><button type="button" data-a="export">Export .sfbrush</button><span style="flex:1"></span>
     <button type="button" data-a="cancel">Cancel</button>${editing ? '<button type="button" data-a="copy">Save as new</button>' : ''}<button type="button" data-a="save" class="primary">${editing ? 'Save' : 'Create brush'}</button></div></form>`;
   const body = dlg.querySelector('.bebody'), prev = dlg.querySelector('.beprev');
+  const rep = (editing && TOOLDEF[editing].report) || base.report;
+  if (rep && rep.length) { // an imported Clip Studio tool: show what it does differently, to tune it by eye
+    const diff = rep.filter(r => r[0] !== 'ok'), n = { ok: 0, approx: 0, no: 0 }; rep.forEach(r => n[r[0]]++);
+    const note = document.createElement('details'); note.className = 'bemsg'; note.open = diff.length > 0;
+    note.innerHTML = `<summary>Imported from Clip Studio — ✓ ${n.ok} same · ≈ ${n.approx} close · ✗ ${n.no} not in Sketchforge yet</summary>` +
+      (diff.length ? `<p>To make it look like in Clip Studio, compare with a stroke you made there and tune the settings below (the preview updates live). What is different:</p><ul>${diff.map(r => `<li>${r[0] === 'no' ? '✗' : '≈'} ${r[1].replace(/[<&]/g, '')}</li>`).join('')}</ul>` : '<p>Everything was translated. You can still change any setting.</p>');
+    body.appendChild(note);
+  }
   let tipIds = [], texId = null, gen = 0;
   const loadTips = async () => { // preview tips / texture under temporary ids
     const my = ++gen, srcs = f.tips && f.tips.length ? f.tips : f.tip ? [f.tip] : [], ids = [];
@@ -138,7 +158,7 @@ async function openBrushEditor(id) {
     let tx = null; if (f.texSel === 'image' && f.texImg) { try { tx = registerTexture('__betex', await texImage(f), f.texInv); } catch (e) { /* broken picture */ } }
     if (my === gen) { tipIds = ids; texId = tx; redraw(); }
   };
-  const redraw = () => { const def = beToDef(f); bePreview(prev, brushPreset(def, tipIds, texId), state.color === '#ffffff' ? '#202430' : state.color); };
+  const redraw = () => { const def = beMerge(base, beToDef(f)); bePreview(prev, brushPreset(def, tipIds, texId), state.color === '#ffffff' ? '#202430' : state.color); };
   const fields = {};
   for (const [sec, list] of BE_FORM) {
     const box = document.createElement('details'); box.open = ['Brush', 'Size & ink', 'Tip shape', 'Pen pressure'].includes(sec);
@@ -177,15 +197,15 @@ async function openBrushEditor(id) {
   const pickTex = () => pickFile('image/*', async fl => { f.texImg = await readFile(fl); f.texSel = 'image'; fields.texSel.querySelector('select').value = 'image'; fields.teximg._upd(); loadTips(); });
   const finish = () => { dlg.close(); dlg.remove(); beOpen = null; for (const k of [...customTips.keys()]) if (k.startsWith('__be')) customTips.delete(k); };
   const save = async asNew => {
-    const def = beToDef(f); if (!def.name) def.name = 'My brush';
-    if (editing && !asNew) { def.id = editing; if (orig && orig.report) def.report = orig.report; }
+    const def = beMerge(base, beToDef(f)); if (!def.name) def.name = 'My brush';
+    if (editing && !asNew) def.id = editing; else delete def.report;
     const nid = await registerBrush(def, true);
     finish(); const g = groupOf(nid); if (g && g.id !== state.group) selectGroup(g.id); selectTool(nid); toast((editing && !asNew ? 'Saved ' : 'Created ') + def.name);
   };
   dlg.querySelector('[data-a=save]').onclick = () => save(false);
   if (editing) dlg.querySelector('[data-a=copy]').onclick = () => { f.name = (f.name || 'My brush') + ' copy'; save(true); };
   dlg.querySelector('[data-a=cancel]').onclick = finish;
-  dlg.querySelector('[data-a=export]').onclick = () => { const def = beToDef(f); download(new Blob([JSON.stringify({ format: 'sketchforge-brush', version: 1, def })], { type: 'application/json' }), (def.name || 'brush').replace(/[^\w-]+/g, '_') + '.sfbrush'); };
+  dlg.querySelector('[data-a=export]').onclick = () => { const { report, ...def } = beMerge(base, beToDef(f)); download(new Blob([JSON.stringify({ format: 'sketchforge-brush', version: 1, def })], { type: 'application/json' }), (def.name || 'brush').replace(/[^\w-]+/g, '_') + '.sfbrush'); };
   dlg.querySelector('[data-a=import]').onclick = () => pickFile('.sfbrush,.json', async fl => { try { const j = JSON.parse(await readFile(fl, true)); if (!j.def) throw 0; finish(); await importSfBrush(j.def); } catch (e) { toast('Not a Sketchforge brush file'); } });
   dlg.addEventListener('cancel', e => { e.preventDefault(); finish(); });
   document.body.appendChild(dlg); dlg.showModal();
