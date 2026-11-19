@@ -131,7 +131,7 @@ async function saveAddons() {
 const MENU_ADDONS = ['Add-ons', [['Import Clip Studio tools (.sut, .zip)…', 'addSut'], ['Import a folder of Clip Studio tools…', 'addSutFolder'], ['Import brush tip (image)…', 'addBrushTip'], ['Install add-on script (.js)…', 'addScript'], ['Manage add-ons…', 'manageAddons'], '-']];
 
 /* an image -> 256 px tip: transparent images keep their alpha; opaque ones: dark = ink. colour = keeps its colours */
-async function makeTip(src) {
+async function makeTip(src, density) {
   const img = await loadImage(src);
   const tip = makeCanvas(256, 256), g = tip.getContext('2d');
   const k = Math.min(256 / img.width, 256 / img.height);
@@ -139,11 +139,13 @@ async function makeTip(src) {
   const d = g.getImageData(0, 0, 256, 256), px = d.data;
   let opaque = true, colour = 0, n = 0;
   for (let i = 0; i < px.length; i += 4) { if (px[i + 3] < 250) opaque = false; if (px[i + 3] > 60) { n++; const mx = Math.max(px[i], px[i + 1], px[i + 2]), mn = Math.min(px[i], px[i + 1], px[i + 2]); if (mx - mn > 60) colour++; } }
-  if (opaque) for (let i = 0; i < px.length; i += 4) { px[i + 3] = 255 - (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11); px[i] = px[i + 1] = px[i + 2] = 0; }
+  const isColour = !opaque && n > 0 && colour / n > 0.15;
+  // opaque image, or a Clip Studio brush material (grey picture): dark = ink, white = no ink, times its transparency
+  if (opaque || (density && !isColour)) for (let i = 0; i < px.length; i += 4) { px[i + 3] = Math.round(px[i + 3] * (1 - (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / 255)); px[i] = px[i + 1] = px[i + 2] = 0; }
   g.putImageData(d, 0, 0);
-  return { tip, colour: !opaque && n > 0 && colour / n > 0.15 };
+  return { tip, colour: isColour && !density };
 }
-const GROUP_ICON = { pen: 'pen', pencil: 'pencil', brush: 'brush', airbrush: 'airbrush', decor: 'sparkle', eraser: 'eraser', blend: 'blend' };
+const GROUP_ICON = { pen: 'pen', pencil: 'pencil', brush: 'brush', airbrush: 'airbrush', decor: 'sparkle', eraser: 'eraser', blend: 'blend', shade: 'shade' };
 async function registerBrush(def, persist) {
   const id = def.id || 'custom_' + Date.now().toString(36) + Math.floor(Math.random() * 999);
   const group = def.group || (def.pen ? 'pen' : 'brush');
@@ -159,7 +161,7 @@ async function registerBrush(def, persist) {
   const tipSrcs = def.tips && def.tips.length ? def.tips : def.tip ? [def.tip] : [];
   const ids = [];
   for (let i = 0; i < tipSrcs.length; i++) {
-    try { const { tip, colour } = await makeTip(tipSrcs[i]); const tid = id + (i ? '_' + i : ''); customTips.set(tid, tip); if (colour) tip._colour = true; ids.push(tid); } catch (e) { /* skip a broken image */ }
+    try { const { tip, colour } = await makeTip(tipSrcs[i], def.tipDensity); const tid = id + (i ? '_' + i : ''); customTips.set(tid, tip); if (colour) tip._colour = true; ids.push(tid); } catch (e) { /* skip a broken image */ }
   }
   if (ids.length === 1) extra.tipId = ids[0];
   else if (ids.length > 1) { extra.tipId = ids[0]; extra.tipIds = ids; extra.tipOrder = def.tipOrder || 'random'; }
@@ -264,19 +266,72 @@ function findPngs(blob) { // every PNG inside a blob (decoration brushes keep se
   }
   return out;
 }
+/* Clip Studio gradient (GradationData): big-endian; header size, record size, count; each record = R, G, B, A
+   (32-bit, the colour byte repeated), flags, position (0..0x8000 = 0..1), kind. */
+function parseGradation(blob) {
+  if (!blob || blob.length < 24) return null;
+  const dv = new DataView(blob.buffer, blob.byteOffset, blob.byteLength), hs = dv.getUint32(0), rs = dv.getUint32(4), n = dv.getUint32(8);
+  if (hs < 12 || rs < 28 || !n || n > 64 || hs + n * rs > blob.length) return null;
+  const stops = [];
+  for (let i = 0; i < n; i++) {
+    const o = hs + i * rs, r = blob[o], g = blob[o + 4], b = blob[o + 8], a = blob[o + 12], pos = clamp(dv.getUint32(o + 20) / 0x8000, 0, 1);
+    const hex = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+    stops.push([pos, a >= 255 ? hex : `rgba(${r},${g},${b},${(a / 255).toFixed(3)})`]);
+  }
+  stops.sort((x, y) => x[0] - y[0]);
+  return stops.length >= 2 ? stops : null;
+}
+/* images used by the tools: the MaterialFile table holds each material as a tar archive (thumbnail/thumbnail.png = the
+   picture, data/material_0.layer = the full picture in Clip Studio's own format, whose header gives the real size) */
+function untar(u8) {
+  const out = {}; let o = 0;
+  while (o + 512 <= u8.length) {
+    const name = new TextDecoder().decode(u8.subarray(o, o + 100)).replace(/\0.*$/s, '');
+    if (!name) break;
+    const size = parseInt(new TextDecoder().decode(u8.subarray(o + 124, o + 136)).replace(/[^0-7]/g, '') || '0', 8);
+    out[name] = u8.subarray(o + 512, o + 512 + size);
+    o += 512 + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+const pngURL = u8 => { let bin = ''; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return 'data:image/png;base64,' + btoa(bin); };
+function sutMaterials(t) {
+  const m = new Map();
+  for (const r of (t.MaterialFile || [])) {
+    if (!r.FileData || !r.FileData.length) continue;
+    try {
+      const files = untar(r.FileData), th = files['thumbnail/thumbnail.png']; if (!th) continue;
+      let w = 0; const lay = files['data/material_0.layer'];
+      if (lay) for (let i = 0; i < Math.min(lay.length - 24, 20000); i++) if (lay[i] === 0x89 && lay[i + 1] === 0x50 && lay[i + 2] === 0x4e && lay[i + 3] === 0x47) { w = ((lay[i + 16] << 24) | (lay[i + 17] << 16) | (lay[i + 18] << 8) | lay[i + 19]) >>> 0; break; }
+      const key = String(r.CatalogPath || r.OriginalPath || '').replace(/:data:.*$/, '');
+      m.set(key, { url: pngURL(th), w: w > 0 && w < 20000 ? w : 300 });
+    } catch (e) { /* skip a broken material */ }
+  }
+  return m;
+}
+/* a pattern / texture setting names its materials by catalog path (UTF-16 text inside the blob) */
+function sutRefs(blob, mats) {
+  if (!blob || !blob.length || !mats.size) return [];
+  let txt = ''; // UTF-16 little-endian text (both alignments, to be safe)
+  for (const st of [0, 1]) { for (let i = st; i + 1 < blob.length; i += 2) txt += String.fromCharCode(blob[i] | (blob[i + 1] << 8)); txt += '\n'; }
+  const out = []; for (const k of mats.keys()) if (k && txt.includes(k) && !out.includes(mats.get(k))) out.push(mats.get(k));
+  // keep the order they appear in
+  return out.sort((a, b) => txt.indexOf([...mats].find(([, v]) => v === a)[0]) - txt.indexOf([...mats].find(([, v]) => v === b)[0]));
+}
 /* what kind of tool a sub tool is: from its name (English / Japanese / Chinese / Korean words) and its settings */
 const SUT_NAMES = [['gradient', /gradient|gradation|グラデ|渐变|漸層|그라데/i], ['eraser', /eras|消しゴム|消去|橡皮|지우개/i],
+  ['shade', /hatch|cross ?hatch|カケ|ハッチ|網|アミ|斜線|排线|해칭/i],
   ['blend', /blend|blur|smudge|finger|ぼかし|指先|色混ぜ|涂抹|模糊|블렌드|흐림/i], ['airbrush', /air ?brush|spray|エアブラシ|スプレー|喷枪|噴槍|에어/i],
-  ['decor', /deco|star|flower|lace|sparkle|glitter|leaf|leaves|grass|chain|ribbon|stamp|pattern|snow|heart|cloud|装飾|デコ|模様|花|星|レース|装饰|데코|꽃/i],
+  ['decor', /deco|star|flower|lace|sparkle|glitter|leaf|leaves|grass|chain|ribbon|stamp|pattern|snow|heart|cloud|装飾|デコ|模様|花|星|レース|ハート|キラ|光|装饰|爱心|데코|꽃|하트/i],
   ['pencil', /pencil|crayon|chalk|charcoal|pastel|鉛筆|クレヨン|パステル|木炭|铅笔|蜡笔|연필/i],
-  ['brush', /brush|paint|water ?colou?r|oil|gouache|acrylic|wash|水彩|油彩|ブラシ|筆|画笔|油画|붓|수채/i], ['pen', /pen|ink|marker|liner|ペン|マーカー|钢笔|筆ペン|펜/i]];
-function sutKind(name, v, tips) {
+  ['brush', /brush|paint|water ?colou?r|oil|gouache|acrylic|wash|水彩|油彩|ブラシ|筆|画笔|油画|붓|수채/i], ['pen', /pen|ink|marker|liner|line ?art|ペン|マーカー|線画|钢笔|線稿|筆ペン|펜|선화/i]];
+function sutKind(name, v, tips, node) {
   const cols = Object.keys(v), has = re => cols.some(c => re.test(c) && v[c] != null && v[c] !== 0);
-  if (has(/Gradation|Gradient/i) || (v.BrushSize == null && SUT_NAMES[0][1].test(name))) return 'gradient';
+  if ((node && node.NodeInputOp === 52) || has(/Gradation|Gradient/i) || (v.BrushSize == null && SUT_NAMES[0][1].test(name))) return 'gradient';
   if (v.BrushSize == null) return null; // fill, text, selection… not a drawing tool
   for (const [k, re] of SUT_NAMES) if (k !== 'gradient' && re.test(name)) return k;
   if (has(/Erase/i)) return 'eraser';
-  if (tips.length > 1 || v.BrushRibbon || (v.BrushUseSpray && v.BrushUsePatternImage)) return 'decor';
+  if (tips.length > 1 || v.BrushRibbon || (v.BrushUseSpray && v.BrushUsePatternImage) || (tips.length && (v.BrushInterval || 0) >= 50)) return 'decor';
   if (v.BrushUseSpray) return 'airbrush';
   if (has(/WaterEdge|ColorMix|PaintMix|MixColor|MixingColor/i)) return 'brush';
   if ((v.BrushHardness ?? 100) >= 90 && !v.TextureImage) return 'pen';
@@ -288,12 +343,15 @@ const sutNum = (v, re) => { for (const c of Object.keys(v)) if (re.test(c) && ty
 function sutToDefs(buf) {
   const t = readSqlite(buf);
   const variants = new Map((t.Variant || []).map(v => [v.VariantID, v]));
+  const mats = sutMaterials(t);
   const defs = [];
   for (const n of (t.Node || [])) {
     const v = variants.get(n.NodeVariantID);
     if (!v || !n.NodeName) continue;
-    const tips = v.BrushUsePatternImage ? findPngs(v.BrushPatternImageArray) : [];
-    const group = sutKind(n.NodeName, v, tips);
+    const tipMats = v.BrushUsePatternImage ? sutRefs(v.BrushPatternImageArray, mats) : [];
+    const tips = v.BrushUsePatternImage ? (tipMats.length ? tipMats.map(m => m.url) : findPngs(v.BrushPatternImageArray)) : [];
+    const texMat = sutRefs(v.TextureImage, mats)[0];
+    const group = sutKind(n.NodeName, v, tips, n);
     if (!group) {
       // no brush size stored: a drawing tool by its name gets default settings (like the built-in Dot pen); others are skipped
       const byName = SUT_NAMES.find(([k, re]) => k !== 'gradient' && re.test(n.NodeName));
@@ -302,8 +360,9 @@ function sutToDefs(buf) {
       continue;
     }
     if (group === 'gradient') {
-      defs.push({ name: n.NodeName, kind: 'gradient', group, radial: /circle|radial|円|放射/i.test(n.NodeName) || !!sutNum(v, /Circle|Radial/i), approx: true,
-        stops: /transparent|透明/i.test(n.NodeName) ? [[0, 'fg'], [1, 'fg0']] : [[0, 'fg'], [1, 'bg']] });
+      const real = parseGradation(v.GradationData);
+      defs.push({ name: n.NodeName, kind: 'gradient', group, radial: v.GradationShapeKind === 1 || /circle|radial|円|放射/i.test(n.NodeName), approx: !real,
+        stops: real || (/transparent|透明/i.test(n.NodeName) ? [[0, 'fg'], [1, 'fg0']] : [[0, 'fg'], [1, 'bg']]) });
       continue;
     }
     const sz = effectorInputs(v.BrushSizeEffector), fl = effectorInputs(v.BrushFlowEffector), op = effectorInputs(v.BrushOpacityEffector);
@@ -314,19 +373,22 @@ function sutToDefs(buf) {
       opacity: (v.Opacity ?? 100) / 100, flow: (v.BrushFlow ?? 100) / 100, hardness: (v.BrushHardness ?? 100) / 100,
       aa: v.AntiAlias ?? 2, smooth: clamp((v.FlickerReduction || 0) / 50, 0, 0.9),
       pSize: !!(sz & 16), pAlpha: !!((fl & 16) || (op & 16)), speed: (sz & 64) ? 0.5 : 0,
-      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip: tips[0] || null, tips: tips.length > 1 ? tips : undefined,
+      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip: tips[0] || null, tips: tips.length > 1 ? tips : undefined, tipDensity: tipMats.length > 0 || undefined,
       taperIn: v.BrushUseIn ? (v.BrushInLength || 0) : 0, taperRatio: (v.BrushInRatio ?? 30) / 100,
       nibRatio: thick < 1 ? clamp(thick, 0.05, 1) : 1, nibAngle: rot,
       pen: group === 'pen',
-      ...(v.TextureImage ? { texImg: findPng(v.TextureImage), tex: 'paper', texAmt: clamp((v.TextureDensity ?? 50) / 100, 0, 1),
-        texScale: clamp((v.TextureScale2 ?? 100) / 100, 0.1, 8), texInv: !!v.TextureReverseDensity } : {})
+      ...(v.TextureImage && (texMat || findPng(v.TextureImage)) ? { texImg: texMat ? texMat.url : findPng(v.TextureImage), tex: 'paper', texAmt: clamp((v.TextureDensity ?? 50) / 100, 0, 1),
+        // the texture keeps its real size: original width / the 256 px tile, times the tool's texture scale
+        texScale: clamp((texMat ? texMat.w / 256 : 1) * (v.TextureScale2 ?? 100) / 100, 0.05, 16), texInv: !!v.TextureReverseDensity } : {})
     };
     if (v.BrushUseSpray) { def.scatter = clamp((v.BrushSpraySize ?? 100) / 100, 0.2, 3); def.count = clamp(Math.round((v.BrushSprayDensity ?? 10) / 8), 1, 10); }
     if ((v.BrushRotationRandom || v.BrushRotationRandomInSpray || 0) > 0 || group === 'decor') def.tipRot = !!((v.BrushRotationRandom || v.BrushRotationRandomInSpray || 0) > 0);
     if (group === 'decor' && v.BrushUseSpray) def.jitter = 0.35;
     if (tips.length > 1) def.tipOrder = v.BrushPatternOrderType === 0 ? 'seq' : 'random';
-    const hue = sutNum(v, /Hue(Change|Jitter|Random)|ColorJitterHue|ChangeHue/i); if (hue) def.hueJit = clamp(hue > 1 ? hue / 100 : hue, 0, 1);
-    if (v.BrushUseWaterEdge || sutNum(v, /WaterEdge/i)) def.wet = 0.55;
+    // colour change per dab: only when the tool switches it on (the hue value is kept even when it is off)
+    if (v.BrushChangePatternColor || v.BrushChangeStrokeColor) { const hue = v.BrushHueChange ?? sutNum(v, /Hue(Change|Jitter|Random)|ColorJitterHue|ChangeHue/i); if (hue) def.hueJit = clamp(hue > 1 ? hue / 180 : hue, 0, 1); }
+    if (v.BrushUseWaterEdge) def.wet = 0.55;
+    if (v.BrushUseWaterColor) { def.pAlpha = true; def.wet = def.wet || 0.35; def.flow = Math.min(def.flow, 0.6); }
     if (group === 'blend') { def.smudge = /blur|ぼかし|模糊/i.test(n.NodeName) ? 0 : 0.85; if (def.smudge === 0) def.blurTool = true; }
     if (group === 'eraser') def.erase = true;
     defs.push(def);
@@ -343,7 +405,7 @@ async function importSut(file) {
   out.skipped = defs.length - use.length;
   return out;
 }
-const GROUP_LABEL = { pen: 'Pen', pencil: 'Pencil', brush: 'Brush', airbrush: 'Airbrush', decor: 'Decoration', eraser: 'Eraser', blend: 'Blend', gradient: 'Gradient' };
+const GROUP_LABEL = { pen: 'Pen', pencil: 'Pencil', brush: 'Brush', airbrush: 'Airbrush', decor: 'Decoration', eraser: 'Eraser', blend: 'Blend', gradient: 'Gradient', shade: 'Shading pens' };
 /* many tools at once: .sut files, .zip files of .sut, or folders */
 async function unzipSut(file) {
   const u = new Uint8Array(await file.arrayBuffer()), dv = new DataView(u.buffer), out = [];

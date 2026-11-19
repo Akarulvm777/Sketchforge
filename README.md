@@ -222,6 +222,13 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
+## 2.9: Clip Studio tools work like they should
+- Fixed: imported Clip Studio gradients all came out as main → sub colour. They now keep their own colours (every colour stop and its position).
+- Fixed: brush tips and textures stored as materials inside the .sut file were ignored, so many brushes drew as plain round brushes. They are read now, at their real size (hatching pens, decoration brushes, textured line art, watercolour paper).
+- Fixed: tip pictures are read like in Clip Studio (dark = ink, white = no ink), so shapes such as hearts show up instead of a grey blob.
+- Fixed: a colour change that is switched off in the tool no longer adds random colours.
+- Hatching pens go to the Shading pens group by themselves.
+
 ## 2.9: easier layers and a fresh start on new installs
 - Installing the app (Windows / Mac / Linux installer or a new Android APK) starts with default settings; your work, drawing library and imported tools are kept. Automatic updates keep your settings.
 - Every layer has a ⋯ button: move it to a folder, colour it… (works with a finger, no right-click needed). A folder's ⋯ has "Put the selected layer here".

@@ -42,6 +42,26 @@ const fs = require('fs'), path = require('path');
   await pg.evaluate(id => window.__sketchforge.selectTool(id), gid);
   await pg.strokeDoc([[100, 100], [700, 500]]); await pg.waitForTimeout(200);
   check('the imported gradient draws', (await pg.inkAt(400, 300)) > 200);
+  // real Clip Studio structures: gradient stops, material tips / textures
+  const [fc3] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.addSut())]);
+  await fc3.setFiles([path.join(dir, 'real_gradient.sut'), path.join(dir, 'material_pen.sut')]); await pg.waitForTimeout(2500);
+  const real = await pg.evaluate(() => { const SF = window.__sketchforge, t = n => SF.TOOLDEF[Object.keys(SF.TOOLDEF).filter(k => SF.TOOLDEF[k].name === n).pop()], g = t('Venice sky'), h = t('4カケペンm'), d = t('ハートと光');
+    const grp = n => (SF.GROUPS.find(G => (G.subs || []).includes(Object.keys(SF.TOOLDEF).filter(k => SF.TOOLDEF[k].name === n).pop())) || {}).id;
+    return { stops: g && g.stops, hatchGroup: grp('4カケペンm'), heartGroup: grp('ハートと光'), hatchTip: !!(h && h.preset.tipId), hatchTex: h && h.preset.tex, texScale: h && h.preset.texScale, hue: h && h.preset.hueJit, heartTip: !!(d && d.preset.tipId), heartId: Object.keys(SF.TOOLDEF).filter(k => SF.TOOLDEF[k].name === 'ハートと光').pop() }; });
+  console.log('     ' + JSON.stringify({ ...real, heartId: undefined }));
+  check('a real gradient keeps its own colours', real.stops && real.stops.length === 4 && real.stops[0][1] === '#3d0625' && Math.abs(real.stops[1][0] - 0.306) < 0.01 && real.stops[3][1] === '#f9e5b0');
+  check('hatching pens go to Shading pens, the hearts brush to Decoration', real.hatchGroup === 'shade' && real.heartGroup === 'decor');
+  check('tip and texture are read from the materials inside the file', real.hatchTip && /^tex_/.test(real.hatchTex || '') && real.heartTip);
+  check('the texture keeps its size (300 px thumbnail when the full picture is not readable)', Math.abs(real.texScale - 300 / 256) < 0.02);
+  check('colour change stays off when the tool has it switched off', !real.hue);
+  // the heart material: white heart = no ink (dark = ink), so the middle of the stamp stays empty
+  await pg.evaluate(() => window.__sketchforge.newDocument(400, 400, 1, 12, false, 'Heart'));
+  await pg.evaluate(id => { const SF = window.__sketchforge; SF.selectTool(id); SF.settings[id].size = 240; }, real.heartId);
+  const [hx, hy] = await pg.d2c(200, 200); await pg.mouse.click(hx, hy); await pg.waitForTimeout(200);
+  const heart = await pg.evaluate(() => { const c = [...window.__sketchforge.activeLayer().cels.values()][0], g = c.getContext('2d'), a = (x, y, r) => { const d = g.getImageData(x - r, y - r, 2 * r, 2 * r).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; return s / (d.length / 4); }; return { heart: a(200, 196, 12), dots: a(130, 300, 14) }; });
+  console.log('     stamp ink: inside the heart', heart.heart.toFixed(1), '| dots', heart.dots.toFixed(1));
+  check('dark = ink, white = no ink: the heart is a hole in the dots', heart.dots > 15 && heart.heart < heart.dots * 0.3);
+
   // a zip of tools
   const before = Object.keys(await where()).length;
   const [fc2] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.addSut())]);
