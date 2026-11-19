@@ -241,6 +241,7 @@ function qsApply(st, shape) {
   if (b) { bufCtx.clearRect(b.x, b.y, b.w, b.h); rawCtx.clearRect(b.x, b.y, b.w, b.h); }
   const prs = st.qs.map(p => p[2]).sort((x, y) => x - y), pr = prs[prs.length >> 1] || 0.5;
   st.box = newBox(); st.mbox = newBox(); st.cr = null; st.travel = 0;
+  if (st.tq) st.tq = []; // thin end: forget the queued tail of the hand-drawn stroke
   const P = shape.pts, [sx, sy] = P[0];
   st.lx = st.sx = st.rx = sx; st.ly = st.sy = st.ry = sy; st.lp = st.sp = st.rp = pr;
   stampAt(st, sx, sy, pr); st.next = stepAt(st, pr);

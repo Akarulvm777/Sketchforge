@@ -73,8 +73,33 @@ function prCurve(c, p) {
   return c[c.length - 1][1];
 }
 function diameterAt(st, pr) {
-  return Math.max(0.5, st.s.size * ((st.s.pSize || st.s.speed > 0) ? lerp(st.s.pMin ?? 0.12, 1, prCurve(st.s.pCurve, pr)) : 1) *
-    (st.s.taperIn ? lerp(st.s.taperRatio, 1, clamp((st.travel || 0) / st.s.taperIn, 0, 1)) : 1));
+  const s = st.s;
+  let d = s.size * ((s.pSize || s.speed > 0) ? lerp(s.pMin ?? 0.12, 1, prCurve(s.pCurve, pr)) : 1) *
+    (s.taperIn ? lerp(s.taperRatio, 1, clamp((st.travel || 0) / s.taperIn, 0, 1)) : 1);
+  // imported tools: pen tilt and drawing speed through their own curves, thin end of the stroke
+  if (s.tCurve && st.tilt != null) d *= lerp(s.tMin ?? 0, 1, prCurve(s.tCurve, st.tilt));
+  if (s.vCurve && st.vel != null) d *= lerp(s.vMin ?? 0, 1, prCurve(s.vCurve, st.vel));
+  if (st.outK != null && s.taperOut) d *= lerp(s.taperOutRatio ?? 0, 1, st.outK);
+  return Math.max(s.min1 ? 1 : 0.5, d);
+}
+/* pen tilt: 0 = upright, 1 = flat on the tablet (null without a pen) */
+function tiltOf(e) {
+  if (e.pointerType !== 'pen') return null;
+  if (typeof e.altitudeAngle === 'number' && e.altitudeAngle > 0 && e.altitudeAngle < Math.PI / 2 + 0.01) return clamp(1 - e.altitudeAngle / (Math.PI / 2), 0, 1);
+  if (e.tiltX || e.tiltY) return clamp(Math.max(Math.abs(e.tiltX || 0), Math.abs(e.tiltY || 0)) / 90, 0, 1);
+  return null;
+}
+/* hue / saturation / brightness change per dab (imported tools), in steps so the tinted tips stay cached */
+function colourJitter(hex, s) {
+  if (!s.hueJit && !s.satJit && !s.valJit) return hex;
+  let col = s.hueJit ? hueShift(hex, Math.round((Math.random() - 0.5) * 2 * s.hueJit * 12) * 15) : hex;
+  if (s.satJit || s.valJit) {
+    const n = parseInt(col.slice(1), 16); let r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+    const L = (r + g + b) / 3, ks = 1 - Math.round(Math.random() * 4) / 4 * (s.satJit || 0), kv = 1 + Math.round((Math.random() - 0.5) * 8) / 4 * (s.valJit || 0);
+    const f = c => clamp(Math.round((L + (c - L) * ks) * kv), 0, 255);
+    col = '#' + ((1 << 24) | (f(r) << 16) | (f(g) << 8) | f(b)).toString(16).slice(1);
+  }
+  return col;
 }
 function stepAt(st, pr) {
   const d = diameterAt(st, pr);
@@ -92,6 +117,7 @@ function growBox(st, x, y, d) {
 /* one tip image drawn at (cx, cy) with diameter d */
 function paintTip(ctx, st, cx, cy, d) {
   const s = st.s;
+  const ink = st.erase ? '#000000' : colourJitter(st.color, s);
   if (s.shape) { drawShapeTip(ctx, s.shape, cx, cy, d, st.erase ? '#000' : st.color); return; }
   if (s.tipId && customTips.has(s.tipId)) {
     // decoration brushes: several tip images (random or one after the other), full-colour tips keep their colours,
@@ -100,13 +126,12 @@ function paintTip(ctx, st, cx, cy, d) {
     if (s.tipIds && s.tipIds.length > 1) tid = s.tipOrder === 'seq' ? s.tipIds[st.tipSeq = ((st.tipSeq ?? -1) + 1) % s.tipIds.length] : s.tipIds[Math.floor(Math.random() * s.tipIds.length)];
     if (!customTips.has(tid)) tid = s.tipId;
     const raw = customTips.get(tid);
-    let col = st.erase ? '#000000' : st.color;
-    if (s.hueJit && !st.erase) col = hueShift(col, Math.round((Math.random() - 0.5) * 2 * s.hueJit * 12) * 15);
+    const col = ink;
     const tip = raw._colour && !st.erase ? raw : tintedTip(tid, col);
     ctx.save();
     ctx.translate(cx, cy);
     // fixed angle, random turn (all the way or a little), following the stroke direction, squashed tip (thickness)
-    let ang = -(s.tipAngle || 0) * DEG;
+    let ang = -(s.tipAngle || 0) * (s.rotP ? (st.lastPr ?? 1) : 1) * DEG;
     if (s.tipRot) ang += (Math.random() - 0.5) * 2 * Math.PI * (s.tipRotAmt ?? 1);
     if (s.tipFollow && st.dir != null) ang += st.dir;
     if (ang) ctx.rotate(ang);
@@ -115,7 +140,7 @@ function paintTip(ctx, st, cx, cy, d) {
     ctx.restore();
   } else if (s.hardness >= 0.97) {
     ctx.save();
-    ctx.fillStyle = st.erase ? '#000' : st.color;
+    ctx.fillStyle = ink;
     ctx.beginPath();
     if (s.nib) { ctx.translate(cx, cy); ctx.rotate(-s.nib * DEG); ctx.scale(1, 0.28); ctx.arc(0, 0, d / 2, 0, Math.PI * 2); }
     else if (s.nibRatio < 1) { ctx.translate(cx, cy); ctx.rotate(-s.nibAngle * DEG); ctx.scale(1, s.nibRatio); ctx.arc(0, 0, d / 2, 0, Math.PI * 2); }
@@ -125,10 +150,10 @@ function paintTip(ctx, st, cx, cy, d) {
   } else if (s.nibRatio < 1) {
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(-s.nibAngle * DEG); ctx.scale(1, s.nibRatio);
-    ctx.drawImage(getTip(st.erase ? '#000000' : st.color, s.hardness), -d / 2, -d / 2, d, d);
+    ctx.drawImage(getTip(ink, s.hardness), -d / 2, -d / 2, d, d);
     ctx.restore();
   } else {
-    ctx.drawImage(getTip(st.erase ? '#000000' : st.color, s.hardness), cx - d / 2, cy - d / 2, d, d);
+    ctx.drawImage(getTip(ink, s.hardness), cx - d / 2, cy - d / 2, d, d);
   }
 }
 function hueShift(hex, deg) { // rotate the hue of a #rrggbb colour
@@ -302,7 +327,24 @@ function drawOne(st, x, y, d, a) {
   ctx.drawImage(tc, 0, 0, sz, sz, ox, oy, sz, sz);
   ctx.restore();
 }
+/* thin end (imported tools): the last taperOut px of the stroke wait in a queue; when the pen lifts they are drawn thinner and thinner */
 function stampAt(st, x, y, pr) {
+  if (st.tq && !st.snapped) {
+    st.tq.push([x, y, pr, st.travel || 0]);
+    const lim = (st.travel || 0) - st.s.taperOut, keep = st.travel;
+    while (st.tq.length && st.tq[0][3] < lim) { const q = st.tq.shift(); st.travel = q[3]; stampNow(st, q[0], q[1], q[2]); }
+    st.travel = keep;
+    return;
+  }
+  stampNow(st, x, y, pr);
+}
+function flushTaper(st) {
+  if (!st.tq) return;
+  const q = st.tq, end = st.travel || 0, keep = st.travel; st.tq = null;
+  for (const p of q) { st.outK = end < 1 ? 1 : clamp((end - p[3]) / st.s.taperOut, 0, 1); st.travel = p[3]; stampNow(st, p[0], p[1], p[2]); }
+  st.outK = null; st.travel = keep;
+}
+function stampNow(st, x, y, pr) {
   stampAt1(st, x, y, pr);
   if (!st.sym) return;
   // Each copy is drawn through its mirror / rotation matrix, so tips, nib angles and textures mirror exactly.
@@ -319,7 +361,14 @@ function stampAt1(st, x, y, pr) {
   const s = st.s;
   if (st.direct) { smudgeStamp(st, x, y, pr); return; }
   const d = diameterAt(st, pr);
-  const a = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.1, 1, prCurve(s.aCurve, pr)) : 1) * (s.grain ? 1 - s.grain * Math.random() : 1), 0, 1);
+  let a = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.1, 1, prCurve(s.aCurve, pr)) : 1) * (s.grain ? 1 - s.grain * Math.random() : 1), 0, 1);
+  if (s.fadeIn && s.taperIn) a *= clamp((st.travel || 0) / s.taperIn, 0.05, 1);
+  if (s.fadeOut && st.outK != null) a *= Math.max(0.05, st.outK);
+  if (s.aRand != null) a *= lerp(s.aRand, 1, Math.random());
+  if (s.atCurve && st.tilt != null) a *= lerp(s.atMin ?? 0, 1, prCurve(s.atCurve, st.tilt));
+  if (s.avCurve && st.vel != null) a *= lerp(s.avMin ?? 0, 1, prCurve(s.avCurve, st.vel));
+  if (s.flowSp) a = 1 - Math.pow(1 - a, clamp((s.spacing || 0.1) / 0.1, 0.05, 1)); // dense spacing: less ink per dab, same look
+  st.lastPr = pr;
   const n = s.count || 1, sc = s.scatter || 0;
   if (st.dlx != null) { const dx = x - st.dlx, dy = y - st.dly; if (dx * dx + dy * dy > 0.25) st.dir = Math.atan2(dy, dx); }
   st.dlx = x; st.dly = y;
@@ -328,6 +377,7 @@ function stampAt1(st, x, y, pr) {
     // spray bias (imported tools): -1 = particles at the rim, 0 = even, +1 = towards the middle
     if (sc) { const ang = Math.random() * Math.PI * 2, r = Math.pow(Math.random(), s.sprayBias ? clamp(0.5 + 0.5 * s.sprayBias, 0.02, 1.5) : 0.5) * sc * d; px += Math.cos(ang) * r; py += Math.sin(ang) * r; }
     if (s.jitter) dd = Math.max(1, d * (1 - s.jitter * Math.random() * 0.9));
+    if (s.sRand != null) dd = Math.max(s.min1 ? 1 : 0.5, d * lerp(s.sRand, 1, Math.random()));
     if ((sc || s.jitter) && !s.sprayFix) dd *= (s.shape || n > 1) ? 0.35 + 0.65 * (s.shape ? 1 : 0.5) : 1;
     drawOne(st, px, py, dd, a);
   }
@@ -552,7 +602,8 @@ function beginStroke(e) {
     pointerId: e.pointerId, rlock,
     sym: symOn() ? symLocal(lm.fwd) : null,
     // Wacom / Huion on Windows (and others) report pressure 0 on the first sample: wait for a real value
-    waitPr: e.pointerType === 'pen' && !(e.pressure > 0) && !isShape
+    waitPr: e.pointerType === 'pen' && !(e.pressure > 0) && !isShape,
+    tilt: tiltOf(e), tq: s.taperOut && !isShape && !erase ? [] : null
   };
   prepBuffer(layer, lm.fp && lm.fp.p, s.opacity, erase || direct);
   if (s.blendOp && !erase && !direct && (!layer.blend || layer.blend === 'normal')) bufCanvas.style.mixBlendMode = s.blendOp === 'lighter' ? 'plus-lighter' : s.blendOp;
@@ -585,6 +636,12 @@ function moveStroke(e) {
       if (!(ev.pressure > 0)) { (st.waitPts || (st.waitPts = [])).push([x, y]); continue; } // keep the first points: drawn once pressure comes
       startDeferred(st, pr);
       if (st.waitPts) { for (const [wx, wy] of st.waitPts) { if (st.qs) qsRecord(st, wx, wy, pr, ev); curveTo(st, wx, wy, pr); } st.waitPts = null; }
+    }
+    st.tilt = tiltOf(ev);
+    if ((st.s.vCurve || st.s.avCurve) && !st.isShape) {
+      const dt = Math.max(1, ev.timeStamp - (st.lt2 || ev.timeStamp - 8));
+      st.vraw = (st.vraw || 0) * 0.7 + Math.hypot(x - st.rx, y - st.ry) / dt * 0.3; st.lt2 = ev.timeStamp;
+      st.vel = clamp(st.vraw / 3, 0, 1);
     }
     if (st.s.speed > 0 && !st.isShape) {
       const dt = Math.max(1, ev.timeStamp - (st.lt || ev.timeStamp - 8));
@@ -681,8 +738,10 @@ function endStroke(cancel) {
   } else if (!st.snapped) {
     curveEnd(st);
     if (st.s.smooth > 0) segment(st, st.rx, st.ry, st.rp); // the stabiliser catches up with the pen
+    flushTaper(st);
     afterMove(st);
   }
+  if (st.tq) { flushTaper(st); afterMove(st); }
 
   const b = clampBox(st.box.x0, st.box.y0, st.box.x1, st.box.y1);
   if (!b) {

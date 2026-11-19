@@ -86,12 +86,12 @@ def inout(size_amount):  # start / end targets: (id, on, amount) entries, 1001 =
     return struct.pack('>IIII', 12, len(ents), 12, 0x70) + bytes(8) + b''.join(struct.pack('>III', *e) for e in ents)
 MIXCOLS = ('VariantID INTEGER PRIMARY KEY, Opacity INTEGER, CompositeMode INTEGER, BrushSize REAL, BrushSizeEffector BLOB, BrushFlow INTEGER, BrushFlowEffector BLOB, BrushHardness INTEGER, BrushInterval REAL, '
            'BrushUseWaterColor INTEGER, BrushWaterColor INTEGER, BrushMixColor INTEGER, BrushMixAlpha INTEGER, BrushMixColorExtension INTEGER, BrushUseIn INTEGER, BrushInLength REAL, BrushInOutTarget BLOB, '
-           'Stickness INTEGER, BrushThickness INTEGER')
+           'Stickness INTEGER, BrushThickness INTEGER, BrushUseOut INTEGER, BrushOutLength REAL, BrushAtLeast1Pixel INTEGER')
 sut_raw('real_settings.sut', '', MIXCOLS, [
     ('Thick paint', 10, dict(Opacity=100, CompositeMode=0, BrushSize=40, BrushSizeEffector=eff(16, 31), BrushFlow=60, BrushFlowEffector=eff(16), BrushHardness=100, BrushInterval=10,
-        BrushUseWaterColor=1, BrushWaterColor=1, BrushMixColor=35, BrushMixAlpha=40, BrushMixColorExtension=47, BrushUseIn=0, BrushInLength=20, BrushInOutTarget=inout(0), Stickness=0, BrushThickness=100)),
+        BrushUseWaterColor=1, BrushWaterColor=1, BrushMixColor=35, BrushMixAlpha=40, BrushMixColorExtension=47, BrushUseIn=0, BrushInLength=20, BrushInOutTarget=inout(0), Stickness=0, BrushThickness=100, BrushUseOut=0, BrushOutLength=20, BrushAtLeast1Pixel=0)),
     ('Multiply liner', 11, dict(Opacity=100, CompositeMode=2, BrushSize=10, BrushSizeEffector=eff(16, 35, [(0, 0), (0.78, 0.25), (1, 1)]), BrushFlow=100, BrushFlowEffector=eff(0), BrushHardness=100, BrushInterval=10,
-        BrushUseWaterColor=0, BrushWaterColor=0, BrushMixColor=50, BrushMixAlpha=50, BrushMixColorExtension=10, BrushUseIn=1, BrushInLength=12, BrushInOutTarget=inout(100), Stickness=20, BrushThickness=100))])
+        BrushUseWaterColor=0, BrushWaterColor=0, BrushMixColor=50, BrushMixAlpha=50, BrushMixColorExtension=10, BrushUseIn=1, BrushInLength=12, BrushInOutTarget=inout(100), Stickness=20, BrushThickness=100, BrushUseOut=1, BrushOutLength=60, BrushAtLeast1Pixel=1))])
 with zipfile.ZipFile(os.path.join(out, 'pack.zip'), 'w', zipfile.ZIP_DEFLATED) as z:
     for f in ('ink_pen.sut', 'spray.sut', 'set_two.sut'): z.write(os.path.join(out, f), 'My brushes/' + f)
 print('sut files in', out)

@@ -85,6 +85,14 @@ const fs = require('fs'), path = require('path');
   console.log('     mixing brush: over yellow', mix.onYellow.join(','), '| over nothing', mix.onEmpty.join(','));
   check('over the yellow the brush mixes (yellow picked up, some blue added)', mix.onYellow[3] > 200 && mix.onYellow[0] > 80 && mix.onYellow[2] > 40 && mix.onYellow[2] < 200);
   check('over nothing it carries the picked-up yellow and paints a light blue', mix.onEmpty[3] > 10);
+  // thin end: the last 60 px of a stroke get thinner and thinner (the tail waits until the pen lifts)
+  await pg.evaluate(id => { const SF = window.__sketchforge; SF.newDocument(500, 200, 1, 12, false, 'Taper'); SF.selectTool(id); SF.setColor('#000000'); }, rs.m);
+  const tp = []; for (let x = 40; x <= 460; x += 20) tp.push([x, 100]);
+  await pg.strokeDoc(tp); await pg.waitForTimeout(250);
+  const th = await pg.evaluate(() => { const c = [...window.__sketchforge.activeLayer().cels.values()][0], g = c.getContext('2d'), col = x => { const d = g.getImageData(x, 0, 1, 200).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 100) n++; return n; }; return { mid: col(250), end: col(452), at: col(459) }; });
+  console.log('     liner thickness: middle', th.mid, '| 8 px before the end', th.end, '| last px', th.at);
+  check('thin end: the stroke gets thinner over its last part', th.mid >= 6 && th.end < th.mid * 0.5 && th.end >= 1);
+  check('the report says thin end and at least 1 px', await pg.evaluate(id => { const r = window.__sketchforge.TOOLDEF[id].report; return r.some(x => /Thin end/.test(x[1])) && r.some(x => /At least 1 px/.test(x[1])); }, rs.m));
   // ⓘ: the translator report dialog
   await pg.evaluate(id => window.__sketchforge.selectTool(id), rs.m);
   await pg.click('#subtoolBar button[data-ic=info]'); await pg.waitForTimeout(200);

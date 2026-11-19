@@ -166,7 +166,8 @@ async function registerBrush(def, persist) {
   if (ids.length === 1) extra.tipId = ids[0];
   else if (ids.length > 1) { extra.tipId = ids[0]; extra.tipIds = ids; extra.tipOrder = def.tipOrder || 'random'; }
   for (const k of ['scatter', 'count', 'jitter', 'hueJit', 'wet', 'smudge', 'blurTool', 'nibRatio', 'nibAngle', 'speed', 'pMin', 'pCurve', 'aMin', 'aCurve', 'tipAngle', 'tipRotAmt', 'tipFollow',
-    'tipThick', 'sprayFix', 'sprayBias', 'blendOp', 'paint', 'paintDensity', 'texRot']) if (def[k] != null) extra[k] = def[k];
+    'tipThick', 'sprayFix', 'sprayBias', 'blendOp', 'paint', 'paintDensity', 'texRot', 'tMin', 'tCurve', 'vMin', 'vCurve', 'sRand', 'aRand', 'rotP', 'taperOut',
+    'taperOutRatio', 'fadeIn', 'fadeOut', 'min1', 'flowSp', 'satJit', 'valJit', 'atMin', 'atCurve', 'avMin', 'avCurve']) if (def[k] != null) extra[k] = def[k];
   if (def.tex) {
     extra.tex = def.tex; extra.texAmt = def.texAmt ?? 0.6; extra.texScale = def.texScale || 1;
     if (def.texImg) {
@@ -264,10 +265,10 @@ function findPng(blob) {
   }
   return null;
 }
-/* effector blob (pen pressure etc.), big-endian: @8 input bits (16 pressure, 32 tilt, 64 speed, 128 random), @12 minimum %
-   for pressure, then curve blocks [12, n, 16, n × (x, y) doubles] in input order: the first is the pressure curve */
+/* effector blob (pen pressure etc.), big-endian: @8 input bits (16 pressure, 32 tilt, 64 speed, 128 random), minimum % per input
+   (@12 pressure, @16 tilt, @20 speed, @24 random), then curve blocks [12, n, 16, n × (x, y) doubles], one per input in that order */
 function sutEffector(b) {
-  const o = { bits: 0, min: 0, curve: null, curves: [] };
+  const o = { bits: 0, min: 0, curve: null, curves: [], mins: {}, curveOf: {} };
   if (!b || b.length < 16) return o;
   const dv = new DataView(b.buffer, b.byteOffset, b.byteLength), u = i => dv.getUint32(i);
   o.bits = u(8); o.min = clamp(u(12) / 100, 0, 1);
@@ -278,8 +279,13 @@ function sutEffector(b) {
       o.curves.push(pts); i += 12 + n * 16;
     } else i += 4;
   }
-  const c = o.curves[0];
-  if ((o.bits & 16) && c && !(c.length === 2 && c[0][0] === 0 && c[0][1] === 0 && c[1][0] === 1 && c[1][1] === 1)) o.curve = c; // a straight line needs no curve
+  const straight = c => !c || (c.length === 2 && c[0][0] === 0 && c[0][1] === 0 && c[1][0] === 1 && c[1][1] === 1); // a straight line needs no curve
+  let k = 0;
+  [[16, 12], [32, 16], [64, 20], [128, 24]].forEach(([bit, at]) => {
+    o.mins[bit] = b.length >= at + 4 ? clamp(u(at) / 100, 0, 1) : 0;
+    if (o.bits & bit) { const c = o.curves[k++]; if (!straight(c)) o.curveOf[bit] = c; }
+  });
+  o.curve = o.curveOf[16] || null;
   return o;
 }
 /* start / end effect targets: entries (id, on, amount): 1001 = size, 1021 = opacity */
@@ -390,7 +396,8 @@ const SUT_USED = new Set(('Opacity AntiAlias CompositeMode FlickerReduction Text
   'BrushUseSpray BrushSpraySize BrushSpraySizeUnit BrushSpraySizeEffector BrushSpraySizeSyncBrushSize BrushSprayDensity BrushSprayDensityEffector BrushUseIn BrushInLength BrushInLengthUnit ' +
   'BrushInRatio BrushUseOut BrushOutLength BrushOutLengthUnit BrushOutRatio BrushInOutTarget BrushInOutType BrushInOutBySpeed BrushUseWaterEdge BrushWaterEdgeRadius BrushWaterEdgeRadiusUnit ' +
   'BrushWaterEdgeAlphaPower BrushBlurEffector BrushSubColorEffector BrushSaturationChangeEffector BrushValueChangeEffector GradationData GradationShapeKind BrushSprayBias ' +
-  'TextureRotate TextureBrightness TextureContrast TextureForPlot').split(' '));
+  'TextureRotate TextureBrightness TextureContrast TextureForPlot BrushAtLeast1Pixel BrushAdjustFlowByInterval BrushUseRevision BrushRevision BrushSaturationChange BrushValueChange ' +
+  'BrushStrokeSaturationChange BrushStrokeValueChange BrushBlendPatternByDarken BrushSharpenCorner TextureStressDensity FlickerReductionBySpeed BrushWaterEdgeBlur BrushWaterEdgeAfterDrag').split(' '));
 /* Clip Studio's usual values (from 69 real tools): a setting left at its usual value changes nothing */
 const SUT_USUAL = { FlickerReductionBySpeedType: 1, BrushBlur: 5, BrushChangeColorTarget: 1, BrushRevision: 10, BrushRevisionBySpeed: 1, BrushRevisionByViewScale: 1,
   BrushVectorEraserReferAllLayer: 1, BrushEnableSnap: 1, BrushVectorMagnetPower: 30, BrushAdjustVelocity: 1, DualBrushCompositeMode: 1, DualAntiAlias: 2, DualSize: 30, DualFlow: 100,
@@ -448,14 +455,20 @@ function sutToDefs(buf) {
       spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip: tips[0] || null, tips: tips.length > 1 ? tips : undefined, tipDensity: tipMats.length > 0 || undefined };
     ok(`Size ${def.size}px, opacity ${pct(def.opacity)}, density ${pct(def.flow)}` + (tips.length ? '' : `, hardness ${pct(def.hardness)}`) + `, anti-aliasing ${['none', 'weak', 'medium', 'strong'][def.aa] || def.aa}`);
     if (v.FlickerReduction) ok(`Stabiliser ${v.FlickerReduction}`);
+    if (v.FlickerReductionBySpeed) near('Stabilise by speed: the stabiliser is the same at every speed');
     // pen pressure (and speed / random / tilt) on size and density, with the tool's own curve and minimum
     def.pSize = !!(es.bits & 16); def.pAlpha = !!((ef.bits | eo.bits) & 16); def.speed = (es.bits & 64) ? 0.5 : 0;
     if (def.pSize) { def.pMin = es.min; if (es.curve) def.pCurve = es.curve; ok(`Pressure → size (minimum ${pct(es.min)}${es.curve ? ', own pressure curve' : ''})`); }
     const ea = (eo.bits & 16) ? eo : ef;
     if (def.pAlpha) { def.aMin = ea.min; if (ea.curve) def.aCurve = ea.curve; ok(`Pressure → ${(eo.bits & 16) ? 'opacity' : 'density'} (minimum ${pct(ea.min)}${ea.curve ? ', own curve' : ''})`); }
-    if (es.bits & 64) near('Speed → size (a fixed amount)');
-    if (es.bits & 128) { def.jitter = 0.3; near('Random size per dab'); }
-    if ((es.bits | ef.bits | eo.bits) & 32) no('Pen tilt (Sketchforge does not read tilt yet; pressure is used)');
+    if (es.bits & 32) { if (es.mins[32] < 1) { def.tMin = es.mins[32]; def.tCurve = es.curveOf[32] || [[0, 0], [1, 1]]; ok(`Pen tilt → size (minimum ${pct(es.mins[32])})`); } else ok('Pen tilt → size: no effect (minimum 100%)'); }
+    if (es.bits & 64) { def.speed = 0; if (es.mins[64] < 1) { def.vMin = es.mins[64]; def.vCurve = es.curveOf[64] || [[0, 1], [1, 0]]; ok(`Drawing speed → size (minimum ${pct(es.mins[64])}, own curve)`); } else ok('Drawing speed → size: no effect (minimum 100%)'); }
+    if (es.bits & 128) { def.sRand = es.mins[128]; ok(`Random size per dab (minimum ${pct(es.mins[128])})`); }
+    const er = (eo.bits & 128) ? eo : ef;
+    if (er.bits & 128) { def.aRand = er.mins[128]; ok(`Random ${(eo.bits & 128) ? 'opacity' : 'density'} per dab (minimum ${pct(er.mins[128])})`); }
+    const eT = (eo.bits & 32) ? eo : ef, eV = (eo.bits & 64) ? eo : ef;
+    if ((eT.bits & 32) && eT.mins[32] < 1) { def.atMin = eT.mins[32]; def.atCurve = eT.curveOf[32] || [[0, 0], [1, 1]]; ok(`Pen tilt → opacity (minimum ${pct(eT.mins[32])})`); }
+    if ((eV.bits & 64) && eV.mins[64] < 1) { def.avMin = eV.mins[64]; def.avCurve = eV.curveOf[64] || [[0, 1], [1, 0]]; ok(`Drawing speed → opacity (minimum ${pct(eV.mins[64])})`); }
     // tip: shape images (materials), rotation, thickness, order
     if (tips.length) ok(`${tips.length} tip image${tips.length > 1 ? 's' : ''} from the file${tipMats.length ? ' (read as density: dark = ink)' : ''}`);
     else if (v.BrushUsePatternImage) no('Tip image could not be read: round tip used');
@@ -473,7 +486,7 @@ function sutToDefs(buf) {
       if (thick !== 1) { def.nibRatio = clamp(thick > 1 ? 1 / thick : thick, 0.05, 1); def.nibAngle = (rot || 0) + ((thick > 1) !== !!v.BrushVerticalThicknes ? 90 : 0); ok(`Flat nib: thickness ${Math.round(thick * 100)}%, angle ${Math.round(rot)}°`); }
       if (re & 128) near('Random nib angle: kept fixed');
     }
-    if (re & 16) near('Pressure → tip angle: kept at its fixed angle');
+    if ((re & 16) && rot) { def.rotP = true; ok('Pressure → tip angle'); }
     // spray: the tool size is the spray area, the particles have their own size
     if (spray) {
       const area = def.size, part = v.BrushSpraySizeSyncBrushSize ? area * (v.BrushSpraySize ?? 100) / 100 : (v.BrushSpraySize ?? 2);
@@ -490,7 +503,8 @@ function sutToDefs(buf) {
       def.texScale = clamp((texMat ? texMat.w / 256 : 1) * (v.TextureScale2 ?? 100) / 100, 0.05, 16); def.texInv = !!v.TextureReverseDensity;
       ok(`Texture from the file: density ${pct(def.texAmt)}, scale ${v.TextureScale2 ?? 100}%${def.texInv ? ', inverted' : ''}${texMat && texMat.w <= 300 ? ' (preview-size picture)' : ''}`);
       if (v.TextureRotate) { def.texRot = v.TextureRotate; ok(`Texture angle ${Math.round(v.TextureRotate)}°`); }
-      if (v.TextureBrightness || v.TextureContrast) { def.texBright = v.TextureBrightness || 0; def.texContrast = v.TextureContrast || 0; ok(`Texture brightness ${def.texBright}, contrast ${def.texContrast}`); }
+      if (v.TextureStressDensity) { def.texContrast = (def.texContrast || 0) + 60; ok('Emphasise texture density (stronger grain)'); }
+      if (v.TextureBrightness || v.TextureContrast) { def.texBright = v.TextureBrightness || 0; def.texContrast = (def.texContrast || 0) + (v.TextureContrast || 0); ok(`Texture brightness ${def.texBright}, contrast ${def.texContrast}`); }
       if (v.TextureCompositeMode) near(`Texture mode ${v.TextureCompositeMode}: applied as multiply`);
       if (v.TextureForPlot) near('Texture on each dab: applied to the whole stroke (looks the same, no doubled grain)');
     } else if (v.TextureImage) no('Texture could not be read');
@@ -498,6 +512,10 @@ function sutToDefs(buf) {
     if (v.BrushChangePatternColor || v.BrushChangeStrokeColor) {
       const hue = v.BrushChangeStrokeColor && v.BrushStrokeHueChange ? v.BrushStrokeHueChange : (v.BrushHueChange ?? sutNum(v, /Hue(Change|Jitter|Random)|ColorJitterHue|ChangeHue/i));
       if (hue) { def.hueJit = clamp(hue > 1 ? hue / 180 : hue, 0, 1); ok(`Colour (hue) change ±${Math.round(def.hueJit * 180)}°`); }
+      const sat = v.BrushChangeStrokeColor && v.BrushStrokeSaturationChange ? v.BrushStrokeSaturationChange : v.BrushSaturationChange;
+      const val = v.BrushChangeStrokeColor && v.BrushStrokeValueChange ? v.BrushStrokeValueChange : v.BrushValueChange;
+      if (sat) { def.satJit = clamp(sat / 100, 0, 1); ok(`Saturation change ${sat}%`); }
+      if (val) { def.valJit = clamp(val / 100, 0, 1); ok(`Brightness change ${val}%`); }
     }
     // colour mixing: amount of paint / density of paint / colour stretch
     if (v.BrushUseWaterColor) {
@@ -506,10 +524,10 @@ function sutToDefs(buf) {
       else {
         def.paint = P; def.paintDensity = D; def.smudge = clamp(0.25 + 0.7 * (v.BrushMixColorExtension ?? 10) / 100, 0.2, 0.95);
         ok(`Colour mixing: amount of paint ${pct(P)}, density ${pct(D)}, colour stretch ${v.BrushMixColorExtension ?? 10}`);
-        if (def.tex) near('Texture is not used while mixing colours');
         if (v.CompositeMode) near('Blending mode is not used while mixing colours');
       }
     }
+    if (v.BrushUseWaterEdge && (v.BrushWaterEdgeBlur || v.BrushWaterEdgeAfterDrag)) near('Watercolour edge blur / after drag: edge drawn when the pen lifts');
     if (v.BrushUseWaterEdge) { def.wet = clamp(0.3 + (v.BrushWaterEdgeAlphaPower ?? 20) / 60, 0.3, 0.9); if (def.paint != null) near('Watercolour edge is not used while mixing colours'); else ok('Watercolour edge'); }
     // start / end (taper)
     const io = sutInOut(v.BrushInOutTarget);
@@ -517,8 +535,20 @@ function sutToDefs(buf) {
       def.taperIn = v.BrushInOutType === 1 ? def.size * 4 : (v.BrushInLength || 0); def.taperRatio = clamp(1 - io[1001], 0, 1);
       (v.BrushInOutType === 1 ? near : ok)(`Thin start: ${v.BrushInOutType === 1 ? 'about ' + Math.round(def.taperIn) + 'px' : def.taperIn + 'px'}, from ${pct(def.taperRatio)}`);
     }
-    if (v.BrushUseOut && io[1001]) near('Thin end: the end of a stroke stays full (Sketchforge tapers the start only)');
-    if ((v.BrushUseIn || v.BrushUseOut) && io[1021]) near('Fade in / out on opacity: not used');
+    if (v.BrushUseOut && io[1001]) {
+      def.taperOut = v.BrushInOutType === 1 ? def.size * 4 : (v.BrushOutLength || 0); def.taperOutRatio = clamp(1 - io[1001], 0, 1);
+      if (def.taperOut > 0) (v.BrushInOutType === 1 ? near : ok)(`Thin end: ${v.BrushInOutType === 1 ? 'about ' + Math.round(def.taperOut) + 'px' : def.taperOut + 'px'}, down to ${pct(def.taperOutRatio)}`);
+    }
+    if (io[1021]) {
+      if (v.BrushUseIn) { def.fadeIn = true; if (!def.taperIn) { def.taperIn = v.BrushInOutType === 1 ? def.size * 4 : (v.BrushInLength || 0); def.taperRatio = 1; } ok('Fade in (opacity) at the start'); }
+      if (v.BrushUseOut) { def.fadeOut = true; if (!def.taperOut) { def.taperOut = v.BrushInOutType === 1 ? def.size * 4 : (v.BrushOutLength || 0); def.taperOutRatio = 1; } ok('Fade out (opacity) at the end'); }
+    }
+    // small things
+    if (v.BrushAtLeast1Pixel) { def.min1 = true; ok('At least 1 px'); }
+    if (v.BrushAdjustFlowByInterval && tips.length) { def.flowSp = true; ok('Density follows spacing'); }
+    if (v.BrushUseRevision && v.BrushRevision) { def.smooth = clamp(def.smooth + v.BrushRevision / 200, 0, 0.9); near(`Post correction ${v.BrushRevision}: extra stabiliser`); }
+    if (v.BrushBlendPatternByDarken && tips.length) near('Tips blended by darken: overlapping tips add up normally (the same with one colour)');
+    if (v.BrushSharpenCorner) near('Sharp corners: corners stay slightly round');
     // blending mode
     if (v.CompositeMode && def.paint == null) { const b = SUT_BLEND[v.CompositeMode]; if (b) { def.blendOp = b[0]; (b[2] ? near : ok)(`Blending mode: ${b[1]}`); } else no(`Blending mode ${v.CompositeMode}`); }
     if (group === 'blend' && def.paint == null) { def.smudge = /blur|ぼかし|模糊/i.test(n.NodeName) ? 0 : 0.85; if (def.smudge === 0) def.blurTool = true; ok(def.blurTool ? 'Blur tool' : 'Blend (smudge) tool'); }
@@ -611,7 +641,8 @@ function loadBuiltinPens() {
       const def = sutToDefs(u.buffer).find(d => !d.skip); if (!def) continue;
       const id = ids[name] || 'pen_' + name.toLowerCase().replace(/[^a-z]+/g, '_');
       TOOLDEF[id] = { name: def.name || name, kind: 'brush', icon: 'pen', preset: P(def.size, def.hardness, def.flow, def.opacity, def.pSize, def.pAlpha, def.smooth,
-        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio ?? def.tipThick ?? 1, nibAngle: def.nibAngle ?? def.tipAngle ?? 0, pMin: def.pMin, pCurve: def.pCurve, aMin: def.aMin, aCurve: def.aCurve,
+        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio ?? def.tipThick ?? 1, nibAngle: def.nibAngle ?? def.tipAngle ?? 0, pMin: def.pMin, pCurve: def.pCurve, aMin: def.aMin, aCurve: def.aCurve, tMin: def.tMin, tCurve: def.tCurve, vMin: def.vMin, vCurve: def.vCurve,
+          sRand: def.sRand, taperOut: def.taperOut, taperOutRatio: def.taperOutRatio, min1: def.min1,
           ...(def.tex ? { tex: def.tex, texAmt: def.texAmt, texScale: def.texScale } : id === 'textured' ? { tex: 'paper', texAmt: 0.85 } : {}) }) };
       settings[id] = { ...TOOLDEF[id].preset };
       order.push(id);

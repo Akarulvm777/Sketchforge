@@ -222,6 +222,12 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
+## 2.10: more Clip Studio settings work
+- New: thin end. Tools with a thin start / end in Clip Studio now get thinner at the end of the stroke too (and fade in / out when the tool fades opacity).
+- New: pen tilt and drawing speed change size and opacity through each tool's own curves; random size and opacity per dab use the tool's minimum.
+- New: saturation and brightness change per dab, rotation by pen pressure, "at least 1 px", density that follows spacing, stronger texture grain, post correction.
+- New: colour mixing brushes keep their paper texture.
+
 ## 2.10: Clip Studio tools translated setting by setting
 - New: a tool translator. Every imported Clip Studio tool is read setting by setting, and ⓘ at the bottom of the Sub Tool panel shows what became of each one (✓ same, ≈ close, ✗ not in Sketchforge yet). Settings Sketchforge does not use yet are remembered, so you can see which ones your tools rely on.
 - New: colour mixing. Brushes with Clip Studio colour mixing pick up the colour under them and mix it with the brush colour (amount of paint, density, colour stretch).

@@ -304,6 +304,8 @@ function smudgeStamp(st, x, y, pr) {
   const strength = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.15, 1, typeof prCurve === 'function' ? prCurve(s.aCurve, pr) : pr) : 1) * (paint ? s.opacity : 1), 0, 1);
   const tip = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness);
   const [BR, BG, BB] = paint ? hexToRgb(st.color) : [0, 0, 0];
+  // paper texture while mixing colours: the texture grain lowers the strength pixel by pixel
+  const tv = paint && s.tex ? texBaseFor(s.tex)._vals : null, tN = TEX_N, tk = s.texScale || 1, tA = clamp(s.texAmt ?? 0.6, 0, 1);
   tg.globalCompositeOperation = 'source-over';
   tg.clearRect(0, 0, C, C);
   if (s.blurTool) {
@@ -329,8 +331,9 @@ function smudgeStamp(st, x, y, pr) {
     const cd = rg.getImageData(0, 0, rw, rh).data, md = mg.getImageData(0, 0, rw, rh).data;
     const im = g.getImageData(rx, ry, rw, rh), od = im.data;
     for (let i = 0; i < od.length; i += 4) {
-      const km = strength * md[i + 3] / 255;
+      let km = strength * md[i + 3] / 255;
       if (km <= 0) continue;
+      if (tv) { const p = i >> 2, u = Math.floor((rx + p % rw) / tk) % tN, w = Math.floor((ry + Math.floor(p / rw)) / tk) % tN; km *= 1 - tA * (1 - tv[(w < 0 ? w + tN : w) * tN + (u < 0 ? u + tN : u)]); }
       const oa = od[i + 3] / 255;
       let ca = cd[i + 3] / 255, cr = cd[i], cgr = cd[i + 1], cb = cd[i + 2];
       if (paint) { // amount of paint P: brush colour vs picked-up colour; density D: how much it covers
