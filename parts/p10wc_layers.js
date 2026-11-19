@@ -68,6 +68,10 @@ function layerRow(l, inFolder) {
     mkMini('eye', l.visible, 'Show / hide', () => toggleVisible(l)),
     thumb, name,
     mkMini('lock', l.locked, 'Lock / unlock', () => toggleLock(l)));
+  // ⋯ = layer options (move to a folder, colour…): works with a finger too, no right-click needed
+  const more = document.createElement('button'); more.className = 'mini lmore'; more.textContent = '⋯'; more.title = 'Layer options: move to a folder, colour…';
+  more.onclick = e => { e.stopPropagation(); if (!LSEL.has(l.id)) selectLayer(l.id); const r = more.getBoundingClientRect(); layerMenu(r.left, r.bottom, l); };
+  item.appendChild(more);
   item.onclick = e => { if (e.shiftKey || e.ctrlKey || e.metaKey) { LSEL.has(l.id) ? LSEL.delete(l.id) : LSEL.add(l.id); renderLayers(); return; } selectLayer(l.id); };
   item.oncontextmenu = e => { e.preventDefault(); if (!LSEL.has(l.id)) selectLayer(l.id); layerMenu(e.clientX, e.clientY, l); };
   dragRow(item, () => (LSEL.has(l.id) ? ticked() : [l]), l);
@@ -125,6 +129,18 @@ function groupIntoFolder(list) {
   });
   LSEL.clear(); renderLayers();
   toast('Folder made. Double-click its name to rename it.');
+}
+/* a new folder with nothing ticked: a folder holding one new blank layer, ready to fill (put layers in with ⋯ › Move to folder) */
+function newEmptyFolder() {
+  timelineOp(() => {
+    const f = newFolder(); f.name = 'Folder ' + (foldersOf().length + 1);
+    const l = createLayer('Layer ' + (++layerCounter)); l.folder = f;
+    const a = activeLayer(), i = a ? state.layers.indexOf(a) : state.layers.length - 1;
+    const at = a && a.folder ? Math.max(...state.layers.map((x, k) => x.folder === a.folder ? k : -1)) + 1 : i + 1;
+    state.layers.splice(at, 0, l); state.activeId = l.id;
+  });
+  renderLayers();
+  toast('New folder. Put layers in it: ⋯ on a layer › Move to folder, or drag them onto the folder.', 4500);
 }
 function moveIntoFolder(list, f, above) {
   if (!list.length) return;
@@ -185,6 +201,7 @@ function layerMenu(x, y, l) {
 }
 function folderMenu(x, y, f) {
   popMenu(x, y, [
+    [ticked().length ? `➜ Put the ${ticked().length} ticked layer${ticked().length > 1 ? 's' : ''} here` : '➜ Put the selected layer here', () => { const list = targets().filter(l => l.folder !== f); if (list.length) moveIntoFolder(list, f); else toast('That layer is already in this folder'); }],
     ['Rename…', () => renameFolder(f)], ['🎨 Folder colour…', () => colorPicker(x, y, [], f)],
     [f.open ? 'Close' : 'Open', () => { f.open = !f.open; renderLayers(); }],
     ['Tick all its layers', () => { for (const l of state.layers) if (l.folder === f) LSEL.add(l.id); renderLayers(); }],
@@ -231,7 +248,7 @@ function dropTarget(el, f, above) {
 
 function installLayersPro() {
   Object.assign(CMD, {
-    layerFolder: () => groupIntoFolder(),
+    layerFolder: () => (ticked().length ? groupIntoFolder() : newEmptyFolder()),
     layerTag: () => { const r = $('#layerList').getBoundingClientRect(); colorPicker(r.left, r.top, targets(), null); },
     layerTickAll: () => { state.layers.forEach(l => LSEL.add(l.id)); renderLayers(); },
     layerTickNone: () => { LSEL.clear(); renderLayers(); }

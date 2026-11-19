@@ -222,6 +222,12 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
+## 2.9: easier layers and a fresh start on new installs
+- Installing the app (Windows / Mac / Linux installer or a new Android APK) starts with default settings; your work, drawing library and imported tools are kept. Automatic updates keep your settings.
+- Every layer has a ⋯ button: move it to a folder, colour it… (works with a finger, no right-click needed). A folder's ⋯ has "Put the selected layer here".
+- New folder with no layer ticked makes an empty folder ready to fill.
+- Fixed: with many tools, the Sub tool list squeezed them thin. Tools keep their size and the list scrolls.
+
 ## 2.9: rig with the Bone tool
 - New 🦴 Bone tool (in the tool palette, after the Shading pens). Click a part, then click the part it follows: they are linked and the joint goes where they touch. Or drag from a part onto its parent. Drag any dot to move a joint. Alt+click frees a part.
 - Sub tool Bone: pose: drag a part to turn it around its joint, everything attached follows. On the timeline each pose makes a keyframe.

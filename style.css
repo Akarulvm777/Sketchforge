@@ -905,3 +905,8 @@ dialog.fxdlg::backdrop { background: transparent; backdrop-filter: none; -webkit
 .lsw.on { outline: 2px solid #fff; }
 .lcustom { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
 .lcustom input { width: 44px; height: 26px; padding: 0; border: 0; background: none; }
+/* Sub tool list: rows keep their size, the list scrolls when there are many tools (they used to be squeezed thin) */
+#subtoolList > * { flex-shrink: 0; }
+#subtoolList { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.layer-item .lmore { opacity: .7; padding: 1px 5px; }
+.layer-item .lmore:hover { opacity: 1; }

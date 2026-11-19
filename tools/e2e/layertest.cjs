@@ -70,6 +70,24 @@ const path = require('path');
   // delete several ticked layers at once
   await tick('Layer 1'); await tick('Layer 2'); await pg.click('#layerSelBar [data-a=del]'); await pg.waitForTimeout(150);
   check('delete several ticked layers at once', (await pg.evaluate(() => window.__sketchforge.state.layers.length)) === 4);
+  // New folder with nothing ticked: an empty folder (with one blank layer), then put a layer in with ⋯ › Move to folder
+  await pg.evaluate(() => { const SF = window.__sketchforge; SF.newDocument(300, 200, 1, 12, false, 'F2'); SF.CMD.layerAdd(); SF.CMD.layerAdd(); });
+  await pg.waitForTimeout(200);
+  await pg.evaluate(() => window.__sketchforge.CMD.layerFolder()); await pg.waitForTimeout(150);
+  let st = await pg.evaluate(() => window.__sketchforge.state.layers.map(l => l.name + (l.folder ? '@' + l.folder.name : '')));
+  check('New folder with nothing ticked makes a folder ready to fill', st.filter(x => /@Folder 1/.test(x)).length === 1);
+  const r1 = await row('Layer 1');
+  await r1.evaluate(el => el.querySelector('.lmore').click()); await pg.waitForTimeout(100);
+  await pg.click('.lpop button:has-text("Move to folder")'); await pg.waitForTimeout(100);
+  await pg.click('.lpop button:has-text("📁 Folder 1")'); await pg.waitForTimeout(150);
+  st = await pg.evaluate(() => window.__sketchforge.state.layers.map(l => l.name + (l.folder ? '@' + l.folder.name : '')));
+  check('⋯ on a layer › Move to folder puts it in the folder (no right-click needed)', st.includes('Layer 1@Folder 1'));
+  // folder ⋯ › Put the selected layer here
+  await (await row('Layer 2')).click(); await pg.waitForTimeout(80);
+  await pg.click('#layerList .layer-folder .mini:last-child'); await pg.waitForTimeout(100);
+  await pg.click('.lpop button:has-text("Put the selected layer here")'); await pg.waitForTimeout(150);
+  st = await pg.evaluate(() => window.__sketchforge.state.layers.map(l => l.name + (l.folder ? '@' + l.folder.name : '')));
+  check('folder ⋯ › Put the selected layer here', st.includes('Layer 2@Folder 1'));
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done();
 })();

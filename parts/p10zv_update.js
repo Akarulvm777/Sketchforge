@@ -98,6 +98,10 @@ function installUpdater() {
       else { const L = JSON.parse(localStorage.getItem(UPD_KEY) || 'null'); if (L && L.version === APP_VERSION) { L.ok = APP_VERSION; localStorage.setItem(UPD_KEY, JSON.stringify(L)); } }
     }
   } catch (e) { /* ignore */ }
+  try { // first start after installing the app again: settings were reset by index.html, the work is kept
+    const fresh = localStorage.getItem('sketchforge.freshinstall');
+    if (fresh) { localStorage.removeItem('sketchforge.freshinstall'); setTimeout(() => toast(`Sketchforge ${fresh} installed: settings are back to default, your work is kept.`, 6000), 1800); }
+  } catch (e) { /* ignore */ }
   CMD.checkUpdate = () => checkForUpdate(true);
   CMD.whatsNew = () => whatsNew(true);
   CMD.about = () => toast(`Sketchforge ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
