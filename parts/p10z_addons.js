@@ -834,11 +834,11 @@ function openPenDialog() {
       const r = pad.getBoundingClientRect(), k = pad.width / r.width;
       const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
       const isPen = e.pointerType === 'pen';
-      const raw = isPen ? e.pressure : 0.5;
+      const raw = isPen ? penRaw(e) : 0.5;
       if (isPen) pressureOf(e);
-      if (cal && isPen && e.pressure > 0) cal.samples.push(e.pressure);
+      if (cal && isPen && raw > 0) cal.samples.push(raw);
       const p = isPen ? shapePressure(raw > 0 ? raw : 0.03) : 0.5;
-      $('#penStatus').textContent = `${e.pointerType}  ·  raw pressure ${raw.toFixed(2)}  →  used ${p.toFixed(2)}` + (cal ? `  ·  calibrating (${cal.samples.length} samples)` : '');
+      $('#penStatus').textContent = `${e.pointerType}  ·  raw pressure ${raw.toFixed(2)}${isPen && penRaw.src !== 'pointer' ? ' (' + penRaw.src + ')' : ''}  →  used ${p.toFixed(2)}` + (cal ? `  ·  calibrating (${cal.samples.length} samples)` : '');
       g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 1 + p * 9, 0, 7); g.fill();
       last = [x, y];
       if (!cal) { const det = $('#penDetect'); if (isPen && realPressureSeen) det.innerHTML = '✅ Pen detected, pressure is working.'; }

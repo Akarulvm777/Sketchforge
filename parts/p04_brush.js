@@ -53,12 +53,36 @@ function shapePressure(p) {
    Apple Pencil, Surface/Android styluses. Some drivers (XP-Pen without Windows Ink) report the pen as a 'mouse'
    with real pressure values - those are honoured too once a value other than 0/0.5 has been seen. */
 let realPressureSeen = false, penSamples = 0, penFlat = true, penWarned = false;
+/* iPad / iPhone Safari: the Apple Pencil's force also comes with the touch events (touchType 'stylus'). When the pointer
+   events of the pen carry no usable pressure (0, or always 0.5), that force is used instead. */
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+let stylusForce = -1, stylusAt = 0, stylusVaries = false, stylusLast = -1;
+(function () {
+  const tf = e => { for (const t of e.changedTouches || []) if (t.touchType === 'stylus' && typeof t.force === 'number') {
+    if (stylusLast >= 0 && Math.abs(t.force - stylusLast) > 0.002) stylusVaries = true;
+    stylusForce = stylusLast = t.force; stylusAt = performance.now(); } };
+  if (typeof window !== 'undefined') for (const ev of ['touchstart', 'touchmove']) window.addEventListener(ev, tf, { passive: true, capture: true });
+  // on the canvas, the Pencil must only draw (no magnifier, text selection or double-tap zoom on iPad)
+  if (typeof window !== 'undefined') window.addEventListener('touchstart', e => { const t = e.changedTouches && e.changedTouches[0]; if (t && t.touchType === 'stylus' && e.target && e.target.closest && e.target.closest('#viewport')) e.preventDefault(); }, { passive: false });
+})();
+const stylusPressure = () => (stylusForce > 0 && performance.now() - stylusAt < 120 ? clamp(stylusForce, 0, 1) : null);
+/* the pen's raw pressure 0..1: the pointer event's, or the Apple Pencil force from the touch events (iPad Safari) */
+function penRaw(e) {
+  const raw = e.pressure, sf = stylusPressure();
+  if (sf != null && stylusVaries && (!(raw > 0) || Math.abs(raw - 0.5) < 0.001 || penFlat)) { penRaw.src = 'Apple Pencil force'; return sf; }
+  penRaw.src = 'pointer'; return raw;
+}
 function pressureOf(e) {
   const pt = e.pointerType;
   if (pt === 'pen') {
-    penSamples++; if (Math.abs(e.pressure - 0.5) > 0.001 && e.pressure > 0) { penFlat = false; realPressureSeen = true; }
-    if (!penWarned && penSamples > 40 && penFlat) { penWarned = true; toast('Your pen sends no pressure data: turn on Windows Ink in your tablet driver (Wacom, XP-Pen, Huion…), then restart. Help: View › Pen pressure & touch.', 7000); }
-    return shapePressure(e.pressure > 0 ? Math.max(e.pressure, 0.03) : 0.03);
+    const raw = penRaw(e);
+    penSamples++; if (Math.abs(raw - 0.5) > 0.001 && raw > 0) { penFlat = false; realPressureSeen = true; }
+    if (!penWarned && penSamples > 40 && penFlat) {
+      penWarned = true;
+      toast(IS_IOS ? 'Your Apple Pencil sends no pressure here: open Sketchforge in Safari (not inside another app), update iPadOS, and turn off Settings › Apple Pencil › Scribble. Test it: View › Pen pressure & touch.'
+        : 'Your pen sends no pressure data: turn on Windows Ink in your tablet driver (Wacom, XP-Pen, Huion…), then restart. Help: View › Pen pressure & touch.', 8000);
+    }
+    return shapePressure(raw > 0 ? Math.max(raw, 0.03) : 0.03);
   }
   if (pt === 'mouse' && e.buttons && e.pressure > 0 && Math.abs(e.pressure - 0.5) > 0.001) realPressureSeen = true;
   if (realPressureSeen && pt === 'mouse' && e.pressure > 0) return shapePressure(e.pressure);
@@ -632,7 +656,7 @@ function moveStroke(e) {
   for (const ev of list) {
     const d = rulerApply(st.rlock, toDoc(ev));
     const [x, y] = st.map(d.x, d.y);
-    let pr = pressureOf(ev);
+    let pr = pressureOf(ev.pointerType === 'pen' && ev !== e && !(ev.pressure > 0) && e.pressure > 0 ? e : ev); // Safari: in-between samples can come without pressure
     if (st.waitPr) {
       if (!(ev.pressure > 0)) { (st.waitPts || (st.waitPts = [])).push([x, y]); continue; } // keep the first points: drawn once pressure comes
       startDeferred(st, pr);

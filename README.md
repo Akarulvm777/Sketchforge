@@ -223,6 +223,7 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
 ## 2.11: your colours, paper and brushes
+- Fixed: Apple Pencil pressure on iPad. When Safari sends the Pencil without pressure, Sketchforge reads the Pencil's force sensor directly; in-between samples without pressure take the pen's real pressure. The Pencil no longer opens the magnifier or selects text on the canvas. View › Pen pressure & touch shows where the pressure comes from.
 - Fixed for iPad / iPhone: older iPad Safari (before iPadOS 15.4) can now open every window of the app. If the app ever cannot start on a device, it shows why, with a Repair & reload button (instead of a blank page).
 - Website: new section about Clip Studio tools, the brush editor, colour sets and paper; clearer iPad steps and help.
 - New: make an imported Clip Studio tool match. ⓘ › ⚙ Adjust opens it in the brush editor with a list of what Clip Studio does differently; tune it with the live preview (pressure, tilt and speed curves too). Everything the import translated is kept.
