@@ -9620,7 +9620,13 @@ function sutToDefs(buf) {
     if (!v || !n.NodeName) continue;
     const tips = v.BrushUsePatternImage ? findPngs(v.BrushPatternImageArray) : [];
     const group = sutKind(n.NodeName, v, tips);
-    if (!group) { defs.push({ name: n.NodeName, skip: true }); continue; }
+    if (!group) {
+      // no brush size stored: a drawing tool by its name gets default settings (like the built-in Dot pen); others are skipped
+      const byName = SUT_NAMES.find(([k, re]) => k !== 'gradient' && re.test(n.NodeName));
+      if (byName) defs.push({ name: n.NodeName, group: byName[0], size: 4, hardness: 1, flow: 1, opacity: (v.Opacity ?? 100) / 100, aa: 0, smooth: 0, pSize: false, pen: byName[0] === 'pen', erase: byName[0] === 'eraser' || undefined });
+      else defs.push({ name: n.NodeName, skip: true });
+      continue;
+    }
     if (group === 'gradient') {
       defs.push({ name: n.NodeName, kind: 'gradient', group, radial: /circle|radial|円|放射/i.test(n.NodeName) || !!sutNum(v, /Circle|Radial/i), approx: true,
         stops: /transparent|透明/i.test(n.NodeName) ? [[0, 'fg'], [1, 'fg0']] : [[0, 'fg'], [1, 'bg']] });
@@ -9717,7 +9723,7 @@ function loadBuiltinPens() {
   for (const [name, b64] of PENSET) {
     try {
       const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-      const def = sutToDefs(u.buffer)[0]; if (!def) continue;
+      const def = sutToDefs(u.buffer).find(d => !d.skip); if (!def) continue;
       const id = ids[name] || 'pen_' + name.toLowerCase().replace(/[^a-z]+/g, '_');
       TOOLDEF[id] = { name: def.name || name, kind: 'brush', icon: 'pen', preset: P(def.size, def.hardness, def.flow, def.opacity, def.pSize, def.pAlpha, def.smooth,
         { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle,
