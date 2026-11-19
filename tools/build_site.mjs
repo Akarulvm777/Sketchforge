@@ -28,7 +28,7 @@ for (const f of appFiles) {
 }
 // downloads
 const names = { windows: `Sketchforge-Setup-${V}.exe`, macArm: `Sketchforge-${V}-mac-arm64.dmg`, macIntel: `Sketchforge-${V}-mac-x64.dmg`,
-  android: `Sketchforge-${V}-android.apk`, linux: `Sketchforge-${V}-linux-x86_64.AppImage` };
+  android: `Sketchforge-${V}-android.apk`, linux: `Sketchforge-${V}-linux-x86_64.AppImage`, ios: `Sketchforge-${V}-ios-unsigned.ipa` };
 if (cfg.mac === false) { delete names.macArm; delete names.macIntel; } // Mac build paused: no Mac links
 const downloads = {};
 if (process.env.DOWNLOADS_DIR) {
@@ -46,7 +46,7 @@ const changes = readme.split(/\n(?=## )/).filter(sec => sec.startsWith(`## ${mm}
 const notes = changes.map(c => '• ' + c.title).join('\n');
 const site = ((fs.readFileSync(path.join(ROOT, 'cloud-config.js'), 'utf8').match(/"site"\s*:\s*"([^"]*)"/) || [])[1] || '').replace(/\/+$/, '');
 const version = { version: V, date: new Date().toISOString().slice(0, 10), notes, changes, files, downloads,
-  shell: { desktop: cfg.minShell || '2.4.0', android: cfg.minShell || '2.4.0' }, site };
+  shell: { desktop: cfg.minShell || '2.4.0', android: cfg.minShell || '2.4.0', ios: '2.11.5' }, site };
 fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify(version, null, 1));
 fs.writeFileSync(path.join(OUT, '_headers'), `/version.json
   Cache-Control: no-cache

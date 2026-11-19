@@ -15,7 +15,7 @@ const isElectron = () => /Electron\//.test(navigator.userAgent);
 const isLiveCopy = () => location.pathname.includes('/_capacitor_file_/');
 function shellInfo() {
   if (isElectron()) return { platform: 'desktop', version: new URLSearchParams(location.search).get('shell') || APP_VERSION };
-  if (typeof isNativeApp === 'function' && isNativeApp()) { let v = APP_VERSION; try { v = localStorage.getItem('sketchforge.shell.v1') || v; } catch (e) { /* ignore */ } return { platform: 'android', version: v }; }
+  if (typeof isNativeApp === 'function' && isNativeApp()) { let v = APP_VERSION; try { v = localStorage.getItem('sketchforge.shell.v1') || v; } catch (e) { /* ignore */ } const C = window.Capacitor; return { platform: C && C.getPlatform && C.getPlatform() === 'ios' ? 'ios' : 'android', version: v }; }
   return { platform: 'web', version: APP_VERSION };
 }
 function updCard(html, buttons) {
@@ -63,7 +63,7 @@ async function checkForUpdate(manual) {
   const sh = shellInfo();
   if (!verGt(j.version, APP_VERSION)) { if (manual) toast(`You have the latest version (${APP_VERSION}) ✓`); return; }
   const need = j.shell && j.shell[sh.platform];
-  const dl = j.downloads && (sh.platform === 'android' ? j.downloads.android : sh.platform === 'desktop' ? (/Mac/.test(navigator.platform) ? (j.downloads.macArm || j.downloads.mac) : /Linux/.test(navigator.platform) ? j.downloads.linux : j.downloads.windows) : null);
+  const dl = j.downloads && (sh.platform === 'android' ? j.downloads.android : sh.platform === 'ios' ? j.downloads.ios : sh.platform === 'desktop' ? (/Mac/.test(navigator.platform) ? (j.downloads.macArm || j.downloads.mac) : /Linux/.test(navigator.platform) ? j.downloads.linux : j.downloads.windows) : null);
   if (need && verGt(need, sh.version) && sh.platform !== 'web') {
     updCard(`<b>⬆ Sketchforge ${j.version} is available</b>${notesHtml(j)}Tap <b>Download update</b>, then open the file and install it <b>over this one</b> — no need to uninstall: your drawings and settings stay.`,
       [['Later'], ['Download update', () => openDownload(dl || site + '/#download'), true]]);
@@ -71,7 +71,7 @@ async function checkForUpdate(manual) {
   }
   if (sh.platform === 'web') {
     updCard(`<b>⬆ Sketchforge ${j.version} is available</b>${notesHtml(j)}`, [['Later'], ['Reload now', async () => { await updSaveFirst(); location.reload(); }, true]]);
-  } else if (sh.platform === 'android') {
+  } else if (sh.platform === 'android' || sh.platform === 'ios') { // the iPad app (.ipa) updates its files the same way
     try { await androidLiveUpdate(j); } catch (e) { console.warn('update', e); if (manual) toast('Update failed: ' + e.message); }
   } else if (manual) toast('Downloading Sketchforge ' + j.version + ' in the background…');
 }

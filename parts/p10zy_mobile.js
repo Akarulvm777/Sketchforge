@@ -32,7 +32,8 @@ async function nativeSave(blob, name) {
   const data = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
   try {
     await FS.writeFile({ path: 'Sketchforge/' + name, data, directory: 'DOCUMENTS', recursive: true });
-    toast('Saved to Documents/Sketchforge/' + name, 4000);
+    const ios = window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'ios';
+    toast(ios ? 'Saved: Files › On My iPad › Sketchforge › Sketchforge › ' + name : 'Saved to Documents/Sketchforge/' + name, 4000);
   } catch (e) {
     try {
       const r = await FS.writeFile({ path: name, data, directory: 'CACHE' });

@@ -1,6 +1,6 @@
 {
   "name": "sketchforge",
-  "version": "2.11.4",
+  "version": "2.11.5",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
   "author": "Sketchforge",
@@ -26,7 +26,8 @@
     "@capacitor/cli": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/filesystem": "^6.0.1",
-    "@capacitor/share": "^6.0.2"
+    "@capacitor/share": "^6.0.2",
+    "@capacitor/ios": "^6.1.2"
   },
   "build": {
     "appId": "app.sketchforge.studio",

@@ -1,5 +1,5 @@
 # Builds the installable apps and the web (iPad / iPhone) version.
-#   Windows .exe installer, macOS .dmg (Intel + Apple Silicon), Linux AppImage, Android .apk, web zip.
+#   Windows .exe installer, macOS .dmg (Intel + Apple Silicon), Linux AppImage, Android .apk, iPad .ipa (unsigned), web zip.
 # Starts when the FIRST LINE of a pushed commit message contains [build] (test build: downloads under the workflow
 # run) or [release] (also publishes a GitHub Release v<package.json version>), on v* tags, or by hand
 # (Actions → Build apps → Run workflow, tick "release" to publish).
@@ -137,6 +137,54 @@ jobs:
           mkdir -p out && cp android/app/build/outputs/apk/debug/app-debug.apk out/Sketchforge-$VER-android.apk
       - uses: actions/upload-artifact@v4
         with: { name: android-apk, path: out/*.apk, if-no-files-found: error }
+  ios:
+    # iPad / iPhone app: an UNSIGNED .ipa (no Apple Developer account yet), installed with a sideloading tool
+    # (AltStore / Sideloadly with your Apple ID; it works 7 days, then install again). Needs a macOS machine:
+    # it runs on its own and adds the .ipa to the release when it is done, so a busy macOS queue never holds the
+    # other downloads or the website back.
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - name: Create the iOS project
+        run: |
+          node tools/build_www.mjs
+          npx cap add ios
+          VER=$(node -p "require('./package.json').version")
+          PL=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VER" $PL
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" $PL
+          # saved files show in the Files app (On My iPad › Sketchforge); every orientation; Pencil-friendly full screen
+          /usr/libexec/PlistBuddy -c "Add :UIFileSharingEnabled bool true" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :LSSupportsOpeningDocumentsInPlace bool true" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" $PL || true
+          /usr/libexec/PlistBuddy -c "Add :UIStatusBarHidden bool true" $PL || true
+          ICON=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          for f in "$ICON"/*.png; do sips -z 1024 1024 icon-512.png --out "$f" >/dev/null; done
+          npx cap sync ios
+      - name: Build the app (unsigned)
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -20
+          mkdir -p Payload ../../out && cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry ../../out/Sketchforge-$VER-ios-unsigned.ipa Payload
+          ls -la ../../out
+      - uses: actions/upload-artifact@v4
+        with: { name: ios-ipa, path: out/*.ipa, if-no-files-found: error }
+      - name: Add the .ipa to the release
+        if: needs.gate.outputs.release == 'true'
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          V=v$(node -p "require('./package.json').version")
+          for i in $(seq 1 60); do gh release view "$V" >/dev/null 2>&1 && break; sleep 30; done
+          gh release upload "$V" out/*.ipa --clobber
   web:
     needs: gate
     if: needs.gate.outputs.build == 'true'
@@ -202,7 +250,7 @@ jobs:
             **Mac**: `…-mac-arm64.dmg` for Apple Silicon (M1/M2/M3…), `…-mac-x64.dmg` for Intel. Open the dmg, drag Sketchforge to Applications, then right-click → Open the first time (the app is not notarised).
             **Android**: download the `.apk` on the phone / tablet and open it (allow "install unknown apps" when asked).
             **Linux**: the `.AppImage` (make it executable, then run it).
-            **iPad / iPhone**: open the web link in Safari → Share → Add to Home Screen.
+            **iPad / iPhone**: open the web link in Safari → Share → Add to Home Screen. Test app: `…-ios-unsigned.ipa` (added a few minutes later), installed with AltStore or Sideloadly and your Apple ID (works 7 days, then install again).
       # Public downloads (the website links here, so people can download without access to this private repository).
       # Needs package.json "sketchforge.releasesRepo" (an empty public repository) and the secret RELEASES_TOKEN
       # (a fine-grained token with Contents: read and write on that repository). See docs/ONLINE-SETUP.md.
