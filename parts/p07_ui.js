@@ -255,7 +255,7 @@ function refreshProps() {
   if (k === 'puppet') { puppetProps(body); return; }
   if (k === 'brush' || k === 'shape' || k === 'poly') {
     const s = (k === 'shape' || k === 'poly') ? settings.shape : settings[id];
-    slider(body, 'Size', 1, 300, 1, s.size, v => v + 'px', v => { s.size = v; updateCursor(); });
+    slider(body, 'Size', 1, Math.max(300, Math.ceil(s.size)), 1, s.size, v => v + 'px', v => { s.size = v; updateCursor(); });
     sizeGrid(body, s);
     if (k === 'brush') {
       slider(body, 'Hardness', 0, 100, 1, s.hardness * 100, v => v + '%', v => s.hardness = v / 100);

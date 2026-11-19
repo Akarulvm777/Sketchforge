@@ -150,7 +150,7 @@ async function registerBrush(def, persist) {
   const id = def.id || 'custom_' + Date.now().toString(36) + Math.floor(Math.random() * 999);
   const group = def.group || (def.pen ? 'pen' : 'brush');
   if (def.kind === 'gradient' || group === 'gradient') { // a gradient preset
-    TOOLDEF[id] = { name: def.name || 'Gradient', kind: 'gradient', icon: 'gradient', custom: true, stops: def.stops || [[0, 'fg'], [1, 'bg']], radial: !!def.radial };
+    TOOLDEF[id] = { name: def.name || 'Gradient', kind: 'gradient', icon: 'gradient', custom: true, stops: def.stops || [[0, 'fg'], [1, 'bg']], radial: !!def.radial, report: def.report };
     settings[id] = {};
     const gg = GROUPS.find(g2 => g2.id === 'gradient'); if (gg && !gg.subs.includes(id)) gg.subs.push(id);
     if (persist) { addons.brushes.push({ ...def, id, group: 'gradient' }); saveAddons(); }
@@ -165,12 +165,22 @@ async function registerBrush(def, persist) {
   }
   if (ids.length === 1) extra.tipId = ids[0];
   else if (ids.length > 1) { extra.tipId = ids[0]; extra.tipIds = ids; extra.tipOrder = def.tipOrder || 'random'; }
-  for (const k of ['scatter', 'count', 'jitter', 'hueJit', 'wet', 'smudge', 'blurTool', 'nibRatio', 'nibAngle', 'speed']) if (def[k] != null) extra[k] = def[k];
+  for (const k of ['scatter', 'count', 'jitter', 'hueJit', 'wet', 'smudge', 'blurTool', 'nibRatio', 'nibAngle', 'speed', 'pMin', 'pCurve', 'aMin', 'aCurve', 'tipAngle', 'tipRotAmt', 'tipFollow',
+    'tipThick', 'sprayFix', 'sprayBias', 'blendOp', 'paint', 'paintDensity', 'texRot']) if (def[k] != null) extra[k] = def[k];
   if (def.tex) {
     extra.tex = def.tex; extra.texAmt = def.texAmt ?? 0.6; extra.texScale = def.texScale || 1;
-    if (def.texImg) { try { extra.tex = registerTexture('tex_' + id, await loadImage(def.texImg), def.texInv); } catch (e) { /* keep generic paper */ } }
+    if (def.texImg) {
+      try {
+        let img = await loadImage(def.texImg);
+        if (def.texBright || def.texContrast) { // texture brightness / contrast (Clip Studio -100…100)
+          const c = makeCanvas(img.width, img.height), g = c.getContext('2d');
+          g.filter = `brightness(${clamp(1 + (def.texBright || 0) / 100, 0, 2)}) contrast(${clamp(1 + (def.texContrast || 0) / 100, 0, 3)})`; g.drawImage(img, 0, 0); img = c;
+        }
+        extra.tex = registerTexture('tex_' + id, img, def.texInv);
+      } catch (e) { /* keep generic paper */ }
+    }
   }
-  TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: GROUP_ICON[group] || (def.pen ? 'pen' : 'brush'), custom: true,
+  TOOLDEF[id] = { name: def.name || 'Custom brush', kind: 'brush', icon: GROUP_ICON[group] || (def.pen ? 'pen' : 'brush'), custom: true, report: def.report,
     preset: P(def.size || 40, ids.length ? 1 : (def.hardness ?? 1), def.flow ?? 1, def.opacity ?? 1, def.pSize ?? true, def.pAlpha ?? false, def.smooth ?? 0.2, extra) };
   if (group === 'eraser' || def.erase) TOOLDEF[id].erase = true;
   settings[id] = { ...TOOLDEF[id].preset };
@@ -254,7 +264,31 @@ function findPng(blob) {
   }
   return null;
 }
-const effectorInputs = b => (b && b.length >= 16 ? new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(12) : 0);
+/* effector blob (pen pressure etc.), big-endian: @8 input bits (16 pressure, 32 tilt, 64 speed, 128 random), @12 minimum %
+   for pressure, then curve blocks [12, n, 16, n × (x, y) doubles] in input order: the first is the pressure curve */
+function sutEffector(b) {
+  const o = { bits: 0, min: 0, curve: null, curves: [] };
+  if (!b || b.length < 16) return o;
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength), u = i => dv.getUint32(i);
+  o.bits = u(8); o.min = clamp(u(12) / 100, 0, 1);
+  for (let i = 16; i + 12 <= b.length;) {
+    const n = u(i + 4);
+    if (u(i) === 12 && n >= 2 && n <= 64 && u(i + 8) === 16 && i + 12 + n * 16 <= b.length) {
+      const pts = []; for (let k = 0; k < n; k++) pts.push([+dv.getFloat64(i + 12 + k * 16).toFixed(3), +dv.getFloat64(i + 20 + k * 16).toFixed(3)]);
+      o.curves.push(pts); i += 12 + n * 16;
+    } else i += 4;
+  }
+  const c = o.curves[0];
+  if ((o.bits & 16) && c && !(c.length === 2 && c[0][0] === 0 && c[0][1] === 0 && c[1][0] === 1 && c[1][1] === 1)) o.curve = c; // a straight line needs no curve
+  return o;
+}
+/* start / end effect targets: entries (id, on, amount): 1001 = size, 1021 = opacity */
+function sutInOut(b) {
+  const o = {}; if (!b || b.length < 24) return o;
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  for (let i = 0; i + 12 <= b.length; i += 4) { const id = dv.getUint32(i); if ((id === 1001 || id === 1021) && !(id in o)) { const on = dv.getUint32(i + 4); if (on <= 1) o[id] = on ? clamp(dv.getUint32(i + 8) / 100, 0, 1) : 0; } }
+  return o;
+}
 function findPngs(blob) { // every PNG inside a blob (decoration brushes keep several tip images)
   const out = []; if (!blob || !blob.length) return out;
   for (let i = 0; i < blob.length - 8; i++) {
@@ -329,17 +363,56 @@ function sutKind(name, v, tips, node) {
   const cols = Object.keys(v), has = re => cols.some(c => re.test(c) && v[c] != null && v[c] !== 0);
   if ((node && node.NodeInputOp === 52) || has(/Gradation|Gradient/i) || (v.BrushSize == null && SUT_NAMES[0][1].test(name))) return 'gradient';
   if (v.BrushSize == null) return null; // fill, text, selection… not a drawing tool
-  for (const [k, re] of SUT_NAMES) if (k !== 'gradient' && re.test(name)) return k;
-  if (has(/Erase/i)) return 'eraser';
+  // specific names first (eraser, blend, airbrush, decoration…), then what the settings show, then the generic words brush / pen
+  for (const [k, re] of SUT_NAMES) if (k !== 'gradient' && k !== 'brush' && k !== 'pen' && re.test(name)) return k;
+  if (has(/^BrushErase|EraseMode/i)) return 'eraser';
   if (tips.length > 1 || v.BrushRibbon || (v.BrushUseSpray && v.BrushUsePatternImage) || (tips.length && (v.BrushInterval || 0) >= 50)) return 'decor';
+  for (const [k, re] of SUT_NAMES) if ((k === 'brush' || k === 'pen') && re.test(name)) return k;
   if (v.BrushUseSpray) return 'airbrush';
-  if (has(/WaterEdge|ColorMix|PaintMix|MixColor|MixingColor/i)) return 'brush';
-  if ((v.BrushHardness ?? 100) >= 90 && !v.TextureImage) return 'pen';
+  if (v.BrushUseWaterColor || v.BrushUseWaterEdge) return 'brush'; // colour mixing / watercolour edge (the mix amounts are always stored, even when off)
+  if (v.TextureImage && (v.BrushHardness ?? 100) < 100 || (v.TextureImage && (v.BrushSize || 0) <= 30)) return 'pencil';
+  if ((v.BrushHardness ?? 100) >= 90 && !v.TextureImage) return (v.BrushSize || 0) > 40 ? 'brush' : 'pen';
   if (v.TextureImage) return 'pencil';
   return 'brush';
 }
 const sutNum = (v, re) => { for (const c of Object.keys(v)) if (re.test(c) && typeof v[c] === 'number') return v[c]; return null; };
-/* Convert Clip Studio sub tool data (.sut) into Sketchforge tool definitions, each with the group it belongs to. */
+/* Clip Studio blending modes (same numbers as layer modes) → canvas */
+const SUT_BLEND = { 1: ['darken', 'Darken'], 2: ['multiply', 'Multiply'], 3: ['color-burn', 'Color burn'], 4: ['color-burn', 'Linear burn', 1], 7: ['lighten', 'Lighten'],
+  8: ['screen', 'Screen'], 9: ['color-dodge', 'Color dodge'], 10: ['color-dodge', 'Glow dodge', 1], 11: ['lighter', 'Add'], 12: ['lighter', 'Add (glow)', 1], 14: ['overlay', 'Overlay'],
+  15: ['soft-light', 'Soft light'], 16: ['hard-light', 'Hard light'], 17: ['difference', 'Difference'], 22: ['exclusion', 'Exclusion'], 23: ['hue', 'Hue'], 24: ['saturation', 'Saturation'],
+  25: ['color', 'Color'], 26: ['luminosity', 'Brightness'] };
+/* every setting the translator understands; anything else that differs from Clip Studio's usual value is reported (and remembered) */
+const SUT_USED = new Set(('Opacity AntiAlias CompositeMode FlickerReduction TextureImage TextureCompositeMode TextureReverseDensity TextureScale2 TextureDensity TextureDensityEffector ' +
+  'BrushSize BrushSizeUnit BrushSizeEffector BrushOpacityEffector BrushFlow BrushFlowEffector BrushHardness BrushInterval BrushIntervalEffector BrushAutoIntervalType BrushThickness ' +
+  'BrushThicknessEffector BrushVerticalThicknes BrushRotation BrushRotationEffector BrushRotationRandomScale BrushRotationInSpray BrushRotationEffectorInSpray BrushRotationRandomInSpray ' +
+  'BrushUsePatternImage BrushPatternImageArray BrushPatternOrderType BrushPatternOrderType2 BrushPatternNameVersion BrushUseWaterColor BrushUseWaterColor2 BrushWaterColor BrushMixColor ' +
+  'BrushMixColorEffector BrushMixAlpha BrushMixAlphaEffector BrushMixColorExtension BrushChangePatternColor BrushHueChange BrushHueChangeEffector BrushChangeStrokeColor BrushStrokeHueChange ' +
+  'BrushUseSpray BrushSpraySize BrushSpraySizeUnit BrushSpraySizeEffector BrushSpraySizeSyncBrushSize BrushSprayDensity BrushSprayDensityEffector BrushUseIn BrushInLength BrushInLengthUnit ' +
+  'BrushInRatio BrushUseOut BrushOutLength BrushOutLengthUnit BrushOutRatio BrushInOutTarget BrushInOutType BrushInOutBySpeed BrushUseWaterEdge BrushWaterEdgeRadius BrushWaterEdgeRadiusUnit ' +
+  'BrushWaterEdgeAlphaPower BrushBlurEffector BrushSubColorEffector BrushSaturationChangeEffector BrushValueChangeEffector GradationData GradationShapeKind BrushSprayBias ' +
+  'TextureRotate TextureBrightness TextureContrast TextureForPlot').split(' '));
+/* Clip Studio's usual values (from 69 real tools): a setting left at its usual value changes nothing */
+const SUT_USUAL = { FlickerReductionBySpeedType: 1, BrushBlur: 5, BrushChangeColorTarget: 1, BrushRevision: 10, BrushRevisionBySpeed: 1, BrushRevisionByViewScale: 1,
+  BrushVectorEraserReferAllLayer: 1, BrushEnableSnap: 1, BrushVectorMagnetPower: 30, BrushAdjustVelocity: 1, DualBrushCompositeMode: 1, DualAntiAlias: 2, DualSize: 30, DualFlow: 100,
+  DualAdjustFlowByInterval: 1, DualHardness: 100, DualInterval: 10, DualAutoIntervalType: 2, DualThickness: 100, DualRotationEffector: 3, DualRotationRandomScale: 100,
+  DualRotationEffectorInSpray: 1, DualRotationRandomInSpray: 100, DualTextureScale: 100, DualTextureDensity: 50, DualSpraySize: 2, DualSprayDensity: 1, FillExpandLength: 10, FillExpandType: 2, FillColorMargin: 10 };
+/* settings that only matter for vector layers, fills or the tool's own panel layout */
+const SUT_IGNORE = /^(_PW_ID|VariantID|VariantShow|Fill|BrushVector|BrushUseVectorEraser|BrushEnableSnap|BrushUseVectorMagnet|BrushEraseAllLayer|BrushUseReferLayer|BrushAdjustVelocity|BrushQuality|BrushRevision(BySpeed|ByViewScale|Bezier)|FlickerReductionBySpeedType|BrushChangeColorTarget|BrushBlurLinkSize|BrushBlurUnit)/;
+const SUT_LABEL = { TextureBrightness: 'Texture brightness', TextureContrast: 'Texture contrast', TextureRotate: 'Texture angle', TextureStressDensity: 'Emphasise texture density', TextureForPlot: 'Texture on each dab',
+  BrushSprayBias: 'Spray bias', BrushSharpenCorner: 'Sharp corners', BrushAtLeast1Pixel: 'At least 1 px', BrushAdjustFlowByInterval: 'Flow follows spacing', UseDualBrush: 'Dual brush',
+  BrushRibbon: 'Ribbon', BrushBlendPatternByDarken: 'Blend tips by darken', BrushSaturationChange: 'Saturation change per dab', BrushValueChange: 'Brightness change per dab', BrushSubColor: 'Sub colour mix',
+  Stickness: 'Ink stickiness', BrushUseRevision: 'Post correction', BrushRevision: 'Post correction amount', FlickerReductionBySpeed: 'Stabilise by speed', BrushBlurKind: 'Blur kind', BrushBlur: 'Blur amount',
+  BrushColorMixingMode: 'Colour mixing mode', BrushLMSLinearity: 'Colour mixing (LMS)', BrushContinuousPlot: 'Continuous spray', BrushSprayUseFixedPoint: 'Fixed spray points', BrushWaterEdgeValuePower: 'Watercolour edge darkness',
+  BrushWaterEdgeAfterDrag: 'Watercolour edge after drag', BrushWaterEdgeBlur: 'Watercolour edge blur', BrushStrokeSaturationChange: 'Saturation change per stroke', BrushStrokeValueChange: 'Brightness change per stroke' };
+/* remember the Clip Studio settings this translator does not handle yet (shown in the tool report) */
+function sutLearn(keys) {
+  if (!keys.length) return;
+  let m = {}; try { m = JSON.parse(localStorage.getItem('sketchforge.sutlearn.v1') || '{}'); } catch (e) { /* new */ }
+  for (const k of keys) m[k] = (m[k] || 0) + 1;
+  try { localStorage.setItem('sketchforge.sutlearn.v1', JSON.stringify(m)); } catch (e) { /* full */ }
+}
+/* Convert Clip Studio sub tool data (.sut) into Sketchforge tool definitions, each with the group it belongs to and a report:
+   every setting the tool changes, and what became of it (✓ same, ≈ close, ✗ not in Sketchforge yet). */
 function sutToDefs(buf) {
   const t = readSqlite(buf);
   const variants = new Map((t.Variant || []).map(v => [v.VariantID, v]));
@@ -355,42 +428,114 @@ function sutToDefs(buf) {
     if (!group) {
       // no brush size stored: a drawing tool by its name gets default settings (like the built-in Dot pen); others are skipped
       const byName = SUT_NAMES.find(([k, re]) => k !== 'gradient' && re.test(n.NodeName));
-      if (byName) defs.push({ name: n.NodeName, group: byName[0], size: 4, hardness: 1, flow: 1, opacity: (v.Opacity ?? 100) / 100, aa: 0, smooth: 0, pSize: false, pen: byName[0] === 'pen', erase: byName[0] === 'eraser' || undefined });
+      if (byName) defs.push({ name: n.NodeName, group: byName[0], size: 4, hardness: 1, flow: 1, opacity: (v.Opacity ?? 100) / 100, aa: 0, smooth: 0, pSize: false, pen: byName[0] === 'pen', erase: byName[0] === 'eraser' || undefined,
+        report: [['ok', 'No size stored: a ' + byName[0] + ' with default settings (from its name)']] });
       else defs.push({ name: n.NodeName, skip: true });
       continue;
     }
     if (group === 'gradient') {
       const real = parseGradation(v.GradationData);
       defs.push({ name: n.NodeName, kind: 'gradient', group, radial: v.GradationShapeKind === 1 || /circle|radial|円|放射/i.test(n.NodeName), approx: !real,
-        stops: real || (/transparent|透明/i.test(n.NodeName) ? [[0, 'fg'], [1, 'fg0']] : [[0, 'fg'], [1, 'bg']]) });
+        stops: real || (/transparent|透明/i.test(n.NodeName) ? [[0, 'fg'], [1, 'fg0']] : [[0, 'fg'], [1, 'bg']]),
+        report: [real ? ['ok', `Gradient with its ${real.length} colour stops`] : ['approx', 'Gradient colours not stored in a readable way: foreground → background']] });
       continue;
     }
-    const sz = effectorInputs(v.BrushSizeEffector), fl = effectorInputs(v.BrushFlowEffector), op = effectorInputs(v.BrushOpacityEffector);
-    /* effector input bits (observed): 16 = pen pressure, 64 = drawing speed */
-    const rot = v.BrushRotation || 0, thick = (v.BrushThickness ?? 100) / 100;
-    const def = {
-      name: n.NodeName, group, size: clamp(Math.round(v.BrushSize * 10) / 10, 0.5, 300),
-      opacity: (v.Opacity ?? 100) / 100, flow: (v.BrushFlow ?? 100) / 100, hardness: (v.BrushHardness ?? 100) / 100,
-      aa: v.AntiAlias ?? 2, smooth: clamp((v.FlickerReduction || 0) / 50, 0, 0.9),
-      pSize: !!(sz & 16), pAlpha: !!((fl & 16) || (op & 16)), speed: (sz & 64) ? 0.5 : 0,
-      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip: tips[0] || null, tips: tips.length > 1 ? tips : undefined, tipDensity: tipMats.length > 0 || undefined,
-      taperIn: v.BrushUseIn ? (v.BrushInLength || 0) : 0, taperRatio: (v.BrushInRatio ?? 30) / 100,
-      nibRatio: thick < 1 ? clamp(thick, 0.05, 1) : 1, nibAngle: rot,
-      pen: group === 'pen',
-      ...(v.TextureImage && (texMat || findPng(v.TextureImage)) ? { texImg: texMat ? texMat.url : findPng(v.TextureImage), tex: 'paper', texAmt: clamp((v.TextureDensity ?? 50) / 100, 0, 1),
-        // the texture keeps its real size: original width / the 256 px tile, times the tool's texture scale
-        texScale: clamp((texMat ? texMat.w / 256 : 1) * (v.TextureScale2 ?? 100) / 100, 0.05, 16), texInv: !!v.TextureReverseDensity } : {})
-    };
-    if (v.BrushUseSpray) { def.scatter = clamp((v.BrushSpraySize ?? 100) / 100, 0.2, 3); def.count = clamp(Math.round((v.BrushSprayDensity ?? 10) / 8), 1, 10); }
-    if ((v.BrushRotationRandom || v.BrushRotationRandomInSpray || 0) > 0 || group === 'decor') def.tipRot = !!((v.BrushRotationRandom || v.BrushRotationRandomInSpray || 0) > 0);
-    if (group === 'decor' && v.BrushUseSpray) def.jitter = 0.35;
-    if (tips.length > 1) def.tipOrder = v.BrushPatternOrderType === 0 ? 'seq' : 'random';
+    const R = [], ok = m => R.push(['ok', m]), near = m => R.push(['approx', m]), no = m => R.push(['no', m]), pct = x => Math.round(x * 100) + '%';
+    const es = sutEffector(v.BrushSizeEffector), ef = sutEffector(v.BrushFlowEffector), eo = sutEffector(v.BrushOpacityEffector);
+    const thick = (v.BrushThickness ?? 100) / 100, spray = !!v.BrushUseSpray;
+    const def = { name: n.NodeName, group, size: clamp(Math.round(v.BrushSize * 10) / 10, 0.5, 1000), opacity: (v.Opacity ?? 100) / 100, flow: (v.BrushFlow ?? 100) / 100,
+      hardness: (v.BrushHardness ?? 100) / 100, aa: v.AntiAlias ?? 2, smooth: clamp((v.FlickerReduction || 0) / 50, 0, 0.9), pen: group === 'pen',
+      spacing: clamp((v.BrushInterval || 10) / 100, 0.04, 2), tip: tips[0] || null, tips: tips.length > 1 ? tips : undefined, tipDensity: tipMats.length > 0 || undefined };
+    ok(`Size ${def.size}px, opacity ${pct(def.opacity)}, density ${pct(def.flow)}` + (tips.length ? '' : `, hardness ${pct(def.hardness)}`) + `, anti-aliasing ${['none', 'weak', 'medium', 'strong'][def.aa] || def.aa}`);
+    if (v.FlickerReduction) ok(`Stabiliser ${v.FlickerReduction}`);
+    // pen pressure (and speed / random / tilt) on size and density, with the tool's own curve and minimum
+    def.pSize = !!(es.bits & 16); def.pAlpha = !!((ef.bits | eo.bits) & 16); def.speed = (es.bits & 64) ? 0.5 : 0;
+    if (def.pSize) { def.pMin = es.min; if (es.curve) def.pCurve = es.curve; ok(`Pressure → size (minimum ${pct(es.min)}${es.curve ? ', own pressure curve' : ''})`); }
+    const ea = (eo.bits & 16) ? eo : ef;
+    if (def.pAlpha) { def.aMin = ea.min; if (ea.curve) def.aCurve = ea.curve; ok(`Pressure → ${(eo.bits & 16) ? 'opacity' : 'density'} (minimum ${pct(ea.min)}${ea.curve ? ', own curve' : ''})`); }
+    if (es.bits & 64) near('Speed → size (a fixed amount)');
+    if (es.bits & 128) { def.jitter = 0.3; near('Random size per dab'); }
+    if ((es.bits | ef.bits | eo.bits) & 32) no('Pen tilt (Sketchforge does not read tilt yet; pressure is used)');
+    // tip: shape images (materials), rotation, thickness, order
+    if (tips.length) ok(`${tips.length} tip image${tips.length > 1 ? 's' : ''} from the file${tipMats.length ? ' (read as density: dark = ink)' : ''}`);
+    else if (v.BrushUsePatternImage) no('Tip image could not be read: round tip used');
+    if (tips.length > 1) { const o = v.BrushPatternOrderType ?? 0; def.tipOrder = o <= 1 ? 'seq' : 'random'; ok(`Tips used ${def.tipOrder === 'seq' ? 'one after the other' : 'in random order'}`); }
+    if (tips.length && v.BrushAutoIntervalType && v.BrushAutoIntervalType !== 0 && !v.BrushInterval) def.spacing = 0.1;
+    if (tips.length) ok(`Spacing ${Math.round(def.spacing * 100)}% of the size`);
+    const re = (spray ? v.BrushRotationEffectorInSpray : v.BrushRotationEffector) || 0, rnd = (spray ? v.BrushRotationRandomInSpray : v.BrushRotationRandomScale) ?? 100;
+    const rot = (spray ? v.BrushRotationInSpray : v.BrushRotation) || v.BrushRotation || 0;
+    if (tips.length) {
+      if (rot) { def.tipAngle = rot; ok(`Tip angle ${Math.round(rot)}°`); }
+      if (re & 128) { def.tipRot = true; def.tipRotAmt = clamp(rnd / 100, 0, 1); ok(`Random rotation ${rnd}%`); }
+      if (re & (256 | 512)) { def.tipFollow = true; near('Tip turns with the stroke direction'); }
+      if (thick !== 1) { def.tipThick = clamp(thick > 1 ? 1 / thick : thick, 0.05, 1); ok(`Tip thickness ${Math.round(thick * 100)}%`); }
+    } else {
+      if (thick !== 1) { def.nibRatio = clamp(thick > 1 ? 1 / thick : thick, 0.05, 1); def.nibAngle = (rot || 0) + ((thick > 1) !== !!v.BrushVerticalThicknes ? 90 : 0); ok(`Flat nib: thickness ${Math.round(thick * 100)}%, angle ${Math.round(rot)}°`); }
+      if (re & 128) near('Random nib angle: kept fixed');
+    }
+    if (re & 16) near('Pressure → tip angle: kept at its fixed angle');
+    // spray: the tool size is the spray area, the particles have their own size
+    if (spray) {
+      const area = def.size, part = v.BrushSpraySizeSyncBrushSize ? area * (v.BrushSpraySize ?? 100) / 100 : (v.BrushSpraySize ?? 2);
+      def.count = clamp(Math.round(v.BrushSprayDensity ?? 5), 1, 12); def.sprayFix = true;
+      if (tips.length && part > 1) {
+        def.size = clamp(Math.round(part * 10) / 10, 1, 1000); def.scatter = clamp(area / 2 / def.size, 0.05, 3); def.spacing = clamp(def.spacing * area / def.size, 0.04, 3);
+        ok(`Spray: area ${area}px, ${tips.length > 1 ? 'shapes' : 'particles'} ${def.size}px, density ${def.count}`);
+      } else { def.scatter = 0.5; def.sprayFix = false; def.count = clamp(Math.round((v.BrushSprayDensity ?? 10) / 2) + 2, 2, 12); ok(`Spray: area ${area}px, density ${v.BrushSprayDensity}`); }
+      if (v.BrushSprayBias) { def.sprayBias = clamp(v.BrushSprayBias / 100, -1, 1); ok(`Spray bias ${v.BrushSprayBias} (${v.BrushSprayBias < 0 ? 'more at the rim' : 'more in the middle'})`); }
+    }
+    // texture (paper): its real size, density, inverted
+    if (v.TextureImage && (texMat || findPng(v.TextureImage))) {
+      def.texImg = texMat ? texMat.url : findPng(v.TextureImage); def.tex = 'paper'; def.texAmt = clamp((v.TextureDensity ?? 50) / 100, 0, 1);
+      def.texScale = clamp((texMat ? texMat.w / 256 : 1) * (v.TextureScale2 ?? 100) / 100, 0.05, 16); def.texInv = !!v.TextureReverseDensity;
+      ok(`Texture from the file: density ${pct(def.texAmt)}, scale ${v.TextureScale2 ?? 100}%${def.texInv ? ', inverted' : ''}${texMat && texMat.w <= 300 ? ' (preview-size picture)' : ''}`);
+      if (v.TextureRotate) { def.texRot = v.TextureRotate; ok(`Texture angle ${Math.round(v.TextureRotate)}°`); }
+      if (v.TextureBrightness || v.TextureContrast) { def.texBright = v.TextureBrightness || 0; def.texContrast = v.TextureContrast || 0; ok(`Texture brightness ${def.texBright}, contrast ${def.texContrast}`); }
+      if (v.TextureCompositeMode) near(`Texture mode ${v.TextureCompositeMode}: applied as multiply`);
+      if (v.TextureForPlot) near('Texture on each dab: applied to the whole stroke (looks the same, no doubled grain)');
+    } else if (v.TextureImage) no('Texture could not be read');
     // colour change per dab: only when the tool switches it on (the hue value is kept even when it is off)
-    if (v.BrushChangePatternColor || v.BrushChangeStrokeColor) { const hue = v.BrushHueChange ?? sutNum(v, /Hue(Change|Jitter|Random)|ColorJitterHue|ChangeHue/i); if (hue) def.hueJit = clamp(hue > 1 ? hue / 180 : hue, 0, 1); }
-    if (v.BrushUseWaterEdge) def.wet = 0.55;
-    if (v.BrushUseWaterColor) { def.pAlpha = true; def.wet = def.wet || 0.35; def.flow = Math.min(def.flow, 0.6); }
-    if (group === 'blend') { def.smudge = /blur|ぼかし|模糊/i.test(n.NodeName) ? 0 : 0.85; if (def.smudge === 0) def.blurTool = true; }
-    if (group === 'eraser') def.erase = true;
+    if (v.BrushChangePatternColor || v.BrushChangeStrokeColor) {
+      const hue = v.BrushChangeStrokeColor && v.BrushStrokeHueChange ? v.BrushStrokeHueChange : (v.BrushHueChange ?? sutNum(v, /Hue(Change|Jitter|Random)|ColorJitterHue|ChangeHue/i));
+      if (hue) { def.hueJit = clamp(hue > 1 ? hue / 180 : hue, 0, 1); ok(`Colour (hue) change ±${Math.round(def.hueJit * 180)}°`); }
+    }
+    // colour mixing: amount of paint / density of paint / colour stretch
+    if (v.BrushUseWaterColor) {
+      const P = (v.BrushMixColor ?? 100) / 100, D = (v.BrushMixAlpha ?? 100) / 100;
+      if (P >= 0.99 && D >= 0.99) ok('Colour mixing at 100% paint: paints its own colour');
+      else {
+        def.paint = P; def.paintDensity = D; def.smudge = clamp(0.25 + 0.7 * (v.BrushMixColorExtension ?? 10) / 100, 0.2, 0.95);
+        ok(`Colour mixing: amount of paint ${pct(P)}, density ${pct(D)}, colour stretch ${v.BrushMixColorExtension ?? 10}`);
+        if (def.tex) near('Texture is not used while mixing colours');
+        if (v.CompositeMode) near('Blending mode is not used while mixing colours');
+      }
+    }
+    if (v.BrushUseWaterEdge) { def.wet = clamp(0.3 + (v.BrushWaterEdgeAlphaPower ?? 20) / 60, 0.3, 0.9); if (def.paint != null) near('Watercolour edge is not used while mixing colours'); else ok('Watercolour edge'); }
+    // start / end (taper)
+    const io = sutInOut(v.BrushInOutTarget);
+    if (v.BrushUseIn && io[1001]) {
+      def.taperIn = v.BrushInOutType === 1 ? def.size * 4 : (v.BrushInLength || 0); def.taperRatio = clamp(1 - io[1001], 0, 1);
+      (v.BrushInOutType === 1 ? near : ok)(`Thin start: ${v.BrushInOutType === 1 ? 'about ' + Math.round(def.taperIn) + 'px' : def.taperIn + 'px'}, from ${pct(def.taperRatio)}`);
+    }
+    if (v.BrushUseOut && io[1001]) near('Thin end: the end of a stroke stays full (Sketchforge tapers the start only)');
+    if ((v.BrushUseIn || v.BrushUseOut) && io[1021]) near('Fade in / out on opacity: not used');
+    // blending mode
+    if (v.CompositeMode && def.paint == null) { const b = SUT_BLEND[v.CompositeMode]; if (b) { def.blendOp = b[0]; (b[2] ? near : ok)(`Blending mode: ${b[1]}`); } else no(`Blending mode ${v.CompositeMode}`); }
+    if (group === 'blend' && def.paint == null) { def.smudge = /blur|ぼかし|模糊/i.test(n.NodeName) ? 0 : 0.85; if (def.smudge === 0) def.blurTool = true; ok(def.blurTool ? 'Blur tool' : 'Blend (smudge) tool'); }
+    if (group === 'eraser') { def.erase = true; ok('Eraser'); }
+    // everything else the tool changes that Sketchforge does not use yet
+    const unknown = [];
+    for (const [k, x] of Object.entries(v)) {
+      if (SUT_USED.has(k) || SUT_IGNORE.test(k) || x == null || x instanceof Uint8Array || typeof x === 'string') continue;
+      if (/^Dual/.test(k) && !v.UseDualBrush) continue;
+      if (/^BrushBlur/.test(k) && group !== 'blend') continue; // the blur amount only matters for blur tools
+      if (/^BrushWaterEdge/.test(k) && !v.BrushUseWaterEdge) continue;
+      if (/Unit$/.test(k)) continue;
+      const usual = SUT_USUAL[k] ?? 0;
+      if (Math.abs(x - usual) > 1e-6) unknown.push(k);
+    }
+    for (const k of unknown) no(`${SUT_LABEL[k] || k.replace(/^Brush/, '').replace(/([a-z])([A-Z])/g, '$1 $2')}: ${typeof v[k] === 'number' ? +v[k].toFixed(2) : v[k]} (not in Sketchforge yet)`);
+    def.report = R; def.unknown = unknown;
     defs.push(def);
   }
   return defs;
@@ -398,9 +543,10 @@ function sutToDefs(buf) {
 async function importSut(file) {
   const defs = sutToDefs(await file.arrayBuffer());
   const use = defs.filter(d => !d.skip);
+  sutLearn(use.flatMap(d => d.unknown || []));
   if (!use.length) throw new Error(defs.length ? 'this tool is not a drawing tool (fill, text, selection…)' : 'No tools found in that file');
   const out = [];
-  for (const def of use) out.push({ id: await registerBrush(def, true), group: def.kind === 'gradient' ? 'gradient' : def.group || 'brush', name: def.name });
+  for (const def of use) { const { unknown, ...keep } = def; out.push({ id: await registerBrush(keep, true), group: def.kind === 'gradient' ? 'gradient' : def.group || 'brush', name: def.name, report: def.report }); }
   if (out.length) selectTool(out[out.length - 1].id);
   out.skipped = defs.length - use.length;
   return out;
@@ -435,7 +581,10 @@ async function importTools(files) {
     catch (e) { if (/not a drawing tool/.test(e.message)) skipped++; else failed.push(f.name); }
   }
   const parts = Object.entries(per).map(([g, k]) => `${k} → ${GROUP_LABEL[g] || g}`);
-  toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}`, 7000);
+  const close = all.filter(t => (t.report || []).some(r => r[0] !== 'ok')).length;
+  toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}` +
+    (all.length ? ` · ⓘ under Sub Tool shows how each tool was translated${close ? ` (${close} with settings Sketchforge does differently)` : ''}` : ''), 8000);
+  lastImport = all;
   if (all.length) { const last = all[all.length - 1]; const grp = GROUPS.find(g => g.subs.includes(last.id)); if (grp) selectGroup(grp.id); selectTool(last.id); }
   return all;
 }
@@ -462,7 +611,7 @@ function loadBuiltinPens() {
       const def = sutToDefs(u.buffer).find(d => !d.skip); if (!def) continue;
       const id = ids[name] || 'pen_' + name.toLowerCase().replace(/[^a-z]+/g, '_');
       TOOLDEF[id] = { name: def.name || name, kind: 'brush', icon: 'pen', preset: P(def.size, def.hardness, def.flow, def.opacity, def.pSize, def.pAlpha, def.smooth,
-        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio, nibAngle: def.nibAngle,
+        { aa: def.aa, speed: def.speed || 0, taperIn: def.taperIn, taperRatio: def.taperRatio, nibRatio: def.nibRatio ?? def.tipThick ?? 1, nibAngle: def.nibAngle ?? def.tipAngle ?? 0, pMin: def.pMin, pCurve: def.pCurve, aMin: def.aMin, aCurve: def.aCurve,
           ...(def.tex ? { tex: def.tex, texAmt: def.texAmt, texScale: def.texScale } : id === 'textured' ? { tex: 'paper', texAmt: 0.85 } : {}) }) };
       settings[id] = { ...TOOLDEF[id].preset };
       order.push(id);
@@ -679,6 +828,31 @@ function duplicateBrush() {
     smooth: s.smooth, aa: s.aa, spacing: s.spacing, taperIn: s.taperIn, taperRatio: s.taperRatio, tip: orig && orig.tip, tipRot: s.tipRot,
     pen: groupOf(id).id === 'pen' }, true).then(nid => { selectTool(nid); toast('Duplicated'); });
 }
+/* Tool translator report: every Clip Studio setting of an imported tool and what became of it */
+let lastImport = [];
+function toolReport(id) {
+  id = id || state.tool;
+  const d = TOOLDEF[id];
+  if (!d || !d.custom) { toast('Pick an imported tool to see how it was translated'); return; }
+  const rows = d.report || [];
+  let learnt = {}; try { learnt = JSON.parse(localStorage.getItem('sketchforge.sutlearn.v1') || '{}'); } catch (e) { /* none */ }
+  const others = lastImport.filter(t => t.id !== id && TOOLDEF[t.id]);
+  const dlg = document.createElement('dialog'); dlg.className = 'toolreport';
+  const ic = { ok: '✓', approx: '≈', no: '✗' };
+  const list = rows.length ? rows.map(([k, m]) => `<li class="r-${k}"><b>${ic[k]}</b><span>${m.replace(/[<&]/g, c => c === '<' ? '&lt;' : '&amp;')}</span></li>`).join('')
+    : '<li class="r-approx"><b>≈</b><span>Imported before the tool translator existed: import the .sut file again to see (and get) the full translation.</span></li>';
+  const counts = ['ok', 'approx', 'no'].map(k => rows.filter(r => r[0] === k).length);
+  const top = Object.entries(learnt).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  dlg.innerHTML = `<form method="dialog"><h3>ⓘ ${d.name.replace(/[<&]/g, '')}</h3>
+    <p class="sub">Clip Studio tool → Sketchforge <b>${GROUP_LABEL[(groupOf(id) || {}).id] || ''}</b> · ✓ ${counts[0]} same · ≈ ${counts[1]} close · ✗ ${counts[2]} not yet</p>
+    <ul class="trep">${list}</ul>
+    ${top.length ? `<details><summary>Clip Studio settings seen in your tools that Sketchforge does not use yet</summary><p class="sub">${top.map(([k, c]) => `${SUT_LABEL[k] || k} (${c})`).join(' · ')}</p></details>` : ''}
+    ${others.length ? `<p class="sub">Other tools from the last import: ${others.map(t => `<a href="#" data-id="${t.id}">${TOOLDEF[t.id].name.replace(/[<&]/g, '')}</a>`).join(' · ')}</p>` : ''}
+    <div class="row"><button value="ok">Close</button></div></form>`;
+  dlg.querySelectorAll('a[data-id]').forEach(a => a.onclick = e => { e.preventDefault(); dlg.close(); selectTool(a.dataset.id); toolReport(a.dataset.id); });
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.appendChild(dlg); dlg.showModal();
+}
 function deleteBrush() {
   const id = state.tool;
   if (!TOOLDEF[id].custom) { toast('Built-in tools cannot be deleted. Only imported or duplicated ones.'); return; }
@@ -696,6 +870,7 @@ function buildSubBar() {
     i.onchange = async () => { const fs = [...i.files], tools = fs.filter(f => /\.(sut|zip)$/i.test(f.name)); if (tools.length) await importTools(tools); for (const f of fs) if (!tools.includes(f)) await importAnyFile(f); }; i.click(); });
   mk('copy', 'Duplicate this sub tool', duplicateBrush);
   mk('trash', 'Delete this sub tool (imported / duplicated only)', deleteBrush);
+  mk('info', 'How this imported tool was translated from Clip Studio', () => toolReport());
   const hintEl = document.createElement('span'); hintEl.textContent = 'Drop .sut tools / a folder here'; bar.appendChild(hintEl);
   list.after(bar);
   const sec = list.closest('.pal');

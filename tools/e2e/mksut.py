@@ -10,7 +10,7 @@ def png(shape, colour=None, size=64):
     b = io.BytesIO(); im.save(b, 'PNG'); return b.getvalue()
 COLS = ['VariantID INTEGER PRIMARY KEY', 'Opacity INTEGER', 'BrushSize REAL', 'BrushSizeEffector BLOB', 'BrushFlow INTEGER', 'BrushHardness INTEGER', 'BrushInterval INTEGER',
         'AntiAlias INTEGER', 'FlickerReduction INTEGER', 'BrushUsePatternImage INTEGER', 'BrushPatternImageArray BLOB', 'BrushPatternOrderType INTEGER', 'BrushUseSpray INTEGER',
-        'BrushSpraySize INTEGER', 'BrushSprayDensity INTEGER', 'BrushRotationRandom INTEGER', 'BrushHueChange INTEGER', 'BrushChangePatternColor INTEGER', 'BrushUseWaterEdge INTEGER', 'GradationData BLOB', 'BrushRotation INTEGER']
+        'BrushSpraySize INTEGER', 'BrushSprayDensity INTEGER', 'BrushRotationEffectorInSpray INTEGER', 'BrushRotationRandomInSpray INTEGER', 'BrushHueChange INTEGER', 'BrushChangePatternColor INTEGER', 'BrushUseWaterEdge INTEGER', 'GradationData BLOB', 'BrushRotation INTEGER']
 def sut(name, tools):
     p = os.path.join(out, name)
     if os.path.exists(p): os.remove(p)
@@ -21,11 +21,16 @@ def sut(name, tools):
         db.execute('INSERT INTO Node (NodeName, NodeVariantID) VALUES (?, ?)', (nm, i))
         keys = ['VariantID'] + list(v); db.execute(f'INSERT INTO Variant ({",".join(keys)}) VALUES ({",".join("?" * len(keys))})', [i] + list(v.values()))
     db.commit(); db.close(); return p
-eff_pressure = bytes(12) + (16).to_bytes(4, 'big')
+import struct
+def eff(bits, mn=0, curve=None):  # real effector layout: header, input bits @8 (16 = pressure), minimum % @12, then curve blocks
+    b = struct.pack('>IIIII', 0x30, 0x1f0, bits, mn, 0) + bytes(28)
+    if curve: b += struct.pack('>III', 12, len(curve), 16) + b''.join(struct.pack('>dd', x, y) for x, y in curve)
+    return b
+eff_pressure = eff(16)
 sut('ink_pen.sut', [('Inking pen', dict(Opacity=100, BrushSize=8, BrushSizeEffector=eff_pressure, BrushFlow=100, BrushHardness=100, BrushInterval=8, AntiAlias=2))])
 tips = b'HDR\0' + png('star') + b'SEP\0' + png('circle', (220, 40, 160, 255)) + b'SEP\0' + png('square')
-sut('stars_deco.sut', [('Sparkle stars', dict(Opacity=100, BrushSize=40, BrushFlow=100, BrushHardness=100, BrushInterval=80, BrushUsePatternImage=1, BrushPatternImageArray=tips,
-    BrushPatternOrderType=1, BrushUseSpray=1, BrushSpraySize=150, BrushSprayDensity=24, BrushRotationRandom=100, BrushHueChange=30, BrushChangePatternColor=1))])
+sut('stars_deco.sut', [('Sparkle stars', dict(Opacity=100, BrushSize=120, BrushFlow=100, BrushHardness=100, BrushInterval=30, BrushUsePatternImage=1, BrushPatternImageArray=tips,
+    BrushPatternOrderType=3, BrushUseSpray=1, BrushSpraySize=40, BrushSprayDensity=4, BrushRotationEffectorInSpray=129, BrushRotationRandomInSpray=100, BrushHueChange=30, BrushChangePatternColor=1))])
 sut('sunset_gradient.sut', [('Sunset gradation', dict(Opacity=100, GradationData=b'\x00\x01gradient-data'))])
 sut('soft_blur.sut', [('Soft blur', dict(Opacity=100, BrushSize=60, BrushFlow=50, BrushHardness=20, BrushInterval=10))])
 sut('hard_eraser.sut', [('Hard eraser', dict(Opacity=100, BrushSize=30, BrushFlow=100, BrushHardness=100, BrushInterval=8))])
@@ -75,6 +80,18 @@ sut_raw('material_pen.sut', '', 'VariantID INTEGER PRIMARY KEY, Opacity INTEGER,
         [('4カケペンm', 10, dict(Opacity=100, BrushSize=25, BrushFlow=100, BrushHardness=1, BrushInterval=10, BrushUsePatternImage=1, BrushPatternImageArray=ref(TIP), TextureImage=ref(TEX), TextureDensity=80, TextureScale2=100, BrushChangePatternColor=0, BrushHueChange=178, BrushUseWaterColor=0)),
          ('ハートと光', 10, dict(Opacity=100, BrushSize=45, BrushFlow=100, BrushHardness=100, BrushInterval=100, BrushUsePatternImage=1, BrushPatternImageArray=ref(TIP), TextureImage=None, TextureDensity=50, TextureScale2=100, BrushChangePatternColor=0, BrushHueChange=0, BrushUseWaterColor=0))],
         mats=[(TIP, heart_png()), (TEX, grid_png())])
+# colour mixing, blending mode, pressure curve + minimum, thin start, a setting Sketchforge does not use (ink stickiness)
+def inout(size_amount):  # start / end targets: (id, on, amount) entries, 1001 = size
+    ents = [(1001, 1 if size_amount else 0, size_amount), (1021, 0, 0)]
+    return struct.pack('>IIII', 12, len(ents), 12, 0x70) + bytes(8) + b''.join(struct.pack('>III', *e) for e in ents)
+MIXCOLS = ('VariantID INTEGER PRIMARY KEY, Opacity INTEGER, CompositeMode INTEGER, BrushSize REAL, BrushSizeEffector BLOB, BrushFlow INTEGER, BrushFlowEffector BLOB, BrushHardness INTEGER, BrushInterval REAL, '
+           'BrushUseWaterColor INTEGER, BrushWaterColor INTEGER, BrushMixColor INTEGER, BrushMixAlpha INTEGER, BrushMixColorExtension INTEGER, BrushUseIn INTEGER, BrushInLength REAL, BrushInOutTarget BLOB, '
+           'Stickness INTEGER, BrushThickness INTEGER')
+sut_raw('real_settings.sut', '', MIXCOLS, [
+    ('Thick paint', 10, dict(Opacity=100, CompositeMode=0, BrushSize=40, BrushSizeEffector=eff(16, 31), BrushFlow=60, BrushFlowEffector=eff(16), BrushHardness=100, BrushInterval=10,
+        BrushUseWaterColor=1, BrushWaterColor=1, BrushMixColor=35, BrushMixAlpha=40, BrushMixColorExtension=47, BrushUseIn=0, BrushInLength=20, BrushInOutTarget=inout(0), Stickness=0, BrushThickness=100)),
+    ('Multiply liner', 11, dict(Opacity=100, CompositeMode=2, BrushSize=10, BrushSizeEffector=eff(16, 35, [(0, 0), (0.78, 0.25), (1, 1)]), BrushFlow=100, BrushFlowEffector=eff(0), BrushHardness=100, BrushInterval=10,
+        BrushUseWaterColor=0, BrushWaterColor=0, BrushMixColor=50, BrushMixAlpha=50, BrushMixColorExtension=10, BrushUseIn=1, BrushInLength=12, BrushInOutTarget=inout(100), Stickness=20, BrushThickness=100))])
 with zipfile.ZipFile(os.path.join(out, 'pack.zip'), 'w', zipfile.ZIP_DEFLATED) as z:
     for f in ('ink_pen.sut', 'spray.sut', 'set_two.sut'): z.write(os.path.join(out, f), 'My brushes/' + f)
 print('sut files in', out)

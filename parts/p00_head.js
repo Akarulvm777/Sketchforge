@@ -73,6 +73,7 @@ const IC = {
   down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
   clear: '<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 8l8 8M16 8l-8 8"/>',
   trash: '<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
   first: '<path d="M6 5v14"/><path d="M19 5L9 12l10 7z"/>',
   prev: '<path d="M17 5L8 12l9 7z"/>',
   play: '<path d="M7 4l13 8-13 8z"/>',

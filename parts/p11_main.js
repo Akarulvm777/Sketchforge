@@ -309,7 +309,7 @@ function init() {
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
     makeZip, crc32, lzw, newDocument, layerMat, foxOpen, foxAssemble, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,
-    renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, applyRuler: () => 0
+    renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, groupOf, sutToDefs, prCurve, applyRuler: () => 0
   };
 }
 init();

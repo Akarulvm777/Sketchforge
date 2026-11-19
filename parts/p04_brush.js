@@ -65,8 +65,15 @@ function pressureOf(e) {
   if (pt === 'touch' && e.pressure > 0 && e.pressure !== 0.5 && e.pressure !== 1 && penCfg.penSeen === false && e.force !== undefined) return shapePressure(e.pressure);
   return 1;
 }
+/* a tool's own pressure curve (imported Clip Studio tools): points [x, y] from 0 to 1, straight lines in between */
+function prCurve(c, p) {
+  if (!c || c.length < 2) return p;
+  if (p <= c[0][0]) return c[0][1];
+  for (let i = 1; i < c.length; i++) if (p <= c[i][0]) { const a = c[i - 1], b = c[i], w = b[0] - a[0]; return w > 1e-6 ? a[1] + (b[1] - a[1]) * (p - a[0]) / w : b[1]; }
+  return c[c.length - 1][1];
+}
 function diameterAt(st, pr) {
-  return Math.max(0.5, st.s.size * ((st.s.pSize || st.s.speed > 0) ? lerp(0.12, 1, pr) : 1) *
+  return Math.max(0.5, st.s.size * ((st.s.pSize || st.s.speed > 0) ? lerp(st.s.pMin ?? 0.12, 1, prCurve(st.s.pCurve, pr)) : 1) *
     (st.s.taperIn ? lerp(st.s.taperRatio, 1, clamp((st.travel || 0) / st.s.taperIn, 0, 1)) : 1));
 }
 function stepAt(st, pr) {
@@ -98,7 +105,12 @@ function paintTip(ctx, st, cx, cy, d) {
     const tip = raw._colour && !st.erase ? raw : tintedTip(tid, col);
     ctx.save();
     ctx.translate(cx, cy);
-    if (s.tipRot) ctx.rotate(Math.random() * Math.PI * 2);
+    // fixed angle, random turn (all the way or a little), following the stroke direction, squashed tip (thickness)
+    let ang = -(s.tipAngle || 0) * DEG;
+    if (s.tipRot) ang += (Math.random() - 0.5) * 2 * Math.PI * (s.tipRotAmt ?? 1);
+    if (s.tipFollow && st.dir != null) ang += st.dir;
+    if (ang) ctx.rotate(ang);
+    if (s.tipThick && s.tipThick !== 1) ctx.scale(1, s.tipThick);
     ctx.drawImage(tip, -d / 2, -d / 2, d, d);
     ctx.restore();
   } else if (s.hardness >= 0.97) {
@@ -307,13 +319,16 @@ function stampAt1(st, x, y, pr) {
   const s = st.s;
   if (st.direct) { smudgeStamp(st, x, y, pr); return; }
   const d = diameterAt(st, pr);
-  const a = clamp(s.flow * (s.pAlpha ? lerp(0.1, 1, pr) : 1) * (s.grain ? 1 - s.grain * Math.random() : 1), 0, 1);
+  const a = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.1, 1, prCurve(s.aCurve, pr)) : 1) * (s.grain ? 1 - s.grain * Math.random() : 1), 0, 1);
   const n = s.count || 1, sc = s.scatter || 0;
+  if (st.dlx != null) { const dx = x - st.dlx, dy = y - st.dly; if (dx * dx + dy * dy > 0.25) st.dir = Math.atan2(dy, dx); }
+  st.dlx = x; st.dly = y;
   for (let i = 0; i < n; i++) {
     let px = x, py = y, dd = d;
-    if (sc) { const ang = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * sc * d; px += Math.cos(ang) * r; py += Math.sin(ang) * r; }
+    // spray bias (imported tools): -1 = particles at the rim, 0 = even, +1 = towards the middle
+    if (sc) { const ang = Math.random() * Math.PI * 2, r = Math.pow(Math.random(), s.sprayBias ? clamp(0.5 + 0.5 * s.sprayBias, 0.02, 1.5) : 0.5) * sc * d; px += Math.cos(ang) * r; py += Math.sin(ang) * r; }
     if (s.jitter) dd = Math.max(1, d * (1 - s.jitter * Math.random() * 0.9));
-    if (sc || s.jitter) dd *= (s.shape || n > 1) ? 0.35 + 0.65 * (s.shape ? 1 : 0.5) : 1;
+    if ((sc || s.jitter) && !s.sprayFix) dd *= (s.shape || n > 1) ? 0.35 + 0.65 * (s.shape ? 1 : 0.5) : 1;
     drawOne(st, px, py, dd, a);
   }
   growBox(st, x, y, d * (1 + 2 * sc));
@@ -407,7 +422,7 @@ function texSync(st, b) {
     const amt = s.texAmt == null ? 0.6 : s.texAmt;
     st.texPat = bufCtx.createPattern(st.erase ? texHardFor(s.tex, amt) : texFor(s.tex, amt), 'repeat');
     const k = s.texScale || 1;
-    if (st.texPat.setTransform) st.texPat.setTransform(new DOMMatrix([k, 0, 0, k, 0, 0]));
+    if (st.texPat.setTransform) st.texPat.setTransform(s.texRot ? new DOMMatrix().rotateSelf(s.texRot).scaleSelf(k, k) : new DOMMatrix([k, 0, 0, k, 0, 0]));
   }
   bufCtx.save();
   bufCtx.beginPath(); bufCtx.rect(b.x, b.y, b.w, b.h); bufCtx.clip();
@@ -540,6 +555,7 @@ function beginStroke(e) {
     waitPr: e.pointerType === 'pen' && !(e.pressure > 0) && !isShape
   };
   prepBuffer(layer, lm.fp && lm.fp.p, s.opacity, erase || direct);
+  if (s.blendOp && !erase && !direct && (!layer.blend || layer.blend === 'normal')) bufCanvas.style.mixBlendMode = s.blendOp === 'lighter' ? 'plus-lighter' : s.blendOp;
   if (layer.isMask) { Object.assign(bufCanvas.style, { opacity: erase ? '0' : '0.5', zIndex: 9999, mixBlendMode: 'normal', transform: 'none' }); }
   if (!isShape && !stroke.waitPr) {
     stampAt(stroke, x0, y0, pr);
@@ -681,7 +697,7 @@ function endStroke(cancel) {
   if (!st.erase) {
     t.ctx.save();
     t.ctx.globalAlpha = st.s.opacity;
-    t.ctx.globalCompositeOperation = t.layer.alock ? 'source-atop' : 'source-over';
+    t.ctx.globalCompositeOperation = t.layer.alock ? 'source-atop' : (st.s.blendOp || 'source-over'); // a tool's own blending mode (multiply…)
     t.ctx.drawImage(bufCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
     t.ctx.restore();
     t.cel._ink = true;

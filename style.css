@@ -910,3 +910,12 @@ dialog.fxdlg::backdrop { background: transparent; backdrop-filter: none; -webkit
 #subtoolList { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .layer-item .lmore { opacity: .7; padding: 1px 5px; }
 .layer-item .lmore:hover { opacity: 1; }
+/* Clip Studio tool translator report */
+dialog.toolreport { max-width: min(560px, calc(100vw - 32px)); }
+dialog.toolreport h3 { margin: 0 0 4px; }
+dialog.toolreport .sub { opacity: .8; font-size: 12px; margin: 4px 0 8px; }
+.trep { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow: auto; }
+.trep li { display: flex; gap: 8px; padding: 4px 2px; border-bottom: 1px solid rgba(128,128,128,.18); font-size: 13px; }
+.trep li b { width: 16px; flex: none; text-align: center; }
+.trep .r-ok b { color: #46a758; } .trep .r-approx b { color: #d4a72c; } .trep .r-no b { color: #e5484d; }
+dialog.toolreport details { margin-top: 8px; font-size: 12px; }

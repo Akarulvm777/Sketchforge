@@ -1,4 +1,4 @@
-# Sketchforge 2.9 — drawing + animation studio
+# Sketchforge 2.10 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -221,6 +221,16 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.8: pose the 3D model right on the canvas
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
+
+## 2.10: Clip Studio tools translated setting by setting
+- New: a tool translator. Every imported Clip Studio tool is read setting by setting, and ⓘ at the bottom of the Sub Tool panel shows what became of each one (✓ same, ≈ close, ✗ not in Sketchforge yet). Settings Sketchforge does not use yet are remembered, so you can see which ones your tools rely on.
+- New: colour mixing. Brushes with Clip Studio colour mixing pick up the colour under them and mix it with the brush colour (amount of paint, density, colour stretch).
+- New: each tool's own pen pressure curve and minimum size / opacity are used, so pens feel like they do in Clip Studio.
+- New: a tool's own blending mode (Multiply…), spray area + particle size + bias, tip angle, random rotation, tip thickness, texture angle, brightness and contrast.
+- Fixed: pen pressure was read from the wrong place in .sut files, so some tools ignored pressure.
+- Fixed: imported tools started every stroke thin even when the tool does not do that. Only tools that switch on a thin start for size get it now.
+- Fixed: decoration shapes no longer turn randomly unless the tool says so; better group choice (brush / pen / pencil / decoration).
+- Tools imported before 2.10: import the .sut files again to get the new translation.
 
 ## 2.9: Clip Studio tools work like they should
 - Fixed: imported Clip Studio gradients all came out as main → sub colour. They now keep their own colours (every colour stop and its position).

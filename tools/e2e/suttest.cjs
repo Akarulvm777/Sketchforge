@@ -62,6 +62,34 @@ const fs = require('fs'), path = require('path');
   console.log('     stamp ink: inside the heart', heart.heart.toFixed(1), '| dots', heart.dots.toFixed(1));
   check('dark = ink, white = no ink: the heart is a hole in the dots', heart.dots > 15 && heart.heart < heart.dots * 0.3);
 
+  // real settings: colour mixing picks up the canvas colour, a tool's own blending mode, pressure curve + minimum, thin start, report
+  const [fc4] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.addSut())]);
+  await fc4.setFiles(path.join(dir, 'real_settings.sut')); await pg.waitForTimeout(2000);
+  const rs = await pg.evaluate(() => { const SF = window.__sketchforge, id = n => Object.keys(SF.TOOLDEF).filter(k => SF.TOOLDEF[k].name === n).pop(), b = id('Thick paint'), m = id('Multiply liner');
+    const pb = SF.TOOLDEF[b].preset, pm = SF.TOOLDEF[m].preset; return { b, m, paint: pb.paint, dens: pb.paintDensity, pMinB: pb.pMin, blend: pm.blendOp, pMin: pm.pMin, curve: pm.pCurve, taper: pm.taperIn, taperR: pm.taperRatio, taperB: pb.taperIn,
+      rep: SF.TOOLDEF[m].report, grpB: SF.groupOf(b).id, grpM: SF.groupOf(m).id }; });
+  console.log('     ' + JSON.stringify({ ...rs, rep: rs.rep.length }));
+  check('colour mixing is read (amount of paint 35%, density 40%)', Math.abs(rs.paint - 0.35) < 0.01 && Math.abs(rs.dens - 0.4) < 0.01);
+  check('pressure: the real minimum and curve are read', Math.abs(rs.pMin - 0.35) < 0.01 && rs.curve && rs.curve.length === 3 && Math.abs(rs.curve[1][0] - 0.78) < 0.01 && Math.abs(rs.pMinB - 0.31) < 0.01);
+  check('the tool\'s blending mode (multiply) is kept', rs.blend === 'multiply');
+  check('thin start only when the tool switches it on for size', rs.taper === 12 && rs.taperR === 0 && !rs.taperB);
+  check('the report lists what was translated and what Sketchforge does not do yet', rs.rep.some(r => r[0] === 'ok' && /Multiply/.test(r[1])) && rs.rep.some(r => r[0] === 'no' && /Ink stickiness/.test(r[1])));
+  check('generic name + colour mixing → Brush, liner → Pen', rs.grpB === 'brush' && rs.grpM === 'pen');
+  check('settings Sketchforge does not use yet are remembered', await pg.evaluate(() => (JSON.parse(localStorage.getItem('sketchforge.sutlearn.v1') || '{}').Stickness || 0) >= 1));
+  // the mixing brush picks up a yellow area and mixes it with blue
+  await pg.evaluate(() => { const SF = window.__sketchforge; SF.newDocument(400, 300, 1, 12, false, 'Mix'); SF.selectTool('pen'); SF.setColor('#f0c020'); SF.settings.pen.size = 120; });
+  await pg.strokeDoc([[60, 150], [200, 150]]); await pg.waitForTimeout(200);
+  await pg.evaluate(id => { const SF = window.__sketchforge; SF.selectTool(id); SF.setColor('#1030e0'); }, rs.b);
+  await pg.strokeDoc([[100, 150], [180, 150], [260, 150], [340, 150]]); await pg.waitForTimeout(300);
+  const mix = await pg.evaluate(() => { const c = [...window.__sketchforge.activeLayer().cels.values()][0], g = c.getContext('2d'), px = (x, y) => [...g.getImageData(x, y, 1, 1).data]; return { onYellow: px(175, 150), onEmpty: px(330, 150) }; });
+  console.log('     mixing brush: over yellow', mix.onYellow.join(','), '| over nothing', mix.onEmpty.join(','));
+  check('over the yellow the brush mixes (yellow picked up, some blue added)', mix.onYellow[3] > 200 && mix.onYellow[0] > 80 && mix.onYellow[2] > 40 && mix.onYellow[2] < 200);
+  check('over nothing it carries the picked-up yellow and paints a light blue', mix.onEmpty[3] > 10);
+  // ⓘ: the translator report dialog
+  await pg.evaluate(id => window.__sketchforge.selectTool(id), rs.m);
+  await pg.click('#subtoolBar button[data-ic=info]'); await pg.waitForTimeout(200);
+  check('ⓘ under Sub Tool opens the tool report', await pg.evaluate(() => { const d = document.querySelector('dialog.toolreport'); const ok = d && d.open && d.querySelectorAll('.trep li').length >= 4 && /Multiply/.test(d.textContent); if (d) d.close(); return !!ok; }));
+
   // a zip of tools
   const before = Object.keys(await where()).length;
   const [fc2] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.addSut())]);

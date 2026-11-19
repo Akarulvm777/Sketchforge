@@ -299,8 +299,11 @@ function smudgeStamp(st, x, y, pr) {
   const sx = x - d / 2, sy = y - d / 2;
   if (!st.carry) { st.carry = makeCanvas(C, C); st.tmpc = makeCanvas(C, C); st.small = makeCanvas(64, 64); }
   const cg = st.carry.getContext('2d'), tg = st.tmpc.getContext('2d');
-  const strength = clamp(s.flow * (s.pAlpha ? lerp(0.15, 1, pr) : 1), 0, 1);
-  const tip = getTip('#000000', s.hardness);
+  // paint brushes (colour mixing): the colour picked up from the canvas is mixed with the brush colour; strength follows opacity too
+  const paint = s.paint != null && !s.blurTool, P = paint ? clamp(s.paint, 0, 1) : 0, D = paint ? clamp(s.paintDensity ?? 1, 0, 1) : 1;
+  const strength = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.15, 1, typeof prCurve === 'function' ? prCurve(s.aCurve, pr) : pr) : 1) * (paint ? s.opacity : 1), 0, 1);
+  const tip = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness);
+  const [BR, BG, BB] = paint ? hexToRgb(st.color) : [0, 0, 0];
   tg.globalCompositeOperation = 'source-over';
   tg.clearRect(0, 0, C, C);
   if (s.blurTool) {
@@ -328,14 +331,26 @@ function smudgeStamp(st, x, y, pr) {
     for (let i = 0; i < od.length; i += 4) {
       const km = strength * md[i + 3] / 255;
       if (km <= 0) continue;
-      const oa = od[i + 3] / 255, ca = cd[i + 3] / 255;
+      const oa = od[i + 3] / 255;
+      let ca = cd[i + 3] / 255, cr = cd[i], cgr = cd[i + 1], cb = cd[i + 2];
+      if (paint) { // amount of paint P: brush colour vs picked-up colour; density D: how much it covers
+        const wp = (1 - P) * ca, ws = P + wp;
+        if (ws > 0.0001) { cr = (BR * P + cr * wp) / ws; cgr = (BG * P + cgr * wp) / ws; cb = (BB * P + cb * wp) / ws; }
+        ca = D * Math.min(1, ws);
+      }
+      if (paint) { // paint goes on top (never makes the layer more transparent)
+        const da = km * ca, na = da + oa * (1 - da);
+        if (na > 0.0001) { const wo = oa * (1 - da); od[i] = (cr * da + od[i] * wo) / na; od[i + 1] = (cgr * da + od[i + 1] * wo) / na; od[i + 2] = (cb * da + od[i + 2] * wo) / na; }
+        od[i + 3] = na * 255 + 0.5;
+        continue;
+      }
       const keep = 1 - km, na = oa * keep + km * ca;
       od[i + 3] = na * 255 + 0.5;
       if (na > 0.0001) {
         const wo = oa * keep, wc = km * ca;
-        od[i] = (od[i] * wo + cd[i] * wc) / na;
-        od[i + 1] = (od[i + 1] * wo + cd[i + 1] * wc) / na;
-        od[i + 2] = (od[i + 2] * wo + cd[i + 2] * wc) / na;
+        od[i] = (od[i] * wo + cr * wc) / na;
+        od[i + 1] = (od[i + 1] * wo + cgr * wc) / na;
+        od[i + 2] = (od[i + 2] * wo + cb * wc) / na;
       }
     }
     g.putImageData(im, rx, ry);
