@@ -41,6 +41,13 @@ const ROOT = path.dirname(__dirname), OUT = path.join(ROOT, 'site/assets/shots')
   await pg.keyboard.press('Escape');
   // tutorials
   await E(() => window.__sketchforge.CMD.tutorials()); await pg.waitForTimeout(500); await shot('tutorials');
+  await pg.keyboard.press('Escape'); await pg.waitForTimeout(300);
+  // brush editor (on the watercolour brush) over a drawing on grainy paper
+  await E(() => { const SF = window.__sketchforge; document.querySelectorAll('dialog[open]').forEach(d => d.close()); SF.selectTool(Object.keys(SF.TOOLDEF).find(k => /watercolor/i.test(SF.TOOLDEF[k].name)) || 'pencil'); });
+  await E(() => window.__sketchforge.CMD.brushEdit()); await pg.waitForTimeout(800);
+  await E(() => { const d = document.querySelector('dialog.brushedit'); d.querySelectorAll('details').forEach((x, i) => { x.open = i < 4; }); });
+  await pg.waitForTimeout(300); await shot('brushes');
+  await E(() => document.querySelector('.brushedit [data-a=cancel]').click());
   await done();
   console.log('screenshots in', OUT);
 })();

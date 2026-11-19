@@ -313,4 +313,5 @@ function init() {
   };
 }
 init();
+window.__sketchforgeReady = true; // the start-up check in index.html shows a "could not start" page without it
 })();

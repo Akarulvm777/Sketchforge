@@ -15,7 +15,7 @@
 <body>
 <header class="nav">
   <a class="brand" href="./"><span class="logo">S</span>Sketchforge</a>
-  <nav><a href="#news">What's new</a><a href="#features">Features</a><a href="#animation">Animation</a><a href="#rig">Rigging</a><a href="#model">3D</a><a href="#download">Download</a><a href="#community">Community</a></nav>
+  <nav><a href="#news">What's new</a><a href="#features">Features</a><a href="#brushes">Brushes</a><a href="#animation">Animation</a><a href="#rig">Rigging</a><a href="#model">3D</a><a href="#download">Download</a><a href="#community">Community</a></nav>
   <a class="btn ghost" id="navAccount" href="account.html">Sign in</a>
 </header>
 
@@ -37,16 +37,25 @@
 </section>
 
 <section class="strip">
-  <div><b>11</b><span>built-in pens</span></div><div><b>100+</b><span>tools & brushes</span></div><div><b>15</b><span>guided tutorials</span></div><div><b>5</b><span>platforms</span></div>
+  <div><b>120+</b><span>tools & brushes</span></div><div><b>∞</b><span>your own brushes</span></div><div><b>17</b><span>guided tutorials</span></div><div><b>5</b><span>platforms</span></div>
 </section>
 
 <section class="feature" id="features">
   <div class="ftext">
     <h2>Drawing that feels right</h2>
     <p>Pens, pencils, brushes, watercolour, airbrush and decoration brushes with pressure from any tablet — Wacom, XP-Pen, Huion, Apple Pencil — with a calibration that fits your pen.</p>
-    <ul><li>Paper textures, stabiliser, symmetry (mirror, radial, kaleidoscope)</li><li>Layers, masks, clipping, selections, filters, rulers, comic panels and balloons</li><li>Opens Photoshop .psd and Clip Studio .clip, saves .psd with layers</li><li>Imports your Clip Studio brushes (.sut)</li></ul>
+    <ul><li>Hold at the end of a stroke to snap it into a perfect line, circle or rectangle (QuickShape); hold still to pick a colour</li><li>Paper textures, stabiliser, symmetry (mirror, radial, kaleidoscope)</li><li>Layer folders, tick boxes and colour labels; 16 effects with live preview (glow, shadow, outline, oil paint, glitch…)</li><li>Layers, masks, clipping, selections, filters, rulers, comic panels and balloons</li><li>Opens Photoshop .psd and Clip Studio .clip, saves .psd with layers</li><li>Imports your Clip Studio brushes (.sut)</li></ul>
   </div>
   <img src="assets/shots/drawing.png" alt="Drawing tools" loading="lazy">
+</section>
+
+<section class="feature rev" id="brushes">
+  <div class="ftext">
+    <h2>Your Clip Studio tools, your own brushes</h2>
+    <p>Bring the brushes you already love: import Clip Studio tools (.sut — several at once, a .zip or a whole folder). Each one lands in the right place by itself — pens, pencils, brushes, decoration, shading pens, gradients — with its tips, textures, pressure curves, spray, colour mixing and blending mode.</p>
+    <ul><li><b>ⓘ Tool report</b>: every setting of an imported tool and what became of it (✓ same · ≈ close · ✗ not yet)</li><li><b>⚙ Brush editor</b>: make a brush from scratch or change any brush — tip pictures (or the drawing on your layer), pressure, tilt and speed curves, thin start / end, spray, colour change, colour mixing, watercolour edge, texture — with a live preview. Tune an imported tool until it matches.</li><li>Share brushes as <b>.sfbrush</b> files</li><li><b>Colour sets</b>: as many named sets of favourite colours as you like, plus a colour history that remembers what you painted with</li><li><b>Paper texture</b> for new files — drawing paper, watercolour, rough, canvas, kraft… — and brushes pick up its grain</li></ul>
+  </div>
+  <img src="assets/shots/brushes.png" alt="The brush editor" loading="lazy">
 </section>
 
 <section class="feature rev" id="animation">
@@ -107,7 +116,7 @@
     <div class="dl" data-os="windows"><h3>Windows</h3><p>Windows 10 and 11, 64-bit.</p><a class="btn primary" data-dl="windows" href="#">Download .exe</a><p class="small muted">Windows may say "unknown publisher": More info → Run anyway.</p></div>
     <div class="dl" data-os="mac"><h3>Mac</h3><p>The Mac app is coming soon. Until then, open Sketchforge in Safari or Chrome: it works the same and updates itself.</p><a class="btn" href="app/">Open in the browser</a><p class="small muted">macOS 11 or later.</p><a class="btn primary" data-dl="macArm" href="#">Apple Silicon (M1–M4)</a><a class="btn" data-dl="macIntel" href="#">Intel Mac</a><p class="small muted">First time: right-click the app → Open.</p></div>
     <div class="dl" data-os="android"><h3>Android</h3><p>Phones and tablets, Android 7+.</p><a class="btn primary" data-dl="android" href="#">Download .apk</a><p class="small muted">Allow "install unknown apps" when asked.</p></div>
-    <div class="dl" data-os="ios"><h3>iPad & iPhone</h3><p>Open Sketchforge in Safari, then Share → <b>Add to Home Screen</b>. It opens full screen and works offline.</p><a class="btn primary" href="app/">Open in Safari</a></div>
+    <div class="dl" data-os="ios"><h3>iPad & iPhone</h3><p>No App Store needed: 1. tap <b>Open in Safari</b> · 2. Share <b>⬆</b> → <b>Add to Home Screen</b> · 3. open Sketchforge from your Home Screen — full screen, Apple Pencil pressure, works offline, updates itself.</p><a class="btn primary" href="app/">Open in Safari</a><p class="small muted">iPadOS / iOS 14 or later, in Safari. Does not open? See “It does not open on my iPad” below.</p></div>
     <div class="dl" data-os="linux"><h3>Linux</h3><p>AppImage, 64-bit.</p><a class="btn primary" data-dl="linux" href="#">Download AppImage</a></div>
     <div class="dl" data-os="web"><h3>Browser</h3><p>Chrome, Edge, Firefox, Safari. Nothing to install.</p><a class="btn primary" href="app/">Open Sketchforge</a></div>
   </div>
@@ -125,6 +134,8 @@
   <details><summary>Do I need an account?</summary><p>No. An account (Google or GitHub) only adds cloud files, settings sync and sharing. The ✨ Ask helper is free for everyone, no account needed.</p></details>
   <details><summary>Where are my drawings saved?</summary><p>On your device as .sketchforge files (and automatically, so your last work reopens). The cloud is optional.</p></details>
   <details><summary>Does the helper draw for me?</summary><p>No. The free ✨ Ask helper finds tools and answers questions about the app. Your art is yours to make.</p></details>
+  <details id="ipadhelp"><summary>It does not open on my iPad / iPhone</summary><p>Open <a href="app/">the app link</a> in <b>Safari</b> (not inside another app's browser, like Instagram or Messenger). If you see the page “Sketchforge could not start”, tap <b>Repair &amp; reload</b>; if it still does not start, send a screenshot of that page — it shows the reason. An old Home Screen icon can be removed and added again. Your drawings are kept.</p></details>
+  <details><summary>Can I use my Clip Studio brushes?</summary><p>Yes: Sub Tool ＋ (or drop the files) imports Clip Studio tools of every kind (.sut, a .zip or a folder). ⓘ shows how each one was translated, and ⚙ lets you tune it until it matches.</p></details>
   <details><summary>How do updates work?</summary><p>The app checks for new versions and updates itself; the browser version is always the newest.</p></details>
 </section>
 

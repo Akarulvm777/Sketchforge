@@ -9,10 +9,53 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sketchforge">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Sketchforge 2.11.1</title>
+<title>Sketchforge 2.11.2</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=2.11.1">
+<link rel="stylesheet" href="style.css?v=2.11.2">
+<script>/* Never a blank screen. 1) Old Safari (iPadOS / iOS before 15.4) has no <dialog>: a small stand-in so the app's
+   windows work. 2) If the app cannot start, show why (to send to the developer) with "Repair & reload". Plain ES5. */
+(function () {
+  try {
+    var D = window.HTMLDialogElement;
+    if (!D || !D.prototype.showModal) {
+      var st = document.createElement('style');
+      st.textContent = 'dialog:not([open]){display:none!important}dialog[open]{display:block;position:fixed;z-index:10000;left:50%;top:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;margin:0}';
+      document.head.appendChild(st);
+      var P = (D || window.HTMLUnknownElement || window.HTMLElement).prototype;
+      P.show = P.showModal = function () { this.setAttribute('open', ''); };
+      P.close = function (v) { if (!this.hasAttribute('open')) return; this.removeAttribute('open'); if (v !== undefined) this.returnValue = v; var e = document.createEvent('Event'); e.initEvent('close', false, false); this.dispatchEvent(e); };
+      try { Object.defineProperty(P, 'open', { configurable: true, get: function () { return this.hasAttribute('open'); }, set: function (v) { if (v) this.setAttribute('open', ''); else this.removeAttribute('open'); } }); } catch (e) { /* keep */ }
+      document.addEventListener('submit', function (e) { var f = e.target; if (f && f.getAttribute && f.getAttribute('method') === 'dialog') { e.preventDefault(); var d = f.closest ? f.closest('dialog') : null; if (d) d.close(e.submitter ? e.submitter.value : ''); } }, true);
+    }
+  } catch (e) { /* ignore */ }
+  var errs = [];
+  window.addEventListener('error', function (e) { errs.push((e.message || 'Error') + (e.filename ? ' (' + String(e.filename).split('/').pop().split('?')[0] + ':' + e.lineno + ')' : '')); });
+  window.addEventListener('unhandledrejection', function (e) { var r = e.reason; errs.push('Promise: ' + (r && r.message ? r.message : String(r))); });
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.__sketchforgeReady) return;
+      var box = document.createElement('div');
+      box.id = 'bootFail';
+      box.setAttribute('style', 'position:fixed;inset:0;z-index:100000;background:#1c1d20;color:#eee;font:15px/1.5 -apple-system,system-ui,sans-serif;padding:24px;overflow:auto;-webkit-user-select:text;user-select:text');
+      box.innerHTML = '<h2 style="margin:0 0 8px">Sketchforge could not start on this device</h2><p>Tap <b>Repair &amp; reload</b> first (it clears the saved app files, not your drawings). If it still does not start, take a screenshot of this page and send it to the developer.</p>' +
+        '<p><button id="bootRepair" style="font-size:16px;padding:10px 16px;margin-right:8px">Repair &amp; reload</button><button id="bootReload" style="font-size:16px;padding:10px 16px">Reload</button></p>' +
+        '<pre style="white-space:pre-wrap;background:#000;padding:12px;border-radius:8px;font-size:12px"></pre>';
+      document.body.appendChild(box);
+      box.querySelector('pre').textContent = (errs.length ? errs.slice(0, 8).join('\n') : 'No error message (the app did not finish starting).') + '\n\n' + navigator.userAgent + '\nScreen ' + screen.width + '×' + screen.height + ' · ' + document.title;
+      box.querySelector('#bootReload').onclick = function () { location.reload(); };
+      box.querySelector('#bootRepair').onclick = function () {
+        var done = function () { location.replace(location.pathname + '?repair=' + Date.now() + location.hash); };
+        try {
+          var jobs = [];
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+          if (window.caches && caches.keys) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+          Promise.all(jobs).then(done, done);
+        } catch (e) { done(); }
+      };
+    }, 6000);
+  });
+})();</script>
 <script>/* A new install (Windows / Mac / Linux installer, or a new Android APK) starts with default settings; your work
    (the files reopened at start, the drawing library, imported tools) is kept. Automatic updates keep the settings:
    they do not change the installed app's own version (the "shell"), only an installer does. */
@@ -203,7 +246,7 @@
     <span id="statusText"></span>
     <span class="grow"></span>
     <span id="statusPos" class="muted"></span>
-    <span id="statusView"></span><span class="muted" style="margin-left:12px">Sketchforge v2.11.1</span>
+    <span id="statusView"></span><span class="muted" style="margin-left:12px">Sketchforge v2.11.2</span>
   </footer>
 </div>
 
@@ -310,8 +353,8 @@
   </form>
 </dialog>
 
-<script src="cloud-config.js?v=2.11.1"></script>
-<script src="cloud-lib.js?v=2.11.1"></script>
-<script src="app.js?v=2.11.1"></script>
+<script src="cloud-config.js?v=2.11.2"></script>
+<script src="cloud-lib.js?v=2.11.2"></script>
+<script src="app.js?v=2.11.2"></script>
 </body>
 </html>

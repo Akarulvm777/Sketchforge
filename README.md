@@ -223,6 +223,8 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
 ## 2.11: your colours, paper and brushes
+- Fixed for iPad / iPhone: older iPad Safari (before iPadOS 15.4) can now open every window of the app. If the app ever cannot start on a device, it shows why, with a Repair & reload button (instead of a blank page).
+- Website: new section about Clip Studio tools, the brush editor, colour sets and paper; clearer iPad steps and help.
 - New: make an imported Clip Studio tool match. ⓘ › ⚙ Adjust opens it in the brush editor with a list of what Clip Studio does differently; tune it with the live preview (pressure, tilt and speed curves too). Everything the import translated is kept.
 - New tutorial: Help › Tutorials › Clip Studio tools & your own brushes (and ✨ Ask knows about it).
 - New: colour sets. Keep as many sets of favourite colours as you like, each with its own name (Color panel: ＋ adds the main colour, ⋯ › New colour set…, right-click or long-press to remove, export / import, GIMP palettes too).
