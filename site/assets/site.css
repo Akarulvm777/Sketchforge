@@ -122,3 +122,8 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
 
 .learnrig { max-width: 980px; margin: 0 auto; padding: 50px clamp(16px, 4vw, 48px); text-align: center; }
 .learnrig video { width: 100%; border-radius: var(--radius); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); background: #000; margin-top: 14px; }
+.newshist { margin-top: 28px; max-height: 520px; overflow: auto; border-top: 1px solid rgba(255,255,255,.1); padding-top: 12px; }
+.newshist h3 { margin: 0 0 8px; font-size: 15px; opacity: .8; }
+.newshist details { padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,.04); margin-bottom: 6px; }
+.newshist summary { cursor: pointer; }
+.newshist ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.5; }

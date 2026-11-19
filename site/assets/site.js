@@ -36,6 +36,11 @@
           return `<li class="${fix ? 'fix' : ''}">${fix ? '<span class="tag">Fixed</span> ' + esc(i.replace(/^Fixed:\s*/i, '')) : esc(i)}</li>`;
         }).join('')}</ul></article>`).join('');
         $('#news').hidden = false;
+        if (Array.isArray(v.history) && v.history.length) { // earlier updates, newest first, with their dates
+          const box = document.createElement('div'); box.className = 'newshist';
+          box.innerHTML = '<h3>Earlier updates</h3>' + v.history.map(h => `<details><summary><b>${esc(h.latest)}</b> <span class="muted small">${h.date ? esc(new Date(h.date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })) : ''}</span> <span class="small">${esc(h.sections.map(c => c.title).join(' · '))}</span></summary><ul>${h.sections.flatMap(c => c.items).map(i => `<li>${esc(i.replace(/^Fixed:\s*/i, 'Fixed: '))}</li>`).join('')}</ul></details>`).join('');
+          $('#news').appendChild(box);
+        }
       }
     } catch (e) { /* local preview without version.json */ }
     const label = { windows: 'Download for Windows', mac: 'Download for Mac', android: 'Download for Android', ios: 'Get it on iPad / iPhone', linux: 'Download for Linux', web: 'Download' }[os];

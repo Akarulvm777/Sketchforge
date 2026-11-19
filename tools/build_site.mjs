@@ -44,8 +44,14 @@ const changes = readme.split(/\n(?=## )/).filter(sec => sec.startsWith(`## ${mm}
   return { title: head.slice(mm.length + 4).trim(), items: rest.filter(l => /^- /.test(l)).map(l => l.slice(2).replace(/\*\*/g, '').trim()) };
 });
 const notes = changes.map(c => '• ' + c.title).join('\n');
+// every earlier update, newest first, with dates (release-dates.json, written by build.py): the website's history
+const vk = v => v.split('.').map(Number), cmp = (a, b) => { const x = vk(a), y = vk(b); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+let vdates = {}; try { vdates = JSON.parse(fs.readFileSync(path.join(ROOT, 'release-dates.json'), 'utf8')); } catch (e) { /* none */ }
+const groups = {};
+for (const sec of readme.split(/\n(?=## )/)) { const m = sec.match(/^## (\d+\.\d+(?:\.\d+)?):\s*(.*)/); if (!m) continue; const [, ...rest] = sec.split('\n'); (groups[m[1]] = groups[m[1]] || []).push({ title: m[2].trim(), items: rest.filter(l => /^- /.test(l)).map(l => l.slice(2).replace(/\*\*/g, '').trim()) }); }
+const history = Object.keys(groups).sort((a, b) => cmp(b, a)).filter(k => k !== mm).map(k => { const vs = Object.keys(vdates).filter(v => v === k || v.startsWith(k + '.')).sort(cmp); return { v: k, latest: vs[vs.length - 1] || k, date: vs.length ? vdates[vs[vs.length - 1]] : null, sections: groups[k] }; });
 const site = ((fs.readFileSync(path.join(ROOT, 'cloud-config.js'), 'utf8').match(/"site"\s*:\s*"([^"]*)"/) || [])[1] || '').replace(/\/+$/, '');
-const version = { version: V, date: new Date().toISOString().slice(0, 10), notes, changes, files, downloads,
+const version = { version: V, date: new Date().toISOString().slice(0, 10), notes, changes, history, files, downloads,
   shell: { desktop: cfg.minShell || '2.4.0', android: cfg.minShell || '2.4.0', ios: '2.11.6' }, site };
 fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify(version, null, 1));
 fs.writeFileSync(path.join(OUT, '_headers'), `/version.json

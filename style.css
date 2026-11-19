@@ -955,3 +955,12 @@ dialog.brushedit form { display: flex; flex-direction: column; max-height: calc(
 .bemsg summary { cursor: pointer; font-weight: 600; }
 .bemsg ul { margin: 4px 0; padding-left: 18px; }
 dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+/* update history in What's new */
+.wnhead { display: flex; align-items: center; gap: 6px; }
+.wnnew { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 7px; border-radius: 5px; background: var(--accent, #d9822b); color: #fff; }
+.wnold { margin: 10px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; opacity: .7; border-top: 1px solid rgba(128,128,128,.25); padding-top: 10px; }
+.wnver { border-radius: 6px; background: rgba(128,128,128,.08); padding: 6px 10px; }
+.wnver summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.wnver .wntitles { flex-basis: 100%; font-size: 12px; opacity: .75; }
+.wnver[open] .wntitles { display: none; }
+.wnver section { margin-top: 8px; }

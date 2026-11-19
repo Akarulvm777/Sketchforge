@@ -223,6 +223,7 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
 
 ## 2.11: your colours, paper and brushes
+- New: the update history. What's new (Help › What's new in this version) shows the newest update first, then every earlier update with its date and time; tap one to read it. The website shows it too.
 - New: the Mac app is back (Apple Silicon and Intel .dmg), and the iPad test app (.ipa) is built with every release.
 - New: an iPad / iPhone test app (.ipa, unsigned) with every release, to install with AltStore or Sideloadly and your Apple ID (works 7 days, then install again). Saved files appear in Files › On My iPad › Sketchforge. The Home Screen web app still works as before.
 - Faster drawing, most of all on iPad and big pages: the pen position is measured once per frame instead of on every pen event; a stroke no longer copies the whole picture when it starts (only erasers and blending brushes need it); textures, selections and erasers work on the stroke's area only; the blur tool is about 25× faster; watercolour edges are made from a smaller copy; time-lapse and auto-save wait until you stop drawing.
