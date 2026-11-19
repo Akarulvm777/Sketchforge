@@ -47,10 +47,9 @@ jobs:
         include:
           - os: windows-latest
             target: --win
-          # macOS: paused (no macOS machines were free on GitHub); to build the Mac app again, put back:
-          #   - os: macos-latest
-          #     target: --mac
-          # and set "sketchforge.mac": true in package.json (website download links)
+          # macOS: macos-15-intel is the macOS machine this account gets; it builds both Intel and Apple Silicon .dmg
+          - os: macos-15-intel
+            target: --mac
           - os: ubuntu-latest
             target: --linux
     runs-on: ${{ matrix.os }}
@@ -144,10 +143,8 @@ jobs:
     # other downloads or the website back.
     needs: gate
     if: needs.gate.outputs.build == 'true'
-    strategy:
-      fail-fast: false
-      matrix: { os: [macos-15, macos-13, macos-latest, macos-15-intel] } # which macOS machines this account can use (probe)
-    runs-on: ${{ matrix.os }}
+    # macos-15-intel is the macOS machine this account gets (macos-14 / 15 / 13 / latest: "not supported" or never start)
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -180,7 +177,7 @@ jobs:
           zip -qry ../../out/Sketchforge-$VER-ios-unsigned.ipa Payload
           ls -la ../../out
       - uses: actions/upload-artifact@v4
-        with: { name: 'ios-ipa-${{ matrix.os }}', path: out/*.ipa, if-no-files-found: error }
+        with: { name: ios-ipa, path: out/*.ipa, if-no-files-found: error }
       - name: Add the .ipa to the release
         if: needs.gate.outputs.release == 'true'
         env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }

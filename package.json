@@ -110,6 +110,6 @@
   "sketchforge": {
     "releasesRepo": "Akarulvm777/Sketchforge",
     "minShell": "2.4.0",
-    "mac": false
+    "mac": true
   }
 }
