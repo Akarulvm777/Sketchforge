@@ -3,7 +3,8 @@ process.env.SF_TUT_FIRST = '1';
 const H = require('./harness.cjs');
 async function runAll(pg, label, out, check) {
   const ids = await pg.evaluate(() => [...document.querySelectorAll('#tutCenter [data-tut]')].map(b => b.dataset.tut));
-  check(label + ': tutorial centre lists 15 tutorials', ids.length === 15);
+  const nT = await pg.evaluate(() => window.__sketchforge.TUTORIALS.length);
+  check(label + `: tutorial centre lists all ${nT} tutorials`, ids.length === nT && ids.includes('fox'));
   await pg.evaluate(() => document.querySelector('#tutCenter').close());
   const missing = [];
   for (const id of ids) {
@@ -26,7 +27,7 @@ async function runAll(pg, label, out, check) {
   }
   console.log('     not found: ' + (missing.join(', ') || 'none'));
   check(label + ': every spotlight target found and card on screen', missing.length === 0);
-  check(label + ': all tutorials marked done', await pg.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('sketchforge.tutorials.v1'))).length) === 16);
+  check(label + ': all tutorials marked done', await pg.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('sketchforge.tutorials.v1'))).length) === ids.length + 1); // + the 'seen' flag
 }
 (async () => {
   const root = process.argv[2], out = process.argv[3];
