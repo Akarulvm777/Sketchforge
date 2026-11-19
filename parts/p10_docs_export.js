@@ -103,7 +103,7 @@ $('#newCreate').onclick = () => {
   const tr = $('#newTransparent').checked;
   newDocument(w, h, fr, fps, tr, ($('#newName').value || 'Untitled').trim());
   const paper = state.layers.find(l => l.paper);
-  if (paper) { const g = paper.cels.get(0).getContext('2d'); g.fillStyle = $('#newPaper').value; g.fillRect(0, 0, w, h); paper.cels.get(0)._ink = true; }
+  if (paper) { const g = paper.cels.get(0).getContext('2d'); g.fillStyle = $('#newPaper').value; g.fillRect(0, 0, w, h); paper.cels.get(0)._ink = true; if (typeof paperFromDialog === 'function') paperFromDialog(paper); }
   if ((newType === 'comic' && $('#newGuide').checked) || (newType === 'anim' && $('#newSafe').checked)) {
     const g = createLayer('Guides'); g.cels.set(0, makeCel(false)); g.draft = true;
     drawGuides(g, w, h, newType, dpi);
@@ -151,7 +151,7 @@ async function buildDocObject(src, opts = {}) {
     layerCounter: src.lc,
     layers: st.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
-      active: l.id === st.activeId,
+      paperTex: l.paperTex || null, active: l.id === st.activeId,
       parent: l.parent ? st.layers.findIndex(x => x.id === l.parent) : -1,
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
@@ -222,6 +222,7 @@ async function openDocumentFile(file) {
     }
     doc.layers.forEach((ld, i) => { if (ld.parent >= 0 && state.layers[ld.parent] && ld.parent !== i) state.layers[i].parent = state.layers[ld.parent].id; });
     const folders = (doc.folders || []).map(fd => (typeof newFolder === 'function' ? Object.assign(newFolder(fd.name), { open: fd.open !== false, visible: fd.visible !== false, color: fd.color || null }) : null));
+    doc.layers.forEach((ld, i) => { if (ld.paperTex) state.layers[i].paperTex = ld.paperTex; });
     doc.layers.forEach((ld, i) => { state.layers[i].tag = ld.tag || null; if (ld.folder >= 0 && folders[ld.folder]) state.layers[i].folder = folders[ld.folder]; });
     if (!state.layers.find(l => l.id === state.activeId)) state.activeId = state.layers[state.layers.length - 1].id;
     history.undo.length = 0; history.redo.length = 0;

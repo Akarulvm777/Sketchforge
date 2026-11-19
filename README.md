@@ -1,4 +1,4 @@
-# Sketchforge 2.10 — drawing + animation studio
+# Sketchforge 2.11 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -221,6 +221,12 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.8: pose the 3D model right on the canvas
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
+
+## 2.11: your colours, paper and brushes
+- New: colour sets. Keep as many sets of favourite colours as you like, each with its own name (Color panel: ＋ adds the main colour, ⋯ › New colour set…, right-click or long-press to remove, export / import, GIMP palettes too).
+- New: colour history. The colours you painted with stay below the sets, even after a restart.
+- New: paper texture for new files (drawing paper, watercolour, rough, canvas, charcoal…) with paper colour presets (cream, kraft, black…). Brushes can pick up the paper grain. Change it any time: Layer › Paper colour & texture….
+- New: the brush editor. Create your own brush or change any brush with every setting: tip pictures (or the drawing on your layer), angle, thickness, rotation, pressure curves, thin start / end, spray, colour change, colour mixing, watercolour edge, texture, blending mode. Live preview. Share brushes as .sfbrush files.
 
 ## 2.10: more Clip Studio settings work
 - New: thin end. Tools with a thin start / end in Clip Studio now get thinner at the end of the stroke too (and fade in / out when the tool fades opacity).

@@ -589,6 +589,7 @@ function beginStroke(e) {
   const direct = TOOLDEF[tool].preset && TOOLDEF[tool].preset.smudge != null;
   const clip = (sel.active && lm.ident && !direct) ? sel.mask : null;
   const s = { ...curSettings() };
+  if (typeof paperGrain === 'function') paperGrain(s, erase, direct, isShape); // the paper's grain for brushes without a texture
   if (!bufClean) { bufCtx.clearRect(0, 0, state.w, state.h); rawCtx.clearRect(0, 0, state.w, state.h); }
   bufClean = false;
   stroke = {

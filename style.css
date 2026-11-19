@@ -919,3 +919,35 @@ dialog.toolreport .sub { opacity: .8; font-size: 12px; margin: 4px 0 8px; }
 .trep li b { width: 16px; flex: none; text-align: center; }
 .trep .r-ok b { color: #46a758; } .trep .r-approx b { color: #d4a72c; } .trep .r-no b { color: #e5484d; }
 dialog.toolreport details { margin-top: 8px; font-size: 12px; }
+/* colour sets + history */
+.csbar { display: flex; gap: 4px; align-items: center; margin-top: 6px; }
+.csbar select { flex: 1; min-width: 0; }
+.csbar button { min-width: 26px; height: 24px; padding: 0 4px; }
+.cshead { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 11px; opacity: .75; }
+.cshead button { padding: 0 5px; font-size: 11px; background: none; border: 0; cursor: pointer; color: inherit; }
+.swatch.rm { outline: 2px dashed #e5484d; outline-offset: 1px; }
+.csempty { font-size: 11px; opacity: .6; }
+/* brush editor */
+dialog.brushedit { width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; }
+dialog.brushedit form { display: flex; flex-direction: column; max-height: calc(100vh - 24px); }
+.behead { padding: 12px 16px 8px; border-bottom: 1px solid rgba(128,128,128,.25); }
+.behead h3 { margin: 0 0 6px; }
+.beprev { width: 100%; height: auto; aspect-ratio: 520 / 110; background: #fff; border-radius: 6px; display: block; }
+.bebody { overflow: auto; padding: 4px 16px; flex: 1; }
+.bebody details { border-bottom: 1px solid rgba(128,128,128,.18); padding: 6px 0; }
+.bebody summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.begrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 4px 18px; padding: 4px 0 6px; }
+.berow { display: flex; align-items: center; gap: 8px; font-size: 13px; min-height: 28px; flex-wrap: wrap; }
+.berow > span { flex: 0 0 44%; }
+.berow.be-check > span { flex: 1; }
+.berow input[type=range] { flex: 1; min-width: 80px; }
+.berow output { width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.berow.be-text input, .berow select { flex: 1; min-width: 0; }
+.berow.be-curve, .berow.be-tipimg, .berow.be-teximg { align-items: flex-start; }
+.becurvebox { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.becurve { width: 132px; height: 132px; background: rgba(128,128,128,.08); border-radius: 6px; touch-action: none; }
+.betips { display: flex; gap: 4px; flex-wrap: wrap; width: 100%; }
+.betips img, .betex { width: 40px; height: 40px; object-fit: contain; background: #fff; border-radius: 4px; border: 1px solid rgba(128,128,128,.3); }
+.brushedit .dialog-actions { display: flex; gap: 6px; padding: 10px 16px; border-top: 1px solid rgba(128,128,128,.25); flex-wrap: wrap; }
+.beopen { margin-top: 8px; width: 100%; }
+@media (max-width: 600px) { .berow > span { flex-basis: 100%; } .begrid { grid-template-columns: 1fr; } }

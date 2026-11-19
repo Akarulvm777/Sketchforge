@@ -53,10 +53,13 @@ function setColor(hex, fromHsv) {
 }
 function addRecent(c) {
   state.recent = state.recent || [];
-  state.recent = [c, ...state.recent.filter(x => x !== c)].slice(0, 14);
+  if (state.recent[0] === c) return;
+  state.recent = [c, ...state.recent.filter(x => x !== c)].slice(0, typeof CH_MAX === 'number' ? CH_MAX : 14);
+  if (typeof chSave === 'function') chSave();
   renderSwatches();
 }
 function renderSwatches() {
+  if (typeof renderColorSets === 'function') { renderColorSets(); return; } // colour sets + history (p10zc)
   const base = ['#000000', '#ffffff', '#7f7f7f', '#c3c3c3', '#ff0000', '#ff7f27', '#ffd800', '#22b14c', '#00a2e8', '#3f48cc', '#a349a4', '#b97a57', '#ffaec9', '#fff2b0'];
   const mk = (box, arr) => {
     box.innerHTML = '';
