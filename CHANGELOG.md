@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: a new app icon
+- New: in the Layer panel, next to ＋ New layer: a Clip to layer below button (the layer only paints where the layer below has paint, for colour and shading inside the lines) and an Add layer mask button. They light up when the active layer is clipped or has a mask.
+- New: the Sketchforge icon: a pen forging on a glowing anvil, with film strips (on Windows, Mac, Linux, Android, iPad, the web app and the website).
+- The website shows swap drawings and face sliders.
+
 ## 2.13: swap drawings tutorial
 - New: Help › Tutorials › 🔁 Swap drawings (practice), also in the Animation menu. A practice file with two drawings of the same girl (calm and excited): add them to the swap bar, swap them on any frame, update everywhere, play. Each step has a Show me button.
 

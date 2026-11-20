@@ -1015,3 +1015,4 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 #faceBoxPick .fb-rect, #faceBoxShow { position: fixed; display: none; border: 2px dashed #e8a33d; background: rgba(232,163,61,.12); pointer-events: none; }
 #faceBoxShow { display: block; z-index: 65; }
 @media (max-width: 700px) { #facePanel { right: 8px; left: 8px; width: auto; top: 70px; } }
+.lbtns button.on { background: #4a5a6e; color: #fff; }

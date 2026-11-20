@@ -275,6 +275,7 @@ function selectLayer(id) {
   renderLayers(); renderTimeline(); syncLayerControls(); refreshProps(); drawOverlay();
 }
 function syncLayerControls() {
+  { const l = activeLayer(), c = $('#btnClip'), m = $('#btnMask'); if (c) c.classList.toggle('on', !!(l && l.clip)); if (m) m.classList.toggle('on', !!(l && l.mask)); }
   const l = activeLayer();
   $('#layerOpacity').value = l ? Math.round(l.opacity * 100) : 100;
   $('#layerOpacityVal').textContent = $('#layerOpacity').value;
