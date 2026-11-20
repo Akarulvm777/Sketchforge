@@ -4,7 +4,10 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
-## 2.13: community and the new logo everywhere
+## 2.13: no more lost layers on big pages
+- Fixed: on big pages (and most of all on iPad), drawing got slower and slower and the page could reload by itself, wiping what was drawn and texture layers. Each undo step kept two full copies of the area the stroke touched (30 big strokes = about 2 GB of picture memory, far over the iPad browser's limit). Now each step keeps one copy, and the undo history has a memory budget (smaller on iPad and phones; the oldest steps go first).
+- Faster: the helper pictures behind the onion skin, the selection outline and some brushes now take memory only while they are used (about 175 MB less on an A4 page), and strong anti-aliasing only works on the stroke's area instead of the whole page.
+
 - Fixed: after an update, the website could keep an old copy of its files (sign-in did not show up). Every website file now carries the version number.
 - New: the website's Community page (also Help › Community in the app): share your art and time-lapse videos, share and download brushes, tools and themes, comment on them, and post reviews and ideas with a star rating. Every post shows the author's name and the date. Everyone can look; posting needs a free sign-in.
 - Accounts are switched on: sign in with Google or GitHub on the website and in the app (cloud drawings, settings on every device, the Community).
