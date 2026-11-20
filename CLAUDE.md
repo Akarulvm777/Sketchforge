@@ -36,6 +36,7 @@ Il n'y a ni bundler, ni framework, ni dépendance runtime. Un seul script global
 | `cloud-config.js` | Valeurs **publiques** en ligne : adresse du site (Netlify), URL + clé anon Supabase. Vide = tout marche hors ligne. Lu aussi par `main.js` (adresse du site pour les mises à jour). |
 | `cloud-lib.js` | Client Supabase sans dépendance (auth OAuth Google/GitHub, REST, Storage, fonction `ask`), partagé par l'app et le site. Expose `SFSB`. |
 | `site/` | Site officiel (accueil, `account.html`, `link.html` = connexion des apps installées par code à usage unique). `tools/build_site.mjs` → `dist-site/` (site + app web dans `/app/` + `version.json` + `_headers`), publié sur **GitHub Pages** (https://akarulvm777.github.io/Sketchforge/, job `pages` du workflow, seulement sur les releases ; le dépôt est public depuis le 18/11/2026). Netlify (`netlify.toml`) reste une alternative. |
+| `site/community.html` | Communauté (`site/assets/community.js`) : art / time-lapse / outils (`shared_items`, kinds art, timelapse, brush, theme ; bucket public `shared`, 100 Mo) et commentaires / avis (`comments`, `item_id` null = avis, `rating` 1–5). Lecture libre, publication connectée, nom + date sur chaque post. Rien sans Supabase configuré (`cloud-config.js`). |
 | `supabase/` | `setup.sql` (tables, RLS, buckets, RPC). Mode d'emploi : `docs/ONLINE-SETUP.md`. |
 | `main.js` | Coquille Electron (contextIsolation, sandbox, dialogue « modifications non enregistrées »). |
 | `tools/smoke.py` | Test de fumée headless (Playwright). |

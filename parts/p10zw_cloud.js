@@ -233,7 +233,8 @@ function shareDialog() {
 
 function installCloud() {
   CMD.askAI = aiOpen;
-  MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the helper (free)…', 'askAI'], '-');
+  CMD.community = () => window.open(((window.SF_CLOUD || {}).site || 'https://akarulvm777.github.io/Sketchforge') + '/community.html', '_blank');
+  MENUS.find(m => m[0] === 'Help')[1].unshift(['✨ Ask the helper (free)…', 'askAI'], ['🌐 Community: share art, tools, reviews', 'community'], '-');
   const ai = document.createElement('button'); ai.id = 'aiBtn'; ai.type = 'button'; ai.textContent = '✨ Ask'; ai.title = 'Ask where things are and how they work (free, offline)'; ai.onclick = aiOpen;
   $('#menubar .grow').after(ai);
   // phones / tablets: the top bar is full, so ✨ Ask is a round button in the corner, always in reach

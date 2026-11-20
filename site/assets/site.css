@@ -127,3 +127,34 @@ h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
 .newshist details { padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,.04); margin-bottom: 6px; }
 .newshist summary { cursor: pointer; }
 .newshist ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.5; }
+
+img.logo { display: inline-block; width: 30px; height: 30px; border-radius: 8px; background: none; vertical-align: middle; object-fit: cover; }
+img.logo.sm { width: 22px; height: 22px; border-radius: 6px; }
+/* community page */
+.comm h1 { margin-bottom: .2em; }
+.ctabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0; }
+.ctabs button { padding: 8px 14px; border-radius: 999px; border: 1px solid #444; background: #26272b; color: inherit; cursor: pointer; font: inherit; }
+.ctabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cform { display: grid; gap: 8px; max-width: 640px; }
+.cform label { display: grid; gap: 4px; font-size: .9rem; }
+.cform input, .cform textarea, .cform select, .ccomform input { font: inherit; padding: 8px; border-radius: 8px; border: 1px solid #444; background: #1b1c1f; color: inherit; }
+.csignin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+.clist { display: grid; gap: 10px; margin-top: 14px; max-width: 760px; }
+.citem img, .citem video { width: 100%; border-radius: 8px; background: #111; max-height: 260px; object-fit: contain; }
+.citem h3 { margin: 8px 0 2px; font-size: 1rem; }
+.ctag { font-size: .7rem; padding: 2px 6px; border-radius: 6px; background: #3a3b40; vertical-align: middle; }
+.cfile { display: flex; align-items: center; gap: 8px; padding: 22px 12px; border-radius: 8px; background: #1b1c1f; font-size: 1.4rem; }
+.cfile span { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; }
+.cby { margin: 4px 0; }
+.crow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ccoms { margin-top: 8px; }
+.ccom { border-top: 1px solid #333; padding: 6px 0; }
+.ccom p { margin: 0; }
+.ccomform { display: flex; gap: 6px; margin-top: 6px; }
+.ccomform input { flex: 1; min-width: 0; }
+.cstars button { font-size: 1.6rem; background: none; border: 0; color: #555; cursor: pointer; padding: 0 2px; }
+.cstars button.on, .cstarsro { color: #f2b84b; }
+.cstarsro span { color: #555; }
+.cdel { margin-left: auto; }
+[hidden] { display: none !important; }

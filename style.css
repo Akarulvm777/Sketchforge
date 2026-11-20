@@ -1021,3 +1021,4 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 .layer-item.clipped .thumb { transform: scale(.8); }
 .layer-item.clipbase { box-shadow: inset 4px 0 0 #b46cff; }
 .layer-item .clip-arrow { color: #c890ff; font-size: 16px; font-weight: bold; margin-right: -2px; line-height: 1; }
+#menubar img.logo { width: 25px; height: 25px; border-radius: 6px; background: none; object-fit: cover; margin-right: 4px; }
