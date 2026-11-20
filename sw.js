@@ -1,5 +1,5 @@
 // Network-first service worker: always tries the latest files, falls back to cache offline.
-const CACHE = 'sketchforge-v2.13.1';
+const CACHE = 'sketchforge-v2.13.2';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'cloud-config.js', 'cloud-lib.js', 'three3d.js', 'models3d.js', 'vroid3d.js', 'manifest.json', 'mascot.gif', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
