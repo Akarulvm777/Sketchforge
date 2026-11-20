@@ -29,6 +29,11 @@ const fs = require('fs'), { execFileSync } = require('child_process');
     await open(f);
     const ls = await layers(), lay = ls.find(l => /red|zip/i.test(l.name)), c = lay ? await px(lay.name, 110, 90) : null;
     check(`${f}: ${ls.length} layers (${ls.map(l => l.name).join(', ')}), ball pixel ${c}`, ls.length >= 2 && c && test(c));
+    if (!(ls.length >= 2 && c && test(c))) { // what went wrong: where psd-tools and Sketchforge put each layer
+      const bb = await E(() => window.__sketchforge.state.layers.map(l => { const c = l.cels.get(0), b = c && window.__sketchforge.celBBox(c); return l.name + ' ' + (b ? [b.x, b.y, b.w, b.h].join(',') : 'empty'); }));
+      console.log('     Sketchforge ink boxes: ' + bb.join(' | '));
+      try { console.log('     ' + execFileSync('convert', ['-version']).toString().split('\n')[0] + '\n     ' + execFileSync('python3', [__dirname + '/psdinfo.py', P + f]).toString().trim().replace(/\n/g, '\n     ')); } catch (e) { console.log('     psdinfo failed: ' + e.message.split('\n')[0]); }
+    }
   }
   await open('test_raw.psd');
   const off = await px('Off canvas', 20, 20);
