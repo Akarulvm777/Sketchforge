@@ -155,8 +155,10 @@ async function buildDocObject(src, opts = {}) {
       parent: l.parent ? st.layers.findIndex(x => x.id === l.parent) : -1,
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
+      faceParts: l.faceParts && l.faceParts.length ? l.faceParts : undefined,
+      swaps: l.swaps && l.swaps.length ? l.swaps.map(s => ({ id: s.id, name: s.name, data: enc(s.cel) })) : undefined,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
-        k, ink: c._ink !== false, xf: c._xf || null,
+        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined,
         data: c._ink === false ? null : enc(c)
       }))
     }))
@@ -172,8 +174,17 @@ async function buildDocObject(src, opts = {}) {
     doc.layers[i].cels[j].pup = { r, pins: c._pup.pins, cur: c._pup.cur };
   }));
   if (pupRests.length) doc.pupRests = await Promise.all(pupRests);
+  // face sliders: each face key keeps its slider values; the original drawings are stored once
+  const fRests = new Map(), faceRests = [];
+  st.layers.forEach((l, i) => Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).forEach(([, c], j) => {
+    if (!c._face) return;
+    let r = fRests.get(c._face.rest);
+    if (r === undefined) { r = faceRests.length; fRests.set(c._face.rest, r); faceRests.push(enc(c._face.rest)); }
+    doc.layers[i].cels[j].face = { r, v: c._face.v, auto: c._face.auto || undefined };
+  }));
+  if (faceRests.length) doc.faceRests = await Promise.all(faceRests);
   // the cel images were encoded in the background: wait for them
-  await Promise.all(doc.layers.flatMap(l => [...l.cels, ...(l.mask ? l.mask.cels : [])].map(async cd => { if (cd.data && cd.data.then) cd.data = await cd.data; })));
+  await Promise.all(doc.layers.flatMap(l => [...l.cels, ...(l.mask ? l.mask.cels : []), ...(l.swaps || [])].map(async cd => { if (cd.data && cd.data.then) cd.data = await cd.data; })));
   const au = typeof audioSerialize === 'function' ? await audioSerialize(src.aud, opts.quiet) : null;
   if (au) doc.audio = au;
   const tl = typeof tlSerialize === 'function' ? await tlSerialize(src.tl) : null;
@@ -197,6 +208,7 @@ async function openDocumentFile(file) {
     resizeDocCanvases();
     layerSeq = 1; layerCounter = doc.layerCounter || doc.layers.length;
     const pupRests = doc.pupRests ? await Promise.all(doc.pupRests.map(async u => { const c = makeCanvas(w, h); c.getContext('2d').drawImage(await loadImage(u), 0, 0); c._ink = true; return c; })) : [];
+    const faceRests = doc.faceRests ? await Promise.all(doc.faceRests.map(async u => { const c = makeCanvas(w, h); c.getContext('2d').drawImage(await loadImage(u), 0, 0); c._ink = true; return c; })) : [];
     for (const ld of doc.layers) {
       const l = createLayer(ld.name);
       l.cels = new Map();
@@ -205,10 +217,13 @@ async function openDocumentFile(file) {
         const c = makeCel(cd.ink);
         if (cd.data) c.getContext('2d').drawImage(await loadImage(cd.data), 0, 0);
         if (cd.xf) c._xf = { ...IDENT, ...cd.xf };
+        if (cd.swap) c._swap = cd.swap;
+        if (cd.face && faceRests[cd.face.r]) { c._face = { rest: faceRests[cd.face.r], v: cd.face.v || {} }; if (cd.face.auto) c._face.auto = true; c._sv = 1; c._face.sv = 1; }
         if (cd.pup && pupRests[cd.pup.r]) c._pup = { rest: pupRests[cd.pup.r], pins: cd.pup.pins, cur: cd.pup.cur };
         l.cels.set(cd.k, c);
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
+      if (ld.faceParts) l.faceParts = ld.faceParts;
       Object.assign(l, { visible: ld.visible !== false, opacity: ld.opacity ?? 1, blend: ld.blend || 'normal', locked: !!ld.locked, paper: !!ld.paper, px: ld.px ?? null, py: ld.py ?? null, clip: !!ld.clip, alock: !!ld.alock, ref: !!ld.ref, draft: !!ld.draft });
       if (ld.mask) {
         const m = newMaskLayer(); m.cels = new Map();
@@ -223,6 +238,7 @@ async function openDocumentFile(file) {
     doc.layers.forEach((ld, i) => { if (ld.parent >= 0 && state.layers[ld.parent] && ld.parent !== i) state.layers[i].parent = state.layers[ld.parent].id; });
     const folders = (doc.folders || []).map(fd => (typeof newFolder === 'function' ? Object.assign(newFolder(fd.name), { open: fd.open !== false, visible: fd.visible !== false, color: fd.color || null }) : null));
     doc.layers.forEach((ld, i) => { if (ld.paperTex) state.layers[i].paperTex = ld.paperTex; });
+    for (let i = 0; i < doc.layers.length; i++) if (doc.layers[i].swaps) state.layers[i].swaps = await Promise.all(doc.layers[i].swaps.map(async s => { const c = makeCel(true); if (s.data) c.getContext('2d').drawImage(await loadImage(s.data), 0, 0); return { id: s.id, name: s.name, cel: c }; }));
     doc.layers.forEach((ld, i) => { state.layers[i].tag = ld.tag || null; if (ld.folder >= 0 && folders[ld.folder]) state.layers[i].folder = folders[ld.folder]; });
     if (!state.layers.find(l => l.id === state.activeId)) state.activeId = state.layers[state.layers.length - 1].id;
     history.undo.length = 0; history.redo.length = 0;

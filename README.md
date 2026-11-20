@@ -1,4 +1,4 @@
-# Sketchforge 2.12 — drawing + animation studio
+# Sketchforge 2.13 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -221,6 +221,10 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.8: pose the 3D model right on the canvas
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
+
+## 2.13: swap drawings and face sliders
+- New: swap drawings in animation: open hand ↔ closed hand, eyes open ↔ closed, any mouth shape. In the Animation workspace the 🔁 Swap bar above the timeline keeps each layer's drawings: draw a version and tap ＋, then tap a drawing on any frame to swap it in. The frame keeps its position, rotation, bones and tweens. Alt+] / Alt+[ = next / previous drawing; ⟳ Update everywhere copies an edited drawing to every frame that uses it; right-click a drawing to rename or remove it. Saved in the .sketchforge file.
+- New: face sliders, Live2D-style (Animation › 🙂 Face sliders). Draw a face, drag a box around each eye, the mouth and the brows, then move the sliders: Eye open / closed, Mouth open, Smile, Brow up / down. Each frame where you move a slider becomes a face key, and the frames between two keys are made for you, smoothly. 👁 Blink here makes a whole blink in one tap. Works when the face is drawn on the skin (the skin colour fills in). You can choose the colour inside the mouth. Saved in the .sketchforge file.
 
 ## 2.12: every blending mode, and a welcome from the mascot
 - New: all 28 layer blending modes in the usual order: Linear burn, Subtract, Glow dodge, Add, Add (Glow), Vivid light, Linear light, Pin light, Hard mix, Darker color, Lighter color and Divide join the others ("Luminosity" is now called Brightness). They look the same on screen, in exports, when merging layers, with the eyedropper and in Photoshop files.
