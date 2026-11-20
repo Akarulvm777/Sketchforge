@@ -87,8 +87,10 @@ jobs:
           pip install -q Pillow==12.3.0 psd-tools==1.26.1   # the versions the tests are written against
       - name: Full browser suite (tools/e2e)
         if: needs.gate.outputs.e2e == 'true'
-        # /usr/bin first = the ImageMagick 6 from apt (the runner's own ImageMagick 7 writes PSD layers without their colour channels)
-        run: PATH=/usr/bin:$PATH bash tools/e2e/run_all.sh /tmp/sf-e2e
+        # convert = the ImageMagick 6 from apt (the runner's own ImageMagick 7 writes PSD layers without their colour channels)
+        run: |
+          mkdir -p /tmp/im6 && ln -sf "$(ls /usr/bin/convert-im6* | head -1)" /tmp/im6/convert && /tmp/im6/convert -version | head -1
+          PATH=/tmp/im6:$PATH bash tools/e2e/run_all.sh /tmp/sf-e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with: { name: test-screenshots, path: /tmp/sf-e2e/*.png, if-no-files-found: ignore }
