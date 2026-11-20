@@ -285,7 +285,12 @@ const tmpCanvas = makeCanvas(state.w, state.h);
 const tmpCtx = tmpCanvas.getContext('2d');
 const pickCanvas = makeCanvas(1, 1);
 const pickCtx = pickCanvas.getContext('2d', { willReadFrequently: true });
-const DOC_CANVASES = [bufCanvas, onionCanvas, antsCanvas, snapCanvas, rawCanvas, tmpCanvas];
+const DOC_CANVASES = [bufCanvas];
+/* The other page-sized helpers (onion skin, selection ants, snapshot, raw stroke, scratch) are full size only while a
+   tool needs them, 1×1 otherwise: on a big page each one costs tens of MB, and iPad Safari blanks canvases (layers
+   look erased) or reloads the page past its total canvas-memory limit. */
+function docSize(c, need) { const w = need ? state.w : 1, h = need ? state.h : 1; if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
+for (const c of [onionCanvas, antsCanvas, snapCanvas, rawCanvas, tmpCanvas]) docSize(c, false);
 
 /* ---------- cel transforms (motion tween data) ----------
    A cel (keyframe image) may carry c._xf = {x,y,rot,sx,sy,alpha,tween,ease}.
@@ -684,9 +689,14 @@ function markDirty() {
   if (typeof sessionSoon === 'function') sessionSoon();
 }
 function updateHistoryButtons() { /* menu items read the stacks when opened */ }
+/* undo memory budget: phones / tablets keep less (their browsers have a small canvas-memory limit) */
+const HISTORY_BYTES = (/iPad|iPhone|iPod|Android/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) ? 120e6 : 700e6;
+const historyBytes = () => { let n = 0; for (const e of history.undo) n += e.bytes || 0; for (const e of history.redo) n += e.bytes || 0; return n; };
 function pushHistory(entry) {
   history.undo.push(entry);
+  history.redo.length = 0;
   if (history.undo.length > 80) history.undo.shift();
+  while (history.undo.length > 1 && historyBytes() > HISTORY_BYTES) history.undo.shift(); // forget the oldest steps first
   history.redo.length = 0;
   markDirty();
   updateHistoryButtons();
@@ -724,12 +734,17 @@ function restoreRegion(ctx, b, canvas) {
   ctx.drawImage(canvas, b.x, b.y);
   ctx.restore();
 }
+/* One undo step of pixels. It keeps ONE copy of the area (the state that is not on the layer now) and swaps it with the
+   layer on undo / redo; `after` is not kept (two copies per stroke filled iPad Safari's canvas memory: layers went blank
+   and the page reloaded). bytes = the memory the step holds, for the history budget (pushHistory). */
 function celEntry(t, b, before, after) {
   t.cel._bb = undefined;
+  let patch = before;
+  const swap = () => { const cur = crop(t.cel, b); restoreRegion(t.ctx, b, patch); patch = cur; t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; };
   return {
-    frame: t.frame,
-    undo() { restoreRegion(t.ctx, b, before); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; if (t.created) t.layer.cels.delete(t.key); },
-    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); restoreRegion(t.ctx, b, after); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; }
+    frame: t.frame, bytes: b.w * b.h * 4,
+    undo() { swap(); if (t.created) t.layer.cels.delete(t.key); },
+    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); swap(); }
   };
 }
 
@@ -1467,10 +1482,12 @@ function beginStroke(e) {
   const direct = TOOLDEF[tool].preset && TOOLDEF[tool].preset.smudge != null;
   // a copy of the whole picture is only needed when the stroke changes the layer while drawing (eraser, blend / mixing);
   // normal strokes draw into the buffer and keep "before" from the stroke's area only (copying 12+ MP per stroke lagged)
+  docSize(snapCanvas, erase || direct);
   if (erase || direct) { snapCtx.globalCompositeOperation = 'copy'; snapCtx.drawImage(t.cel, 0, 0); snapCtx.globalCompositeOperation = 'source-over'; }
   const clip = (sel.active && lm.ident && !direct) ? sel.mask : null;
   const s = { ...curSettings() };
   if (typeof paperGrain === 'function') paperGrain(s, erase, direct, isShape); // the paper's grain for brushes without a texture
+  docSize(rawCanvas, (clip && !erase) || (s.tex && !direct)); docSize(tmpCanvas, !!clip); // helpers this stroke needs (see docSize)
   if (!bufClean) { bufCtx.clearRect(0, 0, state.w, state.h); rawCtx.clearRect(0, 0, state.w, state.h); }
   bufClean = false;
   stroke = {
@@ -1656,12 +1673,13 @@ function endStroke(cancel) {
 function applyAA(level, b) {
   if (level === 2 || level === undefined) return;
   if (level === 3) {
-    tmpCtx.clearRect(0, 0, state.w, state.h);
-    tmpCtx.filter = 'blur(0.7px)';
-    tmpCtx.drawImage(bufCanvas, 0, 0);
-    tmpCtx.filter = 'none';
+    // blur only the stroke's area (+2 px), in a canvas of that size (a whole-page blur per stroke lagged big pages)
+    const x = Math.max(0, b.x - 2), y = Math.max(0, b.y - 2), w = Math.min(state.w, b.x + b.w + 2) - x, h = Math.min(state.h, b.y + b.h + 2) - y;
+    if (w <= 0 || h <= 0) return;
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    g.filter = 'blur(0.7px)'; g.drawImage(bufCanvas, x, y, w, h, 0, 0, w, h); g.filter = 'none';
     bufCtx.clearRect(b.x, b.y, b.w, b.h);
-    bufCtx.drawImage(tmpCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
+    bufCtx.drawImage(c, b.x - x, b.y - y, b.w, b.h, b.x, b.y, b.w, b.h);
     return;
   }
   const img = bufCtx.getImageData(b.x, b.y, b.w, b.h), d = img.data;
@@ -1999,6 +2017,7 @@ function buildEdge() {
   return e;
 }
 function renderAnts() {
+  docSize(antsCanvas, sel.active);
   antsCtx.clearRect(0, 0, state.w, state.h);
   if (!sel.active) return;
   if (antsDirty || !antsEdge) { antsEdge = buildEdge(); antsDirty = false; }
@@ -2315,6 +2334,7 @@ function pixelMoveDown(e) {
   fg.drawImage(t.cel, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
   fg.globalCompositeOperation = 'destination-in';
   fg.drawImage(sel.mask, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  docSize(snapCanvas, true);
   snapCtx.clearRect(0, 0, state.w, state.h);
   snapCtx.drawImage(t.cel, 0, 0);
   /* base = cel with selected pixels removed */
@@ -2359,7 +2379,7 @@ function pixelMoveUp(a) {
   const ce = celEntry(a.t, full, before, after);
   a.t.cel._ink = true;
   pushHistory({
-    frame: ce.frame,
+    frame: ce.frame, bytes: ce.bytes,
     undo() { ce.undo(); selRestore(selBefore); },
     redo() { ce.redo(); selRestore(selAfter); }
   });
@@ -3244,7 +3264,9 @@ function onionFrames() {
 }
 function updateOnion() {
   const o = state.onion;
-  onionCanvas.style.display = (o.on || lightPins.length) && !playing ? 'block' : 'none';
+  const showOnion = (o.on || lightPins.length) && !playing;
+  onionCanvas.style.display = showOnion ? 'block' : 'none';
+  docSize(onionCanvas, showOnion);
   onionCtx.clearRect(0, 0, state.w, state.h);
   if (playing) return;
   drawPins();

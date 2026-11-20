@@ -170,6 +170,7 @@ function pixelMoveDown(e) {
   fg.drawImage(t.cel, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
   fg.globalCompositeOperation = 'destination-in';
   fg.drawImage(sel.mask, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  docSize(snapCanvas, true);
   snapCtx.clearRect(0, 0, state.w, state.h);
   snapCtx.drawImage(t.cel, 0, 0);
   /* base = cel with selected pixels removed */
@@ -214,7 +215,7 @@ function pixelMoveUp(a) {
   const ce = celEntry(a.t, full, before, after);
   a.t.cel._ink = true;
   pushHistory({
-    frame: ce.frame,
+    frame: ce.frame, bytes: ce.bytes,
     undo() { ce.undo(); selRestore(selBefore); },
     redo() { ce.redo(); selRestore(selAfter); }
   });

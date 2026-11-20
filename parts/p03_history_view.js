@@ -14,9 +14,14 @@ function markDirty() {
   if (typeof sessionSoon === 'function') sessionSoon();
 }
 function updateHistoryButtons() { /* menu items read the stacks when opened */ }
+/* undo memory budget: phones / tablets keep less (their browsers have a small canvas-memory limit) */
+const HISTORY_BYTES = (/iPad|iPhone|iPod|Android/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) ? 120e6 : 700e6;
+const historyBytes = () => { let n = 0; for (const e of history.undo) n += e.bytes || 0; for (const e of history.redo) n += e.bytes || 0; return n; };
 function pushHistory(entry) {
   history.undo.push(entry);
+  history.redo.length = 0;
   if (history.undo.length > 80) history.undo.shift();
+  while (history.undo.length > 1 && historyBytes() > HISTORY_BYTES) history.undo.shift(); // forget the oldest steps first
   history.redo.length = 0;
   markDirty();
   updateHistoryButtons();
@@ -54,12 +59,17 @@ function restoreRegion(ctx, b, canvas) {
   ctx.drawImage(canvas, b.x, b.y);
   ctx.restore();
 }
+/* One undo step of pixels. It keeps ONE copy of the area (the state that is not on the layer now) and swaps it with the
+   layer on undo / redo; `after` is not kept (two copies per stroke filled iPad Safari's canvas memory: layers went blank
+   and the page reloaded). bytes = the memory the step holds, for the history budget (pushHistory). */
 function celEntry(t, b, before, after) {
   t.cel._bb = undefined;
+  let patch = before;
+  const swap = () => { const cur = crop(t.cel, b); restoreRegion(t.ctx, b, patch); patch = cur; t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; };
   return {
-    frame: t.frame,
-    undo() { restoreRegion(t.ctx, b, before); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; if (t.created) t.layer.cels.delete(t.key); },
-    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); restoreRegion(t.ctx, b, after); t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; }
+    frame: t.frame, bytes: b.w * b.h * 4,
+    undo() { swap(); if (t.created) t.layer.cels.delete(t.key); },
+    redo() { if (t.created) t.layer.cels.set(t.key, t.cel); swap(); }
   };
 }
 
