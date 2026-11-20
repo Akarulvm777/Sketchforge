@@ -147,6 +147,7 @@ function buildEdge() {
   return e;
 }
 function renderAnts() {
+  docSize(antsCanvas, sel.active);
   antsCtx.clearRect(0, 0, state.w, state.h);
   if (!sel.active) return;
   if (antsDirty || !antsEdge) { antsEdge = buildEdge(); antsDirty = false; }

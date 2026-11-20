@@ -618,10 +618,12 @@ function beginStroke(e) {
   const direct = TOOLDEF[tool].preset && TOOLDEF[tool].preset.smudge != null;
   // a copy of the whole picture is only needed when the stroke changes the layer while drawing (eraser, blend / mixing);
   // normal strokes draw into the buffer and keep "before" from the stroke's area only (copying 12+ MP per stroke lagged)
+  docSize(snapCanvas, erase || direct);
   if (erase || direct) { snapCtx.globalCompositeOperation = 'copy'; snapCtx.drawImage(t.cel, 0, 0); snapCtx.globalCompositeOperation = 'source-over'; }
   const clip = (sel.active && lm.ident && !direct) ? sel.mask : null;
   const s = { ...curSettings() };
   if (typeof paperGrain === 'function') paperGrain(s, erase, direct, isShape); // the paper's grain for brushes without a texture
+  docSize(rawCanvas, (clip && !erase) || (s.tex && !direct)); docSize(tmpCanvas, !!clip); // helpers this stroke needs (see docSize)
   if (!bufClean) { bufCtx.clearRect(0, 0, state.w, state.h); rawCtx.clearRect(0, 0, state.w, state.h); }
   bufClean = false;
   stroke = {
@@ -807,12 +809,13 @@ function endStroke(cancel) {
 function applyAA(level, b) {
   if (level === 2 || level === undefined) return;
   if (level === 3) {
-    tmpCtx.clearRect(0, 0, state.w, state.h);
-    tmpCtx.filter = 'blur(0.7px)';
-    tmpCtx.drawImage(bufCanvas, 0, 0);
-    tmpCtx.filter = 'none';
+    // blur only the stroke's area (+2 px), in a canvas of that size (a whole-page blur per stroke lagged big pages)
+    const x = Math.max(0, b.x - 2), y = Math.max(0, b.y - 2), w = Math.min(state.w, b.x + b.w + 2) - x, h = Math.min(state.h, b.y + b.h + 2) - y;
+    if (w <= 0 || h <= 0) return;
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    g.filter = 'blur(0.7px)'; g.drawImage(bufCanvas, x, y, w, h, 0, 0, w, h); g.filter = 'none';
     bufCtx.clearRect(b.x, b.y, b.w, b.h);
-    bufCtx.drawImage(tmpCanvas, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
+    bufCtx.drawImage(c, b.x - x, b.y - y, b.w, b.h, b.x, b.y, b.w, b.h);
     return;
   }
   const img = bufCtx.getImageData(b.x, b.y, b.w, b.h), d = img.data;

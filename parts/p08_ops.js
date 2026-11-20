@@ -249,7 +249,9 @@ function onionFrames() {
 }
 function updateOnion() {
   const o = state.onion;
-  onionCanvas.style.display = (o.on || lightPins.length) && !playing ? 'block' : 'none';
+  const showOnion = (o.on || lightPins.length) && !playing;
+  onionCanvas.style.display = showOnion ? 'block' : 'none';
+  docSize(onionCanvas, showOnion);
   onionCtx.clearRect(0, 0, state.w, state.h);
   if (playing) return;
   drawPins();

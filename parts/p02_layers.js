@@ -16,7 +16,12 @@ const tmpCanvas = makeCanvas(state.w, state.h);
 const tmpCtx = tmpCanvas.getContext('2d');
 const pickCanvas = makeCanvas(1, 1);
 const pickCtx = pickCanvas.getContext('2d', { willReadFrequently: true });
-const DOC_CANVASES = [bufCanvas, onionCanvas, antsCanvas, snapCanvas, rawCanvas, tmpCanvas];
+const DOC_CANVASES = [bufCanvas];
+/* The other page-sized helpers (onion skin, selection ants, snapshot, raw stroke, scratch) are full size only while a
+   tool needs them, 1×1 otherwise: on a big page each one costs tens of MB, and iPad Safari blanks canvases (layers
+   look erased) or reloads the page past its total canvas-memory limit. */
+function docSize(c, need) { const w = need ? state.w : 1, h = need ? state.h : 1; if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
+for (const c of [onionCanvas, antsCanvas, snapCanvas, rawCanvas, tmpCanvas]) docSize(c, false);
 
 /* ---------- cel transforms (motion tween data) ----------
    A cel (keyframe image) may carry c._xf = {x,y,rot,sx,sy,alpha,tween,ease}.

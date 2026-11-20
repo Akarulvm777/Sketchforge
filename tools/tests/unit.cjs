@@ -117,6 +117,30 @@ const TESTS = {
     return !holes && white < 10 && dark > 20 ? true : { holes, white, dark };
   },
 
+  'undo step keeps one copy and swaps it back and forth': () => {
+    const cel = makeCanvas(10, 10), ctx = cel.getContext('2d'), t = { cel, ctx, layer: { cels: new Map() }, created: false, key: 0, frame: 0 }, b = { x: 0, y: 0, w: 10, h: 10 };
+    ctx.fillStyle = '#f00'; ctx.fillRect(0, 0, 10, 10); const before = crop(cel, b);
+    ctx.fillStyle = '#00f'; ctx.fillRect(0, 0, 10, 10);
+    const e = celEntry(t, b, before, crop(cel, b)), px = () => [...ctx.getImageData(5, 5, 1, 1).data].slice(0, 3).join();
+    e.undo(); const u = px(); e.redo(); const r = px(); e.undo(); const u2 = px();
+    return u === '255,0,0' && r === '0,0,255' && u2 === '255,0,0' && e.bytes === 400 ? true : { u, r, u2, bytes: e.bytes };
+  },
+
+  'undo history stays within its memory budget': () => {
+    const keep = history.undo.slice(), keepR = history.redo.slice();
+    history.undo.length = 0; history.redo.length = 0;
+    for (let i = 0; i < 30; i++) pushHistory({ bytes: HISTORY_BYTES / 4, undo() {}, redo() {} });
+    const n = history.undo.length, total = historyBytes();
+    history.undo.length = 0; history.undo.push(...keep); history.redo.push(...keepR);
+    return n === 4 && total <= HISTORY_BYTES ? true : { n, total, budget: HISTORY_BYTES };
+  },
+
+  'helper canvases are 1×1 while unused': () => {
+    const sizes = [onionCanvas, antsCanvas, snapCanvas, rawCanvas, tmpCanvas].map(c => c.width * c.height);
+    docSize(tmpCanvas, true); const big = tmpCanvas.width === state.w && tmpCanvas.height === state.h; docSize(tmpCanvas, false);
+    return big && tmpCanvas.width === 1 && sizes.every(n => n <= 1 || n === state.w * state.h) ? true : { sizes, big };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
