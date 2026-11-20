@@ -8,3 +8,5 @@ www/
 android/
 ios/
 dist-site/
+__pycache__/
+*.pyc
