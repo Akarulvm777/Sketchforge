@@ -18,6 +18,11 @@ const copyDir = (src, dst) => { for (const e of fs.readdirSync(src, { withFileTy
 
 fs.rmSync(OUT, { recursive: true, force: true });
 copyDir(path.join(ROOT, 'site'), OUT);
+// every page loads its scripts / styles with ?v=<version>, so browsers never keep an old copy after a release
+for (const f of fs.readdirSync(OUT).filter(f => f.endsWith('.html'))) {
+  const p = path.join(OUT, f);
+  fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/(src|href)="((?:assets\/)?[\w.-]+\.(?:js|css))"/g, `$1="$2?v=${V}"`));
+}
 for (const f of ['icon.svg', 'icon-192.png', 'icon-512.png', 'cloud-config.js', 'cloud-lib.js']) copy(path.join(ROOT, f), path.join(OUT, f));
 // the web app
 const appFiles = pkg.build.files.filter(f => f !== 'main.js');

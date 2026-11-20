@@ -5,6 +5,7 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 `tools/release_notes.py`).
 
 ## 2.13: community and the new logo everywhere
+- Fixed: after an update, the website could keep an old copy of its files (sign-in did not show up). Every website file now carries the version number.
 - New: the website's Community page (also Help › Community in the app): share your art and time-lapse videos, share and download brushes, tools and themes, comment on them, and post reviews and ideas with a star rating. Every post shows the author's name and the date. Everyone can look; posting needs a free sign-in.
 - Accounts are switched on: sign in with Google or GitHub on the website and in the app (cloud drawings, settings on every device, the Community).
 - The new icon is now also the logo in the app's menu bar and on every page of the website.
