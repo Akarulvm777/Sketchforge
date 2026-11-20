@@ -32,10 +32,11 @@ const toastEl = $('#toast');
 const overlay = $('#overlay');
 const octx = overlay.getContext('2d');
 
-const BLENDS = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten',
-  'color-dodge', 'color-burn', 'soft-light', 'hard-light', 'difference',
-  'exclusion', 'hue', 'saturation', 'color', 'luminosity'];
-const canvasBlend = b => (b === 'normal' ? 'source-over' : b);
+/* every layer blending mode, in the usual painting-app order (the non-native ones are blended in p02b_blend) */
+const BLENDS = ['normal', 'darken', 'multiply', 'color-burn', 'linear-burn', 'subtract', 'lighten', 'screen', 'color-dodge', 'glow-dodge', 'add', 'add-glow',
+  'overlay', 'soft-light', 'hard-light', 'difference', 'vivid-light', 'linear-light', 'pin-light', 'hard-mix', 'exclusion', 'darker-color', 'lighter-color',
+  'divide', 'hue', 'saturation', 'color', 'luminosity'];
+const canvasBlend = b => (b === 'normal' || !b || (typeof isCustomBlend === 'function' && isCustomBlend(b)) ? 'source-over' : b);
 
 const MAX_FRAMES = 500;
 const CELL_W = 18;

@@ -21,7 +21,8 @@ const H = require('./harness.cjs');
   const hist = await pg.evaluate(() => { const v = [...document.querySelectorAll('#whatsNew .wnver')]; return { n: v.length, first: v[0] && v[0].querySelector('summary').textContent, last: v.length && v[v.length - 1].querySelector('summary b').textContent,
     dated: v.filter(x => /\d{4}|\d{1,2}:\d{2}/.test(x.querySelector('summary .muted').textContent)).length, scroll: getComputedStyle(document.querySelector('#whatsNew .wnlist')).overflowY }; });
   console.log('     history:', JSON.stringify(hist));
-  check('What\'s new also lists the earlier updates, newest first, with date and time', hist.n >= 10 && /^2\.10/.test(hist.first.trim()) && hist.last === '0.5' && hist.dated >= 8 && hist.scroll === 'auto');
+  const APPV = await pg.evaluate(() => APP_VERSION.split('.').slice(0, 2).join('.') + '.');
+  check('What\'s new also lists the earlier updates, newest first, with date and time', hist.n >= 10 && /^2\.\d+/.test(hist.first.trim()) && !hist.first.trim().startsWith(APPV) && hist.last === '0.5' && hist.dated >= 8 && hist.scroll === 'auto');
   await pg.click('#whatsNew .wnver >> nth=0'); await pg.waitForTimeout(100);
   check('tapping an earlier update shows its notes', await pg.evaluate(() => { const d = document.querySelector('#whatsNew .wnver'); return d.open && d.querySelectorAll('li').length > 2; }));
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');

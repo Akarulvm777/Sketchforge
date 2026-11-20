@@ -86,8 +86,8 @@ function layerMerge() {
       const a = celCanvas(lo, k), b = celCanvas(up, k);
       if (a) g.drawImage(a, 0, 0);
       if (b) {
-        g.globalAlpha = up.opacity; g.globalCompositeOperation = canvasBlend(up.blend);
-        g.drawImage(b, 0, 0);
+        if (isCustomBlend(up.blend)) { const t = makeCel(true), tg = t.getContext('2d'); tg.globalAlpha = up.opacity; tg.drawImage(b, 0, 0); blendCustom(g, t, up.blend); }
+        else { g.globalAlpha = up.opacity; g.globalCompositeOperation = canvasBlend(up.blend); g.drawImage(b, 0, 0); }
       }
       out.set(k, c);
     }

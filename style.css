@@ -964,3 +964,21 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 .wnver .wntitles { flex-basis: 100%; font-size: 12px; opacity: .75; }
 .wnver[open] .wntitles { display: none; }
 .wnver section { margin-top: 8px; }
+/* welcome animation (mascot) */
+#sfWelcome { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; background: rgba(15, 16, 20, .72);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: wlIn .35s ease-out; cursor: pointer; }
+#sfWelcome.wl-out { animation: wlOut .45s ease-in forwards; }
+.wl-card { text-align: center; color: #fff; padding: 16px; max-width: min(92vw, 640px); }
+.wl-mascot { width: min(84vw, 560px); height: auto; display: block; margin: 0 auto -18px; filter: drop-shadow(0 12px 30px rgba(0,0,0,.45)); animation: wlPop .7s cubic-bezier(.2, 1.5, .4, 1) both; }
+.wl-word { margin: 0; font-size: clamp(42px, 9vw, 84px); font-weight: 800; letter-spacing: .02em; line-height: 1.05; }
+.wl-word span { display: inline-block; opacity: 0; animation: wlLetter .55s cubic-bezier(.2, 1.6, .4, 1) forwards; background: linear-gradient(180deg, #fff 30%, #7fe3e0); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }
+.wl-sub { margin: 6px 0 0; font-size: clamp(15px, 2.6vw, 20px); opacity: 0; animation: wlFade .6s 1.1s forwards; }
+.wl-tap { margin: 18px 0 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: 0; animation: wlFade .6s 1.8s forwards, wlBlink 1.6s 2.4s infinite; }
+@keyframes wlIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wlOut { to { opacity: 0; transform: scale(1.04); } }
+@keyframes wlPop { from { opacity: 0; transform: translateY(30px) scale(.8); } to { opacity: 1; transform: none; } }
+@keyframes wlLetter { 0% { opacity: 0; transform: translateY(40px) scale(.4) rotate(-12deg); } 70% { opacity: 1; transform: translateY(-8px) scale(1.12); } 100% { opacity: 1; transform: none; } }
+@keyframes wlFade { to { opacity: .85; } }
+@keyframes wlBlink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { #sfWelcome, .wl-mascot, .wl-word span, .wl-sub, .wl-tap { animation-duration: .01s !important; animation-delay: 0s !important; } }
+.ai-learn { margin-left: auto; font-size: 12px; padding: 3px 9px; }

@@ -46,13 +46,14 @@ function clipViewFor(l, i) {
   const s = cv.style;
   s.display = l.visible ? 'block' : 'none';
   s.opacity = String(l.opacity * fp.p.alpha * (l.draft ? 0.45 : 1));
-  s.mixBlendMode = l.blend;
+  s.mixBlendMode = cssBlend(l.blend);
   s.transform = 'none';
   s.zIndex = 10 + i * 2;
   return cv;
 }
 function updateClipViews() {
   if (state.layers.some(l => l.clip || l.mask)) refreshStage();
+  else if (typeof refreshCustomBlends === 'function') refreshCustomBlends(); // layers with linear burn, add… show the new pixels
 }
 function toggleLayerFlag(flag, label) {
   const l = activeLayer();

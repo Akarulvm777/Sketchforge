@@ -162,7 +162,9 @@ function openPages() {
   render(); d.showModal();
 }
 /* ---- PSD export (layers, current frame) ---- */
-const PSD_BLEND = { normal: 'norm', multiply: 'mul ', screen: 'scrn', overlay: 'over', darken: 'dark', lighten: 'lite', 'color-dodge': 'div ', 'color-burn': 'idiv', 'hard-light': 'hLit', 'soft-light': 'sLit', difference: 'diff', exclusion: 'smud', hue: 'hue ', saturation: 'sat ', color: 'colr', luminosity: 'lum ' };
+const PSD_BLEND = { normal: 'norm', multiply: 'mul ', screen: 'scrn', overlay: 'over', darken: 'dark', lighten: 'lite', 'color-dodge': 'div ', 'color-burn': 'idiv', 'hard-light': 'hLit', 'soft-light': 'sLit', difference: 'diff', exclusion: 'smud', hue: 'hue ', saturation: 'sat ', color: 'colr', luminosity: 'lum ',
+  'linear-burn': 'lbrn', subtract: 'fsub', add: 'lddg', 'vivid-light': 'vLit', 'linear-light': 'lLit', 'pin-light': 'pLit', 'hard-mix': 'hMix', 'darker-color': 'dkCl',
+  'lighter-color': 'lgCl', divide: 'fdiv', 'glow-dodge': 'div ', 'add-glow': 'lddg' };
 function exportPSD() {
   const W = state.w, H = state.h;
   if (W > 30000 || H > 30000) { toast('Canvas too large for PSD'); return; }

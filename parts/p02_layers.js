@@ -179,11 +179,16 @@ function refreshStage() {
     const s = c.style;
     s.display = l.visible ? 'block' : 'none';
     s.opacity = String(l.opacity * (fp ? fp.p.alpha : 1));
-    s.mixBlendMode = l.blend;
+    s.mixBlendMode = cssBlend(l.blend);
     s.transform = fp ? xfCss(fp.p, l) : 'none';
     s.zIndex = 10 + i * 2;
     if (l.draft) s.opacity = String(l.opacity * (fp ? fp.p.alpha : 1) * 0.45);
     if (c.parentNode !== stage) stage.appendChild(c);
+    if (isCustomBlend(l.blend) && !l.vref) { // linear burn, add, vivid light…: a baked view of this layer over what is below
+      s.display = 'none';
+      const bv = customBlendView(l, i); wanted.add(bv); if (bv.parentNode !== stage) stage.appendChild(bv);
+      return;
+    }
     const cv = clipViewFor(l, i);
     if (cv) { s.display = 'none'; wanted.add(cv); if (cv.parentNode !== stage) stage.appendChild(cv); }
     if (l.mask && l.maskEdit) {

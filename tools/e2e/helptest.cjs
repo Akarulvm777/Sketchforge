@@ -34,6 +34,26 @@ const H = require('./harness.cjs');
   await ask('onion skin before after colour'); const t = await pg.$('#aiPanel .ai-msg.assistant:last-child .ai-act[data-k="tut"]');
   if (t) { await t.click(); await pg.waitForTimeout(400); check('tutorial button opens the tutorial', await pg.evaluate(() => !!window.__sketchforge.TUT.cur)); await pg.keyboard.press('Escape'); }
   else check('tutorial button present', false);
+  // painting and animation lessons
+  const askL = q => pg.evaluate(q => { const ta = document.querySelector('#aiPanel textarea'); ta.value = q; document.querySelector('#aiPanel form').requestSubmit(); return [...document.querySelectorAll('#aiPanel .ai-msg.assistant')].pop().textContent; }, q);
+  await pg.evaluate(() => window.__sketchforge.CMD.ai ? window.__sketchforge.CMD.ai() : document.querySelector('#aiPanel') || null);
+  if (!(await pg.$('#aiPanel'))) await pg.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /Ask/.test(x.textContent)); b && b.click(); });
+  await pg.evaluate(() => { const p = document.querySelector('#aiPanel'); if (p) p.hidden = false; });
+  const skin = await askL('how do I shade skin?');
+  check('a painting question gets a step-by-step lesson', /Painting skin/.test(skin) && /1\./.test(skin) && /blush/i.test(skin));
+  const persp = await askL('perspective vanishing point');
+  check('perspective lesson with the perspective ruler button', /Perspective/.test(persp) && await pg.evaluate(() => [...document.querySelectorAll('#aiPanel .ai-msg.assistant')].pop().querySelector('[data-id="rl_persp"]') !== null));
+  const lips = await askL('mouth shapes for talking');
+  check('animation lessons too (mouth shapes)', /Mouth shapes/.test(lips) && /closed/i.test(lips));
+  await pg.click('#aiPanel .ai-learn'); await pg.waitForTimeout(100);
+  const cats = await pg.evaluate(() => [...[...document.querySelectorAll('#aiPanel .ai-msg.assistant')].pop().querySelectorAll('.ai-act')].map(b => b.textContent));
+  check('📚 Learn lists the topics', cats.length >= 6 && cats.includes('Animation') && cats.includes('Colour'));
+  const clickLast = t => pg.evaluate(t => { const b = [...[...document.querySelectorAll('#aiPanel .ai-msg.assistant')].pop().querySelectorAll('.ai-act')].find(x => x.textContent === t); b && b.click(); return !!b; }, t);
+  await clickLast('Animation'); await pg.waitForTimeout(100);
+  await clickLast('Walk cycle'); await pg.waitForTimeout(100);
+  check('a topic lists its lessons, a lesson opens', /contact/.test(await pg.evaluate(() => [...document.querySelectorAll('#aiPanel .ai-msg.assistant')].pop().textContent)));
+  const badActs = await pg.evaluate(() => { const SF = window.__sketchforge, bad = []; for (const L of SF.HELP_LESSONS) for (const [k, id] of L.a || []) if (k === 'cmd' ? !SF.CMD[id] : k === 'tool' ? !SF.TOOLDEF[id] : !SF.TUTORIALS.some(t => t.id === id)) bad.push(L.id + ':' + id); return bad; });
+  check('every lesson button points to a real tool / command / tutorial (' + (badActs.join(', ') || 'all fine') + ')', badActs.length === 0);
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done();
 })();

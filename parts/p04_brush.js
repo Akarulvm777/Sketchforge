@@ -590,7 +590,7 @@ function canPaint() {
 function prepBuffer(layer, p, opacity, hide) {
   const s = bufCanvas.style;
   s.opacity = hide ? '0' : String(opacity * layer.opacity * (p ? p.alpha : 1));
-  s.mixBlendMode = layer.blend;
+  s.mixBlendMode = cssBlend(layer.blend);
   s.transform = p ? xfCss(p, layer) : 'none';
   s.zIndex = layerZ(layer) + 1;
 }
@@ -836,11 +836,18 @@ function compositeFrame(f, opts = {}) {
   const g = c.getContext('2d');
   if (k !== 1) g.scale(k, k);
   state.layers.forEach((l, i) => {
+    if (opts.until != null && i >= opts.until) return; // only the layers below (custom blend views)
     if (!l.visible || (opts.skipPaper && l.paper)) return;
     if (l.vref) { if (opts.all) { g.save(); g.globalAlpha = l.opacity; g.drawImage(l.vref.canvas, 0, 0); g.restore(); } return; } // video reference: never exported
-    if (opts.onlyRef ? !l.ref : ((l.draft || l.ref) && !opts.all)) return;
+    if (opts.onlyRef ? !l.ref : ((l.draft || l.ref) && !opts.all && !opts.view)) return;
     const fp = frameParams(l, f);
     if (!fp) return;
+    if (isCustomBlend(l.blend)) { // blended pixel by pixel (the browser has no such mode)
+      const lc = makeCanvas(c.width, c.height), lg = lc.getContext('2d');
+      lg.setTransform(g.getTransform()); lg.drawImage(layerPixels(l, i, f, fp, l.opacity * fp.p.alpha * (opts.view && l.draft ? 0.45 : 1)), 0, 0);
+      blendCustom(g, lc, l.blend);
+      return;
+    }
     g.save();
     g.globalAlpha = l.opacity * fp.p.alpha;
     g.globalCompositeOperation = canvasBlend(l.blend);
@@ -868,6 +875,11 @@ function sampleColor(x, y) {
     if (l.vref) { pickCtx.save(); pickCtx.globalAlpha = l.opacity; pickCtx.drawImage(l.vref.canvas, -x, -y); pickCtx.restore(); continue; } // pick colours from the video
     const fp = frameParams(l, state.frame);
     if (!fp) continue;
+    if (isCustomBlend(l.blend)) { // the same blend as on screen, for this one pixel
+      const t = makeCanvas(pickCtx.canvas.width, pickCtx.canvas.height), tg = t.getContext('2d');
+      tg.globalAlpha = l.opacity * fp.p.alpha; tg.translate(-x, -y); { const m = layerMat(l, state.frame); if (m) tg.transform(...m); } tg.drawImage(fp.cel, 0, 0);
+      blendCustom(pickCtx, t, l.blend); continue;
+    }
     pickCtx.save();
     pickCtx.globalAlpha = l.opacity * fp.p.alpha;
     pickCtx.globalCompositeOperation = canvasBlend(l.blend);

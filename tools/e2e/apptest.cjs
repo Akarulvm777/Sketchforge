@@ -6,7 +6,7 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 const srv = http.createServer((q, r) => { const f = path.join(ROOT, decodeURIComponent(q.url.split('?')[0])); fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' }); r.end(d); }); }).listen(8766);
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-  const pg = await b.newPage({ viewport: { width: 1500, height: 950 } });
+  const pg = await b.newPage({ viewport: { width: 1500, height: 950 } }); await pg.addInitScript(() => { try { localStorage.setItem('sketchforge.welcome.v1', 'never'); } catch (e) {} });
   const errors = []; pg.on('pageerror', e => errors.push(String(e)));
   await pg.goto('http://127.0.0.1:8766/index.html'); await pg.waitForTimeout(2500);
   await pg.mouse.move(600, 400); await pg.mouse.down(); for (let i = 0; i < 40; i++) await pg.mouse.move(600 + i * 8, 400 + i * 4); await pg.mouse.up();

@@ -163,7 +163,7 @@ async function readPSD(buf) {
   }
   return { W, H, depth, mode, layers, merged };
 }
-const PSD_BLEND_IN = Object.fromEntries(Object.entries(PSD_BLEND).map(([k, v]) => [v, k]));
+const PSD_BLEND_IN = Object.fromEntries(Object.entries(PSD_BLEND).filter(([k]) => !/glow/.test(k)).map(([k, v]) => [v, k]));
 /* bottom-to-top records → flat list of drawable layers, with groups applied */
 function psdFlattenGroups(recs) {
   const root = { layers: [] }, stack = [root];

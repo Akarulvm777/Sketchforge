@@ -299,7 +299,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installLayersPro(); installFoxRig(); installColorSets(); installBrushEditor(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installLayersPro(); installFoxRig(); installColorSets(); installBrushEditor(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
@@ -315,7 +315,7 @@ function init() {
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
     makeZip, crc32, lzw, newDocument, layerMat, foxOpen, foxAssemble, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,
-    renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, groupOf, sutToDefs, prCurve, applyRuler: () => 0
+    renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, groupOf, sutToDefs, prCurve, HELP_LESSONS, applyRuler: () => 0
   };
 }
 init();

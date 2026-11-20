@@ -459,14 +459,14 @@ navC.addEventListener('pointerdown', e => {
 /* ---------- layer panel controls ---------- */
 BLENDS.forEach(v => {
   const o = document.createElement('option'); o.value = v;
-  o.textContent = v === 'normal' ? 'Normal' : v.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase());
+  o.textContent = BLEND_LABEL[v] || v;
   $('#layerBlend').appendChild(o);
 });
 $('#layerBlend').onchange = e => {
   const l = activeLayer(); if (!l) return;
   const old = l.blend, nv = e.target.value;
-  l.blend = nv; refreshStage(); markDirty();
-  pushHistory({ undo() { l.blend = old; }, redo() { l.blend = nv; } });
+  l.blend = nv; refreshStage(); renderLayers(); markDirty(); // the layer list shows the mode name too
+  pushHistory({ undo() { l.blend = old; refreshStage(); renderLayers(); }, redo() { l.blend = nv; refreshStage(); renderLayers(); } });
 };
 let opStart = null;
 $('#layerOpacity').oninput = e => {

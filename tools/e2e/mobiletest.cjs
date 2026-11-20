@@ -6,7 +6,7 @@ const srv = http.createServer((q, r) => { const f = path.join(root, decodeURICom
 (async () => {
   const b = await chromium.launch(); const ok = [];
   const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
-  const ctx = await b.newContext({ ...devices['Pixel 7'] }); const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', e => errs.push(String(e)));
+  const ctx = await b.newContext({ ...devices['Pixel 7'] }); const pg = await ctx.newPage(); await ctx.addInitScript(() => { try { localStorage.setItem('sketchforge.welcome.v1', 'never'); } catch (e) {} }); const errs = []; pg.on('pageerror', e => errs.push(String(e)));
   await pg.goto('http://127.0.0.1:8796/index.html'); await pg.waitForTimeout(2500);
   await pg.screenshot({ path: out + '/m_phone.png' });
   check('Menu button visible', await pg.isVisible('#btnMenu'));
@@ -22,7 +22,7 @@ const srv = http.createServer((q, r) => { const f = path.join(root, decodeURICom
   check('Panels 2: layers sheet', await pg.isVisible('#rightdock') && !(await pg.isVisible('#leftdock')));
   await pg.tap('#btnDocks'); await pg.waitForTimeout(300);
   check('Panels 3: closed', !(await pg.isVisible('#rightdock')) && !(await pg.isVisible('#leftdock')));
-  const ip = await (await b.newContext({ ...devices['iPad Pro 11'] })).newPage(); await ip.goto('http://127.0.0.1:8796/index.html'); await ip.waitForTimeout(2500);
+  const ipc = await b.newContext({ ...devices['iPad Pro 11'] }); await ipc.addInitScript(() => { try { localStorage.setItem('sketchforge.welcome.v1', 'never'); } catch (e) {} }); const ip = await ipc.newPage(); await ip.goto('http://127.0.0.1:8796/index.html'); await ip.waitForTimeout(2500);
   await ip.screenshot({ path: out + '/m_ipad.png' });
   check('iPad portrait: no wrapped menu labels (menu button used)', await ip.isVisible('#btnMenu'));
   console.log(errs.length ? errs : 'no errors', ok.every(Boolean) ? 'PASS' : 'FAIL');

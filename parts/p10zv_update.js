@@ -116,6 +116,6 @@ function installUpdater() {
   CMD.about = () => toast(`Sketchforge ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
   const H = MENUS.find(m => m[0] === 'Help')[1];
   H.push('-', ["What's new in this version", 'whatsNew'], ['Check for updates', 'checkUpdate'], ['About Sketchforge', 'about']);
-  if (location.hash !== '#sf-child') setTimeout(() => whatsNew(false), 1200);
+  if (location.hash !== '#sf-child') setTimeout(() => welcomeGate.then(() => whatsNew(false)), 1200); // after the mascot's welcome
   if (location.hash !== '#sf-child' && !isElectron()) setTimeout(() => checkForUpdate(false), 6000);
 }

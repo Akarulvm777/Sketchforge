@@ -7,7 +7,8 @@ exports.open = async (root, port = 8767, viewport = { width: 1500, height: 950 }
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', ...extraArgs] });
   const ctx = await b.newContext({ viewport, acceptDownloads: true });
   // skip the first-start "take the tour" card (tuttest sets SF_TUT_FIRST=1 to test it)
-  if (!process.env.SF_TUT_FIRST) await ctx.addInitScript(() => { try { if (!localStorage.getItem('sketchforge.tutorials.v1')) localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); if (!localStorage.getItem('sketchforge.animintro.v1')) localStorage.setItem('sketchforge.animintro.v1', 'never'); } catch (e) {} });
+  if (!process.env.SF_TUT_FIRST) await ctx.addInitScript(() => { try { if (!localStorage.getItem('sketchforge.tutorials.v1')) localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); if (!localStorage.getItem('sketchforge.animintro.v1')) localStorage.setItem('sketchforge.animintro.v1', 'never'); if (!localStorage.getItem('sketchforge.welcome.v1')) localStorage.setItem('sketchforge.welcome.v1', 'never'); } catch (e) {} });
+  await ctx.addInitScript(() => { try { if (!localStorage.getItem('sketchforge.welcome.v1')) localStorage.setItem('sketchforge.welcome.v1', 'never'); } catch (e) {} }); // the mascot welcome: welcometest
   const pg = await ctx.newPage();
   const errors = []; pg.on('pageerror', e => errors.push(String(e)));
   await pg.goto(`http://127.0.0.1:${port}/index.html`); await pg.waitForTimeout(2000);

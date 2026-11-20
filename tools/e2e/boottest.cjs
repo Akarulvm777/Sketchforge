@@ -11,7 +11,7 @@ const T = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', 
   const errors = [];
   // 1) no <dialog> support
   let ctx = await b.newContext({ viewport: { width: 1180, height: 820 }, hasTouch: true });
-  await ctx.addInitScript(() => { try { localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); } catch (e) {} delete HTMLDialogElement.prototype.showModal; delete HTMLDialogElement.prototype.show; delete HTMLDialogElement.prototype.close; });
+  await ctx.addInitScript(() => { try { localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); localStorage.setItem('sketchforge.welcome.v1', 'never'); } catch (e) {} delete HTMLDialogElement.prototype.showModal; delete HTMLDialogElement.prototype.show; delete HTMLDialogElement.prototype.close; });
   let pg = await ctx.newPage(); pg.on('pageerror', e => errors.push(String(e)));
   await pg.goto('http://127.0.0.1:8843/index.html'); await pg.waitForTimeout(3000);
   check('without <dialog> support the app still starts', await pg.evaluate(() => !!window.__sketchforgeReady && !document.querySelector('#bootFail')));

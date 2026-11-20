@@ -59,7 +59,7 @@ function layerRow(l, inFolder) {
   if (l.canvas) thumb.getContext('2d').drawImage(l.canvas, 0, 0, thumb.width, thumb.height);
   const name = document.createElement('span'); name.className = 'name';
   const meta = document.createElement('small');
-  meta.textContent = Math.round(l.opacity * 100) + ' %  ' + (l.blend === 'normal' ? 'Normal' : l.blend) + layerFlags(l);
+  meta.textContent = Math.round(l.opacity * 100) + ' %  ' + (BLEND_LABEL[l.blend] || l.blend) + layerFlags(l);
   const nm2 = document.createElement('span'); nm2.textContent = l.name;
   name.append(meta, nm2);
   name.ondblclick = ev => { ev.stopPropagation(); renameLayer(l); };

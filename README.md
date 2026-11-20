@@ -1,4 +1,4 @@
-# Sketchforge 2.11 — drawing + animation studio
+# Sketchforge 2.12 — drawing + animation studio
 
 A Clip Studio-style workspace fused with an Adobe Animate-style timeline.
 Original app, "inspired by" those tools — it uses no Clip Studio / Adobe code, assets or branding, and is not an exact clone.
@@ -221,6 +221,12 @@ Help › 📚 Tutorials: 14 guided tours that point at the real buttons, with �
 ## 2.8: pose the 3D model right on the canvas
 - 3D panel › ✋ Pose on canvas: click or touch any body part on the big model over your drawing and drag it. Move: the hand, foot or head follows your finger and the arm or leg bends. Rotate: turn that joint. Drag the hips to move the whole body, drag empty space to turn around the model.
 - A small bar on the canvas shows which part you hold and switches Move / Rotate. Done goes back to drawing.
+
+## 2.12: every blending mode, and a welcome from the mascot
+- New: all 28 layer blending modes in the usual order: Linear burn, Subtract, Glow dodge, Add, Add (Glow), Vivid light, Linear light, Pin light, Hard mix, Darker color, Lighter color and Divide join the others ("Luminosity" is now called Brightness). They look the same on screen, in exports, when merging layers, with the eyedropper and in Photoshop files.
+- Fixed: the layer list did not show the new blend mode name after changing it.
+- New: ✨ Ask teaches painting and animation: 29 step-by-step lessons (sketching, line art, proportions, hands, faces, perspective, colour harmony, values, blend modes, cel and soft shading, light, skin, hair, eyes, watercolour, painterly, backgrounds, manga pages, animation principles, bouncing ball, walk cycle, mouth shapes, cut-out rigs, layer setup, finishing), each with buttons to the tools that help. Ask a question ("how do I shade skin?") or tap 📚 Learn.
+- New: the Sketchforge mascot welcomes you with an animation on the first start and when a new version starts, just before What's new (tap to skip; Help › Play the welcome animation).
 
 ## 2.11: your colours, paper and brushes
 - New: the update history. What's new (Help › What's new in this version) shows the newest update first, then every earlier update with its date and time; tap one to read it. The website shows it too.

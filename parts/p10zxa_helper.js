@@ -4,6 +4,7 @@
    open the tutorial at the right step). English and French words are understood. It never draws for anyone:
    asked why, it says "AI is not supposed to steal your job." */
 const HELP_TIPS = [
+  { q: 'blend mode blending layer linear burn subtract add glow dodge vivid light linear light pin light hard mix darker lighter color divide brightness multiply screen overlay', t: 'Layer blending modes', x: 'Layer Property › Blend: 28 modes in the usual order — Normal, Darken, Multiply, Color burn, Linear burn, Subtract, Lighten, Screen, Color dodge, Glow dodge, Add, Add (Glow), Overlay, Soft light, Hard light, Difference, Vivid light, Linear light, Pin light, Hard mix, Exclusion, Darker / Lighter color, Divide, Hue, Saturation, Color, Brightness. They show the same on screen, in exports, when merging and in Photoshop files.' },
   { q: 'ipad apple pencil pressure not working no pressure safari iphone thickness pencil', t: 'Apple Pencil pressure on iPad', x: 'Open Sketchforge in Safari (or from the Home Screen icon), not inside another app. Pressure comes from the Pencil automatically. Test it in View › Pen pressure & touch: the pad says "raw pressure" (and "Apple Pencil force" when it comes from the Pencil sensor). If strokes stop or get stuck, turn off Settings › Apple Pencil › Scribble.', a: [['cmd', 'penSettings', 'Pen settings']] },
   { q: 'imported clip studio tool not same different match tune adjust fix brush looks wrong compare clip studio tool editor', t: 'Make an imported Clip Studio tool match', x: 'Pick the tool, ⓘ under Sub Tool shows what is ≈ close or ✗ missing. Then ⚙ Adjust in the brush editor: draw the same stroke in Clip Studio and here, and tune the settings (pressure curves, spacing, texture…) with the live preview. Save keeps it. Tutorial: Help › Tutorials › Clip Studio tools & your own brushes.', a: [['tut', 'brushes', 'Tutorial'], ['cmd', 'brushEdit', 'Edit this brush…']] },
   { q: 'favourite favorite colour color save colours set palette swatch history recent colours keep my colors name', t: 'Favourite colours and colour history', x: 'Color panel: pick a colour set (Basic, or ⋯ › New colour set… with any name), ＋ adds the main colour, tap to use, right-click or long-press to remove. History below shows the colours you painted with. Sets can be exported / imported (.sfcolors, GIMP .gpl).' },
@@ -71,6 +72,7 @@ function helpIndex() {
   const idx = [], strip = s => String(s || '').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
   const add = (e) => { e.tt = htokens(e.title); e.pt = htokens(e.path || ''); e.xt = htokens(e.text || '') ; idx.push(e); };
   for (const tip of HELP_TIPS) add({ kind: 'tip', title: tip.t, path: tip.q, text: tip.x, acts: tip.a, boost: 1.5 });
+  if (typeof HELP_LESSONS !== 'undefined') for (const L of HELP_LESSONS) add({ kind: 'lesson', title: L.t, path: L.q + ' ' + L.cat, text: L.steps.join(' '), id: L.id, boost: 1.4 }); // painting / animation lessons (p10zxc)
   for (const [menu, items] of MENUS) for (const it of items) if (Array.isArray(it) && it[1] && CMD[it[1]] && !/^tut_|^tour/.test(it[1]))
     add({ kind: 'cmd', title: it[0].replace(/[…✨☁📚👋]/g, '').trim(), path: `${menu} › ${it[0]}`, text: it[2] ? 'Shortcut: ' + it[2] : '', id: it[1] });
   for (const g of GROUPS) for (const id of g.subs || []) { const d = TOOLDEF[id]; if (d) add({ kind: 'tool', title: d.name, path: `${g.name} tool`, text: `${g.name}${g.key ? ' (key ' + g.key + ')' : ''}`, id }); }
@@ -104,14 +106,23 @@ function helpAnswer(q) {
   if (DRAW_ASK.test(n)) return "I don't draw for you — the art is yours! But I can show you the tools: ask me things like \"where is the eraser?\" or \"how do I animate?\". [[tut:first|Your first drawing]]";
   if (/^\s*(hi|hello|hey|bonjour|salut|coucou|yo)\b/.test(n) && n.length < 20) return 'Hi! Ask me where a tool is or how to do something, e.g. "how do I make an animation?", "eraser", "pen pressure not working".';
   if (/\b(thanks?|thank you|merci)\b/.test(n)) return 'You\'re welcome! Have fun drawing 🎨';
+  if (typeof lessonList === 'function' && /^\s*(learn|lessons?|teach me|tips|techniques?|tutorial list|apprendre|lecons?)\s*[?!.]*\s*$/.test(n)) return lessonList();
   const res = helpSearch(q);
+  if (res.length && res[0].kind === 'lesson') { // a technique question: the whole lesson, then the closest app answers
+    const L = HELP_LESSONS.find(x => x.id === res[0].id), more = res.slice(1, 3).filter(e => e.kind !== 'lesson');
+    return lessonAnswer(L) + (more.length ? '\n\n' + more.map(e => helpLine(e)).join('\n\n') : '');
+  }
   if (!res.length) return 'I couldn\'t find that. Try other words (e.g. "layer", "export gif", "onion skin"), or look in the tutorials. [[cmd:tutorials|All tutorials]]';
-  return res.map(e => {
+  return res.map(helpLine).join('\n\n');
+}
+function helpLine(e) {
+  if (e.kind === 'lesson') return `**📚 ${e.title}** — lesson\n[[lesson:${e.id}|Read the lesson]]`;
+  {
     const btn = e.kind === 'cmd' ? `[[cmd:${e.id}|Do it]]` : e.kind === 'tool' ? `[[tool:${e.id}|Use it]]` : e.kind === 'tut' ? `[[tut:${e.id}.${e.step || 0}|Show me]]` : (e.acts || []).map(([k, id, l]) => `[[${k}:${id}|${l}]]`).join(' ');
     const where = e.kind === 'cmd' ? e.path : e.kind === 'tool' ? `Tool palette › ${e.text}` : e.kind === 'tut' ? (e.step ? `Tutorial "${e.path}"` : 'Tutorial') : '';
     const text = e.kind === 'cmd' ? e.text : e.kind === 'tool' ? '' : e.text;
     return `**${e.title}**${where ? ' — ' + where : ''}${text ? '\n' + (text.length > 220 ? text.slice(0, 217) + '…' : text) : ''}\n${btn}`;
-  }).join('\n\n');
+  }
 }
 
 /* ---- the panel ---- */
@@ -120,10 +131,11 @@ function aiOpen() {
   let p = $('#aiPanel');
   if (!p) {
     p = document.createElement('div'); p.id = 'aiPanel';
-    p.innerHTML = `<div class="ai-head"><b>✨ Sketchforge helper</b><span class="muted small">Free, works offline. Finds tools and answers questions — it won't draw for you.</span><button type="button" class="ai-x" title="Close">✕</button></div>
+    p.innerHTML = `<div class="ai-head"><b>✨ Sketchforge helper</b><span class="muted small">Free, works offline. Finds tools, answers questions about the app and teaches painting and animation — it won't draw for you.</span><button type="button" class="ai-learn" title="Painting and animation lessons">📚 Learn</button><button type="button" class="ai-x" title="Close">✕</button></div>
       <div class="ai-log"></div><form class="ai-form"><textarea rows="2" placeholder="Ask anything… e.g. where is the eraser? how do I animate?"></textarea><button class="primary">Ask</button></form>`;
     document.body.appendChild(p);
     p.querySelector('.ai-x').onclick = () => { p.hidden = true; };
+    p.querySelector('.ai-learn').onclick = () => { AI.msgs.push({ role: 'assistant', content: lessonList() }); aiRender(); };
     const ta = p.querySelector('textarea');
     ta.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); p.querySelector('form').requestSubmit(); } });
     p.querySelector('form').onsubmit = e => { e.preventDefault(); const q = ta.value.trim(); if (q) { ta.value = ''; aiAsk(q); } };
@@ -133,17 +145,19 @@ function aiOpen() {
 }
 function aiFormat(text) {
   const h = esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
-  return h.replace(/\[\[(cmd|tut|tool):([\w.-]+)\|([^\]]{1,60})\]\]/g, (m, k, id, label) => `<button type="button" class="ai-act" data-k="${k}" data-id="${id}">${label}</button>`);
+  return h.replace(/\[\[(cmd|tut|tool|learn|lesson):([\w.-]+)\|([^\]]{1,60})\]\]/g, (m, k, id, label) => `<button type="button" class="ai-act" data-k="${k}" data-id="${id}">${label}</button>`);
 }
 function aiRender() {
   const log = $('#aiPanel .ai-log'); if (!log) return;
   log.innerHTML = AI.msgs.length ? AI.msgs.map(m => `<div class="ai-msg ${m.role}">${aiFormat(m.content)}</div>`).join('')
-    : `<div class="ai-msg assistant">${aiFormat('Hi! Ask me where a tool is, what a setting does, or how to do something. For example:')}<div class="ai-ex">${['How do I animate?', 'Where is the eraser?', 'Pen pressure not working', 'Export a GIF'].map(x => `<button type="button" class="ai-q">${x}</button>`).join('')}</div></div>`;
+    : `<div class="ai-msg assistant">${aiFormat('Hi! Ask me where a tool is, what a setting does, or how to do something. For example:')}<div class="ai-ex">${['How do I animate?', 'Where is the eraser?', 'How do I shade skin?', 'Perspective', 'Mouth shapes for talking', 'Export a GIF'].map(x => `<button type="button" class="ai-q">${x}</button>`).join('')}</div></div>`;
   log.querySelectorAll('.ai-q').forEach(b => b.onclick = () => aiAsk(b.textContent));
   log.querySelectorAll('.ai-act').forEach(b => b.onclick = () => {
     const k = b.dataset.k, id = b.dataset.id;
     if (k === 'cmd' && CMD[id]) CMD[id]();
     else if (k === 'tool' && TOOLDEF[id]) { selectTool(id); toast(TOOLDEF[id].name + ' selected'); }
+    else if (k === 'learn') { AI.msgs.push({ role: 'assistant', content: lessonList(id) }); aiRender(); }
+    else if (k === 'lesson') { const L = HELP_LESSONS.find(x => x.id === id); if (L) { AI.msgs.push({ role: 'user', content: L.t }, { role: 'assistant', content: lessonAnswer(L) }); aiRender(); } }
     else if (k === 'tut') { const [tid, st] = id.split('.'); $('#aiPanel').hidden = true; tutStart(tid); if (+st > 0) { TUT.i = Math.min(+st, TUT.steps.length - 1); tutShow(); } }
   });
   const last = log.querySelector('.ai-msg.user:last-of-type');

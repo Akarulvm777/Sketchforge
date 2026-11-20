@@ -55,7 +55,7 @@ const api = http.createServer((q, r) => {
   const b = await chromium.launch(); const ok = [];
   const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
   const ctx = await b.newContext({ viewport: { width: 1400, height: 900 }, acceptDownloads: true });
-  await ctx.addInitScript(() => { localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); localStorage.setItem('sketchforge.animintro.v1', 'never'); });
+  await ctx.addInitScript(() => { localStorage.setItem('sketchforge.tutorials.v1', '{"seen":true}'); localStorage.setItem('sketchforge.animintro.v1', 'never'); localStorage.setItem('sketchforge.welcome.v1', 'never'); });
   const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', e => errs.push(String(e))); pg.on('dialog', d => d.accept());
   const E = (f, a) => pg.evaluate(f, a);
   await pg.goto(`http://127.0.0.1:${SITE}/app/`); await pg.waitForTimeout(2000);

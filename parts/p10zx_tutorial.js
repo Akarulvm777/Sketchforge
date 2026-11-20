@@ -341,5 +341,5 @@ function installTutorials() {
   const H = MENUS.find(m => m[0] === 'Help')[1];
   H.unshift(['📚 Tutorials…', 'tutorials'], ['👋 Welcome tour', 'tourWelcome'], '-',
     ...TUTORIALS.filter(t => t.id !== 'welcome').map(t => [t.icon + ' ' + t.title, 'tut_' + t.id]), '-');
-  setTimeout(tutWelcome, 1500);
+  setTimeout(() => welcomeGate.then(tutWelcome), 1500); // after the mascot's welcome
 }
