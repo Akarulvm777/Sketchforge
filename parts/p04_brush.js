@@ -127,6 +127,9 @@ function colourJitter(hex, s) {
 }
 function stepAt(st, pr) {
   const d = diameterAt(st, pr);
+  // colour mixing / blending brushes: every dab reads and rewrites pixels, so dabs closer than ~20% of the size,
+  // 1.5 px or half a screen pixel cost a lot (thousands per stroke on a zoomed-out page) and look the same
+  if (st.direct) return Math.max(1.5, 0.6 / (view.scale || 1), d * 0.2);
   return Math.max(0.6, d * (st.s.tipId ? (st.s.spacing || 0.15) : st.s.hardness >= 0.97 ? 0.08 : 0.1));
 }
 function growBox(st, x, y, d) {

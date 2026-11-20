@@ -4,6 +4,8 @@
    open the tutorial at the right step). English and French words are understood. It never draws for anyone:
    asked why, it says "AI is not supposed to steal your job." */
 const HELP_TIPS = [
+  { q: 'reset default settings factory restore remove imported tools start again clean', t: 'Reset Sketchforge to defaults', x: 'Edit › Reset Sketchforge to defaults… (also in Help) puts every setting back and removes every imported tool, custom brush, theme and colour set. Your drawings and your account stay. [[cmd:resetDefaults|Reset to defaults…]]' },
+  { q: 'voice talk speak read aloud microphone listen say', t: 'Talk with ✨ Ask', x: 'In ✨ Ask, tap 🔊 and the answers are read aloud; tap 🎤 and ask with your voice (where your browser supports it — Chrome, Edge, Safari). Free, built into your browser. [[cmd:askAI|Open ✨ Ask]]' },
   { q: 'clipping clip layer below mask paint only inside shading colour inside lines lock transparency', t: 'Clipping layer (paint only inside the layer below)', x: 'In the Layer panel, the button next to ＋ (New layer) clips the active layer to the layer below: it only shows where the layer below has paint, so you can shade and colour without going outside the lines (Ctrl+Alt+G). The next button adds a layer mask. [[cmd:clipLayer|Clip to layer below]] [[cmd:maskAdd|Add layer mask]]' },
   { q: 'face slider live2d blink eye close mouth open smile brow expression lip talk face animation squash', t: 'Face sliders (Live2D-style blink, mouth, smile)', x: 'Animation › 🙂 Face sliders. Draw a face (eyes open, mouth closed as a line), tap ＋ Eye / ＋ Mouth / ＋ Smile / ＋ Brow and drag a box around each part. Move the sliders: that frame becomes a face key. Move them on another frame and the frames between are made smoothly. 👁 Blink here makes a blink in one tap. Works on the skin layer too. [[cmd:faceSliders|Open Face sliders]]' },
   { q: 'swap drawing replace hand open closed eyes open closed blink change drawing replacement animation mouth', t: 'Swap drawings (open ↔ closed hand, eyes)', x: 'Animation workspace: the 🔁 Swap bar above the timeline. Draw one version (e.g. hand open) and tap ＋, draw another version on another frame and tap ＋ again. Then on any frame tap a drawing to swap it in (its position, bones and tweens stay). Alt+] / Alt+[ = next / previous. Edited a drawing? ⟳ Update everywhere. [[cmd:swapAdd|Add this drawing]]' },
@@ -135,13 +137,14 @@ function aiOpen() {
   if (!p) {
     p = document.createElement('div'); p.id = 'aiPanel';
     p.innerHTML = `<div class="ai-head"><b>✨ Sketchforge helper</b><span class="muted small">Free, works offline. Finds tools, answers questions about the app and teaches painting and animation — it won't draw for you.</span><button type="button" class="ai-learn" title="Painting and animation lessons">📚 Learn</button><button type="button" class="ai-x" title="Close">✕</button></div>
-      <div class="ai-log"></div><form class="ai-form"><textarea rows="2" placeholder="Ask anything… e.g. where is the eraser? how do I animate?"></textarea><button class="primary">Ask</button></form>`;
+      <div class="ai-log"></div><form class="ai-form"><textarea rows="2" placeholder="Ask anything… e.g. where is the eraser? how do I animate?"></textarea><button type="button" class="ai-mic" title="Ask with your voice">🎤</button><button type="button" class="ai-speak" title="Read the answers aloud">🔊</button><button class="primary">Ask</button></form>`;
     document.body.appendChild(p);
     p.querySelector('.ai-x').onclick = () => { p.hidden = true; };
     p.querySelector('.ai-learn').onclick = () => { AI.msgs.push({ role: 'assistant', content: lessonList() }); aiRender(); };
     const ta = p.querySelector('textarea');
     ta.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); p.querySelector('form').requestSubmit(); } });
     p.querySelector('form').onsubmit = e => { e.preventDefault(); const q = ta.value.trim(); if (q) { ta.value = ''; aiAsk(q); } };
+    aiVoiceSetup(p, ta);
     aiRender();
   }
   p.hidden = false; p.querySelector('textarea').focus();
@@ -167,7 +170,38 @@ function aiRender() {
   log.scrollTop = last ? last.offsetTop - 8 : log.scrollHeight; // show the start of the newest answer
 }
 function aiAsk(q) {
-  AI.msgs.push({ role: 'user', content: q }, { role: 'assistant', content: helpAnswer(q) });
+  const a = helpAnswer(q);
+  AI.msgs.push({ role: 'user', content: q }, { role: 'assistant', content: a });
   if (AI.msgs.length > 40) AI.msgs.splice(0, AI.msgs.length - 40);
   aiRender();
+  if (AI_VOICE.speak) aiSay(a);
+}
+/* ✨ Ask talks: 🔊 reads answers aloud (speechSynthesis), 🎤 asks by voice (SpeechRecognition where the browser has it).
+   Both are built into the browser: free, nothing is sent to an AI service by Sketchforge. Choice kept in sketchforge.aivoice.v1. */
+const AI_VOICE = (() => { try { return { speak: false, ...JSON.parse(localStorage.getItem('sketchforge.aivoice.v1') || '{}') }; } catch (e) { return { speak: false }; } })();
+function aiPlain(t) { return String(t).replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, '$1').replace(/\*\*/g, '').replace(/[•→›]/g, ', ').replace(/\s+/g, ' ').trim(); }
+function aiSay(text) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(aiPlain(text).slice(0, 1200)); u.lang = 'en-US'; u.rate = 1; speechSynthesis.speak(u);
+}
+function aiVoiceSetup(p, ta) {
+  const sp = p.querySelector('.ai-speak'), mic = p.querySelector('.ai-mic');
+  const paint = () => { sp.classList.toggle('on', !!AI_VOICE.speak); sp.title = AI_VOICE.speak ? 'Reading answers aloud — tap to stop' : 'Read the answers aloud'; };
+  if (!('speechSynthesis' in window)) sp.hidden = true;
+  sp.onclick = () => { AI_VOICE.speak = !AI_VOICE.speak; try { localStorage.setItem('sketchforge.aivoice.v1', JSON.stringify(AI_VOICE)); } catch (e) { /* ignore */ }
+    paint(); if (!AI_VOICE.speak) speechSynthesis.cancel(); else { const last = [...AI.msgs].reverse().find(m => m.role === 'assistant'); aiSay(last ? last.content : 'Hi! Ask me anything about Sketchforge.'); } };
+  paint();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { mic.hidden = true; return; }
+  let rec = null;
+  mic.onclick = () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
+    mic.classList.add('on'); ta.placeholder = 'Listening… speak now';
+    rec.onresult = e => { const r = e.results[e.results.length - 1]; ta.value = r[0].transcript; if (r.isFinal) { const q = ta.value.trim(); ta.value = ''; if (q) aiAsk(q); } };
+    rec.onerror = e => { if (e.error === 'not-allowed') toast('Allow the microphone to ask with your voice'); };
+    rec.onend = () => { rec = null; mic.classList.remove('on'); ta.placeholder = 'Ask anything… e.g. where is the eraser? how do I animate?'; };
+    rec.start();
+  };
 }

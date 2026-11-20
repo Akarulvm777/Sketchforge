@@ -467,6 +467,8 @@ function sutToDefs(buf) {
     if (def.pSize) { def.pMin = es.min; if (es.curve) def.pCurve = es.curve; ok(`Pressure → size (minimum ${pct(es.min)}${es.curve ? ', own pressure curve' : ''})`); }
     const ea = (eo.bits & 16) ? eo : ef;
     if (def.pAlpha) { def.aMin = ea.min; if (ea.curve) def.aCurve = ea.curve; ok(`Pressure → ${(eo.bits & 16) ? 'opacity' : 'density'} (minimum ${pct(ea.min)}${ea.curve ? ', own curve' : ''})`); }
+    // every imported tool reacts to the pen: a tool saved without any pressure gets pressure → size (minimum 30%)
+    if (!def.pSize && !def.pAlpha) { def.pSize = true; def.pMin = 0.3; def.autoPressure = true; ok('Pen pressure added: size follows the pen (the tool had no pressure setting; turn it off in ⚙ if you prefer)'); }
     if (es.bits & 32) { if (es.mins[32] < 1) { def.tMin = es.mins[32]; def.tCurve = es.curveOf[32] || [[0, 0], [1, 1]]; ok(`Pen tilt → size (minimum ${pct(es.mins[32])})`); } else ok('Pen tilt → size: no effect (minimum 100%)'); }
     if (es.bits & 64) { def.speed = 0; if (es.mins[64] < 1) { def.vMin = es.mins[64]; def.vCurve = es.curveOf[64] || [[0, 1], [1, 0]]; ok(`Drawing speed → size (minimum ${pct(es.mins[64])}, own curve)`); } else ok('Drawing speed → size: no effect (minimum 100%)'); }
     if (es.bits & 128) { def.sRand = es.mins[128]; ok(`Random size per dab (minimum ${pct(es.mins[128])})`); }

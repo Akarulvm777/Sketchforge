@@ -991,6 +991,9 @@ function colourJitter(hex, s) {
 }
 function stepAt(st, pr) {
   const d = diameterAt(st, pr);
+  // colour mixing / blending brushes: every dab reads and rewrites pixels, so dabs closer than ~20% of the size,
+  // 1.5 px or half a screen pixel cost a lot (thousands per stroke on a zoomed-out page) and look the same
+  if (st.direct) return Math.max(1.5, 0.6 / (view.scale || 1), d * 0.2);
   return Math.max(0.6, d * (st.s.tipId ? (st.s.spacing || 0.15) : st.s.hardness >= 0.97 ? 0.08 : 0.1));
 }
 function growBox(st, x, y, d) {
@@ -8223,12 +8226,16 @@ function smudgeStamp(st, x, y, pr) {
   const s = st.s, g = st.t.ctx, C = 128;
   const d = Math.max(3, diameterAt(st, pr));
   const sx = x - d / 2, sy = y - d / 2;
-  if (!st.carry) { st.carry = makeCanvas(C, C); st.tmpc = makeCanvas(C, C); st.small = makeCanvas(64, 64); }
+  // every work canvas lives on the CPU side (willReadFrequently): the pixels are read back on every dab, and moving them
+  // between the graphics chip and the CPU 4–5 times per dab made colour-mixing brushes (many imported tools) crawl
+  const cpu = (w, h) => { const c = makeCanvas(w, h); c.getContext('2d', { willReadFrequently: true }); return c; };
+  if (!st.carry) { st.carry = cpu(C, C); st.tmpc = cpu(C, C); st.small = cpu(64, 64); }
   const cg = st.carry.getContext('2d'), tg = st.tmpc.getContext('2d');
   // paint brushes (colour mixing): the colour picked up from the canvas is mixed with the brush colour; strength follows opacity too
   const paint = s.paint != null && !s.blurTool, P = paint ? clamp(s.paint, 0, 1) : 0, D = paint ? clamp(s.paintDensity ?? 1, 0, 1) : 1;
   const strength = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.15, 1, typeof prCurve === 'function' ? prCurve(s.aCurve, pr) : pr) : 1) * (paint ? s.opacity : 1), 0, 1);
-  const tip = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness);
+  if (!st.tipCpu) { const t0 = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness); st.tipCpu = cpu(t0.width, t0.height); st.tipCpu.getContext('2d').drawImage(t0, 0, 0); }
+  const tip = st.tipCpu;
   const [BR, BG, BB] = paint ? hexToRgb(st.color) : [0, 0, 0];
   // paper texture while mixing colours: the texture grain lowers the strength pixel by pixel
   const tv = paint && s.tex ? texBaseFor(s.tex)._vals : null, tN = TEX_N, tk = s.texScale || 1, tA = clamp(s.texAmt ?? 0.6, 0, 1);
@@ -8237,8 +8244,10 @@ function smudgeStamp(st, x, y, pr) {
   // the area under the brush, copied 1:1 first: scaling straight from the full-size picture made the browser process
   // the whole picture on every dab (over a second per pen move on big pages)
   const D0 = Math.ceil(d) + 2, ox = Math.floor(sx), oy = Math.floor(sy);
-  if (!st.grab || st.grab.width < D0) st.grab = makeCanvas(D0, D0);
-  const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0); gg.drawImage(st.t.cel, ox, oy, D0, D0, 0, 0, D0, D0);
+  if (!st.grab || st.grab.width < D0) st.grab = cpu(D0, D0);
+  const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0);
+  { const x0 = Math.max(0, ox), y0 = Math.max(0, oy), w0 = Math.min(state.w, ox + D0) - x0, h0 = Math.min(state.h, oy + D0) - y0; // one read of the layer for this dab
+    if (w0 > 0 && h0 > 0) gg.putImageData(g.getImageData(x0, y0, w0, h0), x0 - ox, y0 - oy); }
   const gx = sx - ox, gy = sy - oy, src = st.grab;
   if (s.blurTool) {
     const n = clamp(Math.round(d / 7), 3, 64);
@@ -8256,12 +8265,12 @@ function smudgeStamp(st, x, y, pr) {
   const rx = Math.max(0, Math.floor(sx)), ry = Math.max(0, Math.floor(sy));
   const rw = Math.min(state.w, Math.ceil(sx + d) + 1) - rx, rh = Math.min(state.h, Math.ceil(sy + d) + 1) - ry;
   if (rw > 0 && rh > 0) {
-    if (!st.rc || st.rc.width !== rw || st.rc.height !== rh) { st.rc = makeCanvas(rw, rh); st.mc = makeCanvas(rw, rh); }
+    if (!st.rc || st.rc.width !== rw || st.rc.height !== rh) { st.rc = cpu(rw, rh); st.mc = cpu(rw, rh); }
     const rg = st.rc.getContext('2d', { willReadFrequently: true }), mg = st.mc.getContext('2d', { willReadFrequently: true });
     rg.clearRect(0, 0, rw, rh); rg.drawImage(st.tmpc, sx - rx, sy - ry, d, d);
     mg.clearRect(0, 0, rw, rh); mg.drawImage(tip, sx - rx, sy - ry, d, d);
     const cd = rg.getImageData(0, 0, rw, rh).data, md = mg.getImageData(0, 0, rw, rh).data;
-    const im = g.getImageData(rx, ry, rw, rh), od = im.data;
+    const im = gg.getImageData(rx - ox, ry - oy, rw, rh), od = im.data; // the layer pixels, from the copy read above (no second read of the layer)
     for (let i = 0; i < od.length; i += 4) {
       let km = strength * md[i + 3] / 255;
       if (km <= 0) continue;
@@ -10537,6 +10546,8 @@ function sutToDefs(buf) {
     if (def.pSize) { def.pMin = es.min; if (es.curve) def.pCurve = es.curve; ok(`Pressure → size (minimum ${pct(es.min)}${es.curve ? ', own pressure curve' : ''})`); }
     const ea = (eo.bits & 16) ? eo : ef;
     if (def.pAlpha) { def.aMin = ea.min; if (ea.curve) def.aCurve = ea.curve; ok(`Pressure → ${(eo.bits & 16) ? 'opacity' : 'density'} (minimum ${pct(ea.min)}${ea.curve ? ', own curve' : ''})`); }
+    // every imported tool reacts to the pen: a tool saved without any pressure gets pressure → size (minimum 30%)
+    if (!def.pSize && !def.pAlpha) { def.pSize = true; def.pMin = 0.3; def.autoPressure = true; ok('Pen pressure added: size follows the pen (the tool had no pressure setting; turn it off in ⚙ if you prefer)'); }
     if (es.bits & 32) { if (es.mins[32] < 1) { def.tMin = es.mins[32]; def.tCurve = es.curveOf[32] || [[0, 0], [1, 1]]; ok(`Pen tilt → size (minimum ${pct(es.mins[32])})`); } else ok('Pen tilt → size: no effect (minimum 100%)'); }
     if (es.bits & 64) { def.speed = 0; if (es.mins[64] < 1) { def.vMin = es.mins[64]; def.vCurve = es.curveOf[64] || [[0, 1], [1, 0]]; ok(`Drawing speed → size (minimum ${pct(es.mins[64])}, own curve)`); } else ok('Drawing speed → size: no effect (minimum 100%)'); }
     if (es.bits & 128) { def.sRand = es.mins[128]; ok(`Random size per dab (minimum ${pct(es.mins[128])})`); }
@@ -12169,6 +12180,8 @@ function installTutorials() {
    open the tutorial at the right step). English and French words are understood. It never draws for anyone:
    asked why, it says "AI is not supposed to steal your job." */
 const HELP_TIPS = [
+  { q: 'reset default settings factory restore remove imported tools start again clean', t: 'Reset Sketchforge to defaults', x: 'Edit › Reset Sketchforge to defaults… (also in Help) puts every setting back and removes every imported tool, custom brush, theme and colour set. Your drawings and your account stay. [[cmd:resetDefaults|Reset to defaults…]]' },
+  { q: 'voice talk speak read aloud microphone listen say', t: 'Talk with ✨ Ask', x: 'In ✨ Ask, tap 🔊 and the answers are read aloud; tap 🎤 and ask with your voice (where your browser supports it — Chrome, Edge, Safari). Free, built into your browser. [[cmd:askAI|Open ✨ Ask]]' },
   { q: 'clipping clip layer below mask paint only inside shading colour inside lines lock transparency', t: 'Clipping layer (paint only inside the layer below)', x: 'In the Layer panel, the button next to ＋ (New layer) clips the active layer to the layer below: it only shows where the layer below has paint, so you can shade and colour without going outside the lines (Ctrl+Alt+G). The next button adds a layer mask. [[cmd:clipLayer|Clip to layer below]] [[cmd:maskAdd|Add layer mask]]' },
   { q: 'face slider live2d blink eye close mouth open smile brow expression lip talk face animation squash', t: 'Face sliders (Live2D-style blink, mouth, smile)', x: 'Animation › 🙂 Face sliders. Draw a face (eyes open, mouth closed as a line), tap ＋ Eye / ＋ Mouth / ＋ Smile / ＋ Brow and drag a box around each part. Move the sliders: that frame becomes a face key. Move them on another frame and the frames between are made smoothly. 👁 Blink here makes a blink in one tap. Works on the skin layer too. [[cmd:faceSliders|Open Face sliders]]' },
   { q: 'swap drawing replace hand open closed eyes open closed blink change drawing replacement animation mouth', t: 'Swap drawings (open ↔ closed hand, eyes)', x: 'Animation workspace: the 🔁 Swap bar above the timeline. Draw one version (e.g. hand open) and tap ＋, draw another version on another frame and tap ＋ again. Then on any frame tap a drawing to swap it in (its position, bones and tweens stay). Alt+] / Alt+[ = next / previous. Edited a drawing? ⟳ Update everywhere. [[cmd:swapAdd|Add this drawing]]' },
@@ -12300,13 +12313,14 @@ function aiOpen() {
   if (!p) {
     p = document.createElement('div'); p.id = 'aiPanel';
     p.innerHTML = `<div class="ai-head"><b>✨ Sketchforge helper</b><span class="muted small">Free, works offline. Finds tools, answers questions about the app and teaches painting and animation — it won't draw for you.</span><button type="button" class="ai-learn" title="Painting and animation lessons">📚 Learn</button><button type="button" class="ai-x" title="Close">✕</button></div>
-      <div class="ai-log"></div><form class="ai-form"><textarea rows="2" placeholder="Ask anything… e.g. where is the eraser? how do I animate?"></textarea><button class="primary">Ask</button></form>`;
+      <div class="ai-log"></div><form class="ai-form"><textarea rows="2" placeholder="Ask anything… e.g. where is the eraser? how do I animate?"></textarea><button type="button" class="ai-mic" title="Ask with your voice">🎤</button><button type="button" class="ai-speak" title="Read the answers aloud">🔊</button><button class="primary">Ask</button></form>`;
     document.body.appendChild(p);
     p.querySelector('.ai-x').onclick = () => { p.hidden = true; };
     p.querySelector('.ai-learn').onclick = () => { AI.msgs.push({ role: 'assistant', content: lessonList() }); aiRender(); };
     const ta = p.querySelector('textarea');
     ta.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); p.querySelector('form').requestSubmit(); } });
     p.querySelector('form').onsubmit = e => { e.preventDefault(); const q = ta.value.trim(); if (q) { ta.value = ''; aiAsk(q); } };
+    aiVoiceSetup(p, ta);
     aiRender();
   }
   p.hidden = false; p.querySelector('textarea').focus();
@@ -12332,9 +12346,40 @@ function aiRender() {
   log.scrollTop = last ? last.offsetTop - 8 : log.scrollHeight; // show the start of the newest answer
 }
 function aiAsk(q) {
-  AI.msgs.push({ role: 'user', content: q }, { role: 'assistant', content: helpAnswer(q) });
+  const a = helpAnswer(q);
+  AI.msgs.push({ role: 'user', content: q }, { role: 'assistant', content: a });
   if (AI.msgs.length > 40) AI.msgs.splice(0, AI.msgs.length - 40);
   aiRender();
+  if (AI_VOICE.speak) aiSay(a);
+}
+/* ✨ Ask talks: 🔊 reads answers aloud (speechSynthesis), 🎤 asks by voice (SpeechRecognition where the browser has it).
+   Both are built into the browser: free, nothing is sent to an AI service by Sketchforge. Choice kept in sketchforge.aivoice.v1. */
+const AI_VOICE = (() => { try { return { speak: false, ...JSON.parse(localStorage.getItem('sketchforge.aivoice.v1') || '{}') }; } catch (e) { return { speak: false }; } })();
+function aiPlain(t) { return String(t).replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, '$1').replace(/\*\*/g, '').replace(/[•→›]/g, ', ').replace(/\s+/g, ' ').trim(); }
+function aiSay(text) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(aiPlain(text).slice(0, 1200)); u.lang = 'en-US'; u.rate = 1; speechSynthesis.speak(u);
+}
+function aiVoiceSetup(p, ta) {
+  const sp = p.querySelector('.ai-speak'), mic = p.querySelector('.ai-mic');
+  const paint = () => { sp.classList.toggle('on', !!AI_VOICE.speak); sp.title = AI_VOICE.speak ? 'Reading answers aloud — tap to stop' : 'Read the answers aloud'; };
+  if (!('speechSynthesis' in window)) sp.hidden = true;
+  sp.onclick = () => { AI_VOICE.speak = !AI_VOICE.speak; try { localStorage.setItem('sketchforge.aivoice.v1', JSON.stringify(AI_VOICE)); } catch (e) { /* ignore */ }
+    paint(); if (!AI_VOICE.speak) speechSynthesis.cancel(); else { const last = [...AI.msgs].reverse().find(m => m.role === 'assistant'); aiSay(last ? last.content : 'Hi! Ask me anything about Sketchforge.'); } };
+  paint();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { mic.hidden = true; return; }
+  let rec = null;
+  mic.onclick = () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = navigator.language || 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
+    mic.classList.add('on'); ta.placeholder = 'Listening… speak now';
+    rec.onresult = e => { const r = e.results[e.results.length - 1]; ta.value = r[0].transcript; if (r.isFinal) { const q = ta.value.trim(); ta.value = ''; if (q) aiAsk(q); } };
+    rec.onerror = e => { if (e.error === 'not-allowed') toast('Allow the microphone to ask with your voice'); };
+    rec.onend = () => { rec = null; mic.classList.remove('on'); ta.placeholder = 'Ask anything… e.g. where is the eraser? how do I animate?'; };
+    rec.start();
+  };
 }
 
 /* ---------- Tutorial: rig the fox, step by step ----------
@@ -13289,6 +13334,31 @@ function installCustomP() {
   MENUS.splice(at < 0 ? MENUS.length - 1 : at + 1, 0, ['🎨 Custom P', items]);
 }
 
+/* ---------- Reset Sketchforge to defaults (Edit / Help menu) ----------
+   Puts every setting back as on a new install and removes every imported tool (.sut / .sfbrush, kept in IndexedDB
+   'sketchforge-addons'), custom brushes, Custom P themes and pictures ('sketchforge-customp'), colour sets, layouts.
+   Kept: open drawings (session), the drawing library, the account sign-in, and the markers that stop the welcome /
+   What's new / "fresh install" messages from showing again. Then the app reloads. */
+const RESET_KEEP = /^sketchforge\.(auth|session|install|shell|live|lastver|welcome|tutorials|animintro)/;
+function deleteDB(name) { return new Promise(res => { try { const rq = indexedDB.deleteDatabase(name); rq.onsuccess = rq.onerror = rq.onblocked = () => res(); } catch (e) { res(); } }); }
+async function resetToDefaults(skipConfirm) {
+  if (!skipConfirm && !confirm('Reset Sketchforge to its default settings?\n\nThis removes every imported tool (Clip Studio .sut, .sfbrush), your custom brushes, themes, colour sets, layouts and all settings.\n\nYour drawings and your account stay.')) return false;
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith('sketchforge.') && !RESET_KEEP.test(k)) localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
+  if (typeof sessionSave === 'function') { try { await sessionSave(); } catch (e) { /* keep going */ } }
+  await Promise.all(['sketchforge-addons', 'sketchforge-customp'].map(deleteDB));
+  try { localStorage.setItem('sketchforge.resetdone', '1'); } catch (e) { /* ignore */ }
+  location.reload();
+  return true;
+}
+function installReset() {
+  CMD.resetDefaults = () => resetToDefaults();
+  const E = MENUS.find(m => m[0] === 'Edit'), Hm = MENUS.find(m => m[0] === 'Help');
+  const item = ['⟲ Reset Sketchforge to defaults…', 'resetDefaults'];
+  if (E) E[1].push('-', item);
+  if (Hm) Hm[1].push('-', item);
+  try { if (localStorage.getItem('sketchforge.resetdone')) { localStorage.removeItem('sketchforge.resetdone'); setTimeout(() => toast('Sketchforge is back to its default settings', 4000), 800); } } catch (e) { /* ignore */ }
+}
+
 /* ---------- pointer input ---------- */
 const pointers = new Map();
 let pinch = null, spaceDown = false;
@@ -13590,7 +13660,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installLayersPro(); installFoxRig(); installSwapTutorial(); installSwap(); installFace(); installColorSets(); installBrushEditor(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installLayersPro(); installFoxRig(); installSwapTutorial(); installReset(); installSwap(); installFace(); installColorSets(); installBrushEditor(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
