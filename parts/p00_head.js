@@ -75,6 +75,8 @@ const IC = {
   export: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 20h16"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17v.5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  clip: '<rect x="4" y="11" width="16" height="9" rx="1.5"/><path d="M8 4h10a2 2 0 0 1 2 2v2"/><path d="M8 4v4.5M6 6.5l2 2 2-2"/>',
+  mask: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="12" cy="12" r="4.2" fill="currentColor" fill-opacity=".35"/>',
   minus: '<path d="M5 12h14"/>',
   rotl: '<path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/>',
   rotr: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/>',
