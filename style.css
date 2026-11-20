@@ -1016,3 +1016,8 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 #faceBoxShow { display: block; z-index: 65; }
 @media (max-width: 700px) { #facePanel { right: 8px; left: 8px; width: auto; top: 70px; } }
 .lbtns button.on { background: #4a5a6e; color: #fff; }
+/* clipping marks in the Layer panel (p10wc_layers) */
+.layer-item.clipped { margin-left: 20px; height: 36px; box-shadow: inset 4px 0 0 #b46cff; }
+.layer-item.clipped .thumb { transform: scale(.8); }
+.layer-item.clipbase { box-shadow: inset 4px 0 0 #b46cff; }
+.layer-item .clip-arrow { color: #c890ff; font-size: 16px; font-weight: bold; margin-right: -2px; line-height: 1; }

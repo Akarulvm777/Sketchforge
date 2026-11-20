@@ -68,6 +68,15 @@ function layerRow(l, inFolder) {
     mkMini('eye', l.visible, 'Show / hide', () => toggleVisible(l)),
     thumb, name,
     mkMini('lock', l.locked, 'Lock / unlock', () => toggleLock(l)));
+  // clipping: the clipped layer is smaller, moved right, with an arrow to the layer it clips to; both get a colour mark
+  const li = state.layers.indexOf(l), base = l.clip ? clipBaseOf(li) : null;
+  if (base) {
+    item.classList.add('clipped');
+    const ar = document.createElement('span'); ar.className = 'clip-arrow'; ar.textContent = '↴'; ar.title = 'Clipped to "' + base.name + '": only shows where that layer has paint';
+    item.insertBefore(ar, thumb);
+  } else if (!l.clip && state.layers[li + 1] && state.layers[li + 1].clip) {
+    item.classList.add('clipbase'); item.title = 'Layers above are clipped to this layer';
+  }
   // ⋯ = layer options (move to a folder, colour…): works with a finger too, no right-click needed
   const more = document.createElement('button'); more.className = 'mini lmore'; more.textContent = '⋯'; more.title = 'Layer options: move to a folder, colour…';
   more.onclick = e => { e.stopPropagation(); if (!LSEL.has(l.id)) selectLayer(l.id); const r = more.getBoundingClientRect(); layerMenu(r.left, r.bottom, l); };
