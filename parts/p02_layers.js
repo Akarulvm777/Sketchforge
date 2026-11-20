@@ -37,6 +37,8 @@ function copyCel(src, keepTween) {
   const c = makeCanvas(state.w, state.h);
   c.getContext('2d').drawImage(src, 0, 0);
   c._ink = src._ink !== false;
+  if (src._swap) c._swap = src._swap; // a swap drawing keeps its name on copied keyframes (p10pd_swap)
+  if (src._face) c._face = { rest: src._face.rest, v: { ...src._face.v } }; // face sliders (p10pe_face): copies are face keys
   if (src._pup) c._pup = { rest: src._pup.rest, pins: src._pup.pins.map(p => p.slice()), cur: src._pup.cur.map(p => p.slice()) }; // puppet pins travel with copies (new keyframes)
   if (src._xf) {
     c._xf = { ...src._xf };

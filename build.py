@@ -7,15 +7,11 @@ if not parts:
     sys.exit('no parts found in parts/')
 import json
 version = json.load(open(os.path.join(root, 'package.json'), encoding='utf-8'))['version']
-# this version's notes (README sections "## X.Y: title" with "- " items) for the What's new popup
-import re
-mm = '.'.join(version.split('.')[:2])
-readme = open(os.path.join(root, 'README.md'), encoding='utf-8').read()
-changes = []
-for sec in re.split(r'\n(?=## )', readme):
-    if sec.startswith('## ' + mm + ':'):
-        lines = sec.split('\n')
-        changes.append({'title': lines[0][len(mm) + 4:].strip(), 'items': [l[2:].replace('**', '').strip() for l in lines[1:] if l.startswith('- ')]})
+# the changelog (CHANGELOG.md, read by tools/changelog.py): this version's notes for the What's new popup
+sys.path.insert(0, os.path.join(root, 'tools'))
+import changelog
+log_sections = changelog.load()
+changes = [{'title': c['title'], 'items': c['items']} for c in log_sections if c['v'] == changelog.minor(version)]
 # every version's notes, newest first, with the date and time each version first appeared (git history of package.json,
 # kept in release-dates.json so builds without the git history still have them) -> the update history in What's new
 from datetime import datetime, timezone
@@ -33,13 +29,10 @@ try:
 except Exception: pass
 if version not in vdates: vdates[version] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 open(dates_file, 'w', encoding='utf-8', newline='\n').write(json.dumps(dict(sorted(vdates.items(), key=lambda kv: [int(x) for x in kv[0].split('.')], reverse=True)), indent=1) + '\n')
-vkey = lambda v: [int(x) for x in v.split('.')]
+vkey = changelog.vkey
 groups = {}
-for sec in re.split(r'\n(?=## )', readme):
-    m = re.match(r'## (\d+\.\d+(?:\.\d+)?):\s*(.*)', sec)
-    if not m: continue
-    lines = sec.split('\n')
-    groups.setdefault(m.group(1), []).append({'title': m.group(2).strip(), 'items': [l[2:].replace('**', '').strip() for l in lines[1:] if l.startswith('- ')]})
+for c in log_sections:
+    groups.setdefault(c['v'], []).append({'title': c['title'], 'items': c['items']})
 history = []
 for k in sorted(groups, key=vkey, reverse=True):
     vs = sorted([v for v in vdates if v == k or v.startswith(k + '.')], key=vkey)

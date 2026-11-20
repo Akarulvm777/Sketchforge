@@ -982,3 +982,36 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 @keyframes wlBlink { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { #sfWelcome, .wl-mascot, .wl-word span, .wl-sub, .wl-tap { animation-duration: .01s !important; animation-delay: 0s !important; } }
 .ai-learn { margin-left: auto; font-size: 12px; padding: 3px 9px; }
+/* swap drawings bar (Animation workspace) */
+#swapBar { display: flex; align-items: center; gap: 6px; padding: 4px 8px; overflow-x: auto; border-top: 1px solid rgba(0,0,0,.4); background: rgba(255,255,255,.03); min-height: 40px; }
+#swapBar[hidden] { display: none; }
+#swapBar .sw-title { font-size: 12px; white-space: nowrap; opacity: .85; margin-right: 4px; }
+#swapBar .sw-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px; min-width: 64px; border-radius: 6px; border: 1px solid transparent; background: rgba(255,255,255,.05); }
+#swapBar .sw-item canvas { width: 40px; height: 40px; background: #fff; border-radius: 4px; }
+#swapBar .sw-item span { font-size: 10.5px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#swapBar .sw-item.on { border-color: var(--accent, #d9822b); background: rgba(217,130,43,.18); }
+#swapBar .sw-add { font-size: 18px; min-width: 36px; height: 40px; }
+#swapBar .sw-upd { font-size: 11px; white-space: nowrap; }
+#swapBar .sw-hint { font-size: 11px; opacity: .65; }
+/* face sliders (p10pe_face) */
+#facePanel { position: fixed; right: 270px; top: 110px; width: 300px; max-height: 70vh; overflow: auto; z-index: 60; background: #2b2b2b; color: #ddd; border: 1px solid #444; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.45); font-size: 12px; }
+#facePanel .fc-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #333; cursor: move; border-radius: 8px 8px 0 0; touch-action: none; }
+#facePanel .fc-head b { flex: 1; }
+#facePanel .fc-head button { background: none; border: 0; color: #bbb; cursor: pointer; font-size: 13px; }
+#facePanel .fc-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+#facePanel .fc-layer { color: #aaa; }
+#facePanel .fc-hint { color: #bbb; line-height: 1.5; margin: 0; }
+#facePanel .fc-row { display: grid; grid-template-columns: 92px 1fr 30px 20px; align-items: center; gap: 6px; }
+#facePanel .fc-row input[type=range] { width: 100%; }
+#facePanel .fc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#facePanel .fc-val { text-align: right; color: #aaa; }
+#facePanel .fc-x { background: none; border: 0; color: #999; cursor: pointer; }
+#facePanel .fc-add, #facePanel .fc-opt { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#facePanel .fc-add button, #facePanel .fc-blink { padding: 4px 8px; border-radius: 5px; border: 1px solid #555; background: #3a3a3a; color: #eee; cursor: pointer; }
+#facePanel .fc-opt label { display: flex; align-items: center; gap: 4px; }
+#facePanel .fc-opt input[type=color] { width: 26px; height: 20px; padding: 0; border: 0; background: none; }
+#faceBoxPick { position: fixed; inset: 0; z-index: 70; cursor: crosshair; touch-action: none; }
+#faceBoxPick .fb-tip { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: #222d; color: #fff; padding: 6px 12px; border-radius: 6px; pointer-events: none; }
+#faceBoxPick .fb-rect, #faceBoxShow { position: fixed; display: none; border: 2px dashed #e8a33d; background: rgba(232,163,61,.12); pointer-events: none; }
+#faceBoxShow { display: block; z-index: 65; }
+@media (max-width: 700px) { #facePanel { right: 8px; left: 8px; width: auto; top: 70px; } }

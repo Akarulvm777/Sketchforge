@@ -1,6 +1,6 @@
 {
   "name": "sketchforge",
-  "version": "2.12.0",
+  "version": "2.13.0",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
   "author": "Sketchforge",
@@ -10,6 +10,9 @@
     "serve": "npx serve .",
     "dist": "electron-builder --publish never",
     "build": "python3 build.py",
+    "test": "python3 build.py && python3 tools/tests/test_release.py && node tools/tests/unit.cjs && python3 tools/smoke.py",
+    "test:e2e": "bash tools/e2e/run_all.sh",
+    "test:all": "npm test && npm run test:e2e",
     "build:models": "node tools/build_models.mjs",
     "dist:win": "electron-builder --win --publish never",
     "dist:mac": "electron-builder --mac --publish never",

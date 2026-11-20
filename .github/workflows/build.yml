@@ -1,17 +1,24 @@
-# Builds the installable apps and the web (iPad / iPhone) version.
+# Tests, then builds the installable apps and the web (iPad / iPhone) version.
 #   Windows .exe installer, macOS .dmg (Intel + Apple Silicon), Linux AppImage, Android .apk, iPad .ipa (unsigned), web zip.
-# Starts when the FIRST LINE of a pushed commit message contains [build] (test build: downloads under the workflow
-# run) or [release] (also publishes a GitHub Release v<package.json version>), on v* tags, or by hand
-# (Actions → Build apps → Run workflow, tick "release" to publish).
+#
+# Branches (see CLAUDE.md): dev = new features and fixes, prerelease = clean-up, master = the latest release.
+# - Every push and pull request runs the tests (release checks, unit tests, smoke test); pushes to prerelease and
+#   master and pull requests also run the full browser suite (tools/e2e).
+# - A push to master whose package.json version has no release yet publishes the GitHub Release v<version>, with the
+#   CHANGELOG.md notes of that version, and the website. Releases only come from master.
+# - "[build]" in the FIRST LINE of a commit message on any branch makes a test build (downloads under the workflow run).
+# - By hand (Actions > Build apps > Run workflow): a test build, or "fix_notes" to write the changelog into every
+#   existing release.
 name: Build apps
 on:
   push:
     branches: ['**']
-    tags: ['v*']
+  pull_request:
+    branches: [master, prerelease]
   workflow_dispatch:
     inputs:
-      release:
-        description: Publish a GitHub Release with the downloads
+      fix_notes:
+        description: Write the CHANGELOG.md notes into every existing GitHub Release
         type: boolean
         default: false
 permissions:
@@ -20,27 +27,85 @@ permissions:
   id-token: write
 jobs:
   gate:
-    # reads only the first line of the commit message, so "[release]" written in a description does not publish
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.g.outputs.build }}
       release: ${{ steps.g.outputs.release }}
+      e2e: ${{ steps.g.outputs.e2e }}
     steps:
+      - uses: actions/checkout@v4
       - id: g
         env:
           MSG: ${{ github.event.head_commit.message }}
           EV: ${{ github.event_name }}
           REF: ${{ github.ref }}
-          REL: ${{ inputs.release }}
+          FIX: ${{ inputs.fix_notes }}
         run: |
           subject="$(printf '%s' "$MSG" | head -n1)"
-          build=false; release=false
-          if [ "$EV" != push ] || [[ "$REF" == refs/tags/* ]] || [[ "$subject" == *"[build]"* ]] || [[ "$subject" == *"[release]"* ]]; then build=true; fi
-          if [[ "$REF" == refs/tags/v* ]] || [ "$REL" = true ] || [[ "$subject" == *"[release]"* ]]; then release=true; fi
-          echo "build=$build" >> "$GITHUB_OUTPUT"; echo "release=$release" >> "$GITHUB_OUTPUT"
-  desktop:
+          ver=$(node -p "require('./package.json').version")
+          build=false; release=false; e2e=false
+          if [[ "$subject" == *"[build]"* ]]; then build=true; fi
+          if [ "$EV" = workflow_dispatch ] && [ "$FIX" != true ]; then build=true; fi
+          # a new version on master = a release (the tag is made by the release job)
+          if [ "$EV" = push ] && [ "$REF" = refs/heads/master ] && ! git ls-remote --exit-code --tags origin "refs/tags/v$ver" >/dev/null; then release=true; build=true; fi
+          if [ "$EV" = pull_request ] || [ "$REF" = refs/heads/master ] || [ "$REF" = refs/heads/prerelease ] || [ "$release" = true ]; then e2e=true; fi
+          echo "version $ver: build=$build release=$release e2e=$e2e"
+          echo "build=$build" >> "$GITHUB_OUTPUT"; echo "release=$release" >> "$GITHUB_OUTPUT"; echo "e2e=$e2e" >> "$GITHUB_OUTPUT"
+  test:
+    # nothing is built or released unless the tests pass
     needs: gate
-    if: needs.gate.outputs.build == 'true'
+    if: github.event_name != 'workflow_dispatch' || inputs.fix_notes != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      NODE_PATH: /tmp/pw/node_modules
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install the test tools (Playwright with Chromium, for Node and Python)
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.63.0
+          npx --prefix /tmp/pw playwright install --with-deps chromium
+          pip install -q playwright==1.63.0
+          python -m playwright install chromium
+      - name: Release checks, unit tests, smoke test (npm test)
+        run: |
+          cp app.js /tmp/app.committed.js
+          python3 build.py
+          git diff --quiet -- app.js || { echo "::error::app.js is not up to date with parts/: run python3 build.py and commit app.js"; exit 1; }
+          python3 tools/tests/test_release.py
+          node tools/tests/unit.cjs
+          python3 tools/smoke.py
+      - name: Tools for the browser suite's test files
+        if: needs.gate.outputs.e2e == 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick
+          pip install -q Pillow==12.3.0 psd-tools==1.26.1   # the versions the tests are written against
+      - name: Full browser suite (tools/e2e)
+        if: needs.gate.outputs.e2e == 'true'
+        run: bash tools/e2e/run_all.sh /tmp/sf-e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: test-screenshots, path: /tmp/sf-e2e/*.png, if-no-files-found: ignore }
+  notes:
+    # by hand: every existing release gets the notes of its version from CHANGELOG.md
+    if: github.event_name == 'workflow_dispatch' && inputs.fix_notes == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          for tag in $(gh release list --limit 200 --json tagName --jq '.[].tagName'); do
+            v=${tag#v}
+            if python3 tools/release_notes.py "$v" > notes.md 2>/dev/null; then gh release edit "$tag" --notes-file notes.md && echo "notes written: $tag"; else echo "no changelog section for $tag"; fi
+          done
+  desktop:
+    needs: [gate, test]
+    if: needs.gate.outputs.build == 'true' && needs.test.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -72,8 +137,8 @@ jobs:
             dist/*.AppImage
           if-no-files-found: error
   android:
-    needs: gate
-    if: needs.gate.outputs.build == 'true'
+    needs: [gate, test]
+    if: needs.gate.outputs.build == 'true' && needs.test.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,8 +206,8 @@ jobs:
     # (AltStore / Sideloadly with your Apple ID; it works 7 days, then install again). Needs a macOS machine:
     # it runs on its own and adds the .ipa to the release when it is done, so a busy macOS queue never holds the
     # other downloads or the website back.
-    needs: gate
-    if: needs.gate.outputs.build == 'true'
+    needs: [gate, test]
+    if: needs.gate.outputs.build == 'true' && needs.test.result == 'success'
     # macos-15-intel is the macOS machine this account gets (macos-14 / 15 / 13 / latest: "not supported" or never start)
     runs-on: macos-15-intel
     timeout-minutes: 60
@@ -186,8 +251,8 @@ jobs:
           for i in $(seq 1 60); do gh release view "$V" >/dev/null 2>&1 && break; sleep 30; done
           gh release upload "$V" out/*.ipa --clobber
   web:
-    needs: gate
-    if: needs.gate.outputs.build == 'true'
+    needs: [gate, test]
+    if: needs.gate.outputs.build == 'true' && needs.test.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -233,6 +298,8 @@ jobs:
           echo "repo=$(node -p "(require('./package.json').sketchforge || {}).releasesRepo || ''")" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with: { path: files, merge-multiple: true }
+      - name: Release notes from CHANGELOG.md
+        run: python3 tools/release_notes.py > notes.md && cat notes.md
       - uses: softprops/action-gh-release@v2
         with:
           name: Sketchforge ${{ steps.ver.outputs.v }}
@@ -245,12 +312,7 @@ jobs:
             files/*.AppImage
             files/*.apk
             files/*.zip
-          body: |
-            **Windows**: download `Sketchforge-Setup-….exe` and run it (Windows may say "unknown publisher": More info → Run anyway).
-            **Mac**: `…-mac-arm64.dmg` for Apple Silicon (M1/M2/M3…), `…-mac-x64.dmg` for Intel. Open the dmg, drag Sketchforge to Applications, then right-click → Open the first time (the app is not notarised).
-            **Android**: download the `.apk` on the phone / tablet and open it (allow "install unknown apps" when asked).
-            **Linux**: the `.AppImage` (make it executable, then run it).
-            **iPad / iPhone**: open the web link in Safari → Share → Add to Home Screen. Test app: `…-ios-unsigned.ipa` (added a few minutes later), installed with AltStore or Sideloadly and your Apple ID (works 7 days, then install again).
+          body_path: notes.md
       # Public downloads (the website links here, so people can download without access to this private repository).
       # Needs package.json "sketchforge.releasesRepo" (an empty public repository) and the secret RELEASES_TOKEN
       # (a fine-grained token with Contents: read and write on that repository). See docs/ONLINE-SETUP.md.
@@ -267,4 +329,4 @@ jobs:
             files/*.dmg
             files/*.AppImage
             files/*.apk
-          body: Sketchforge ${{ steps.ver.outputs.v }}. Install instructions on the Sketchforge website.
+          body_path: notes.md
