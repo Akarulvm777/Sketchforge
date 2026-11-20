@@ -315,7 +315,9 @@ function init() {
     frameParams, compositeFrame, snapshotTimeline, applyTimeline, gotoFrame, selectTool, setColor, floodFill,
     saveDocumentJSON: () => JSON.stringify(state.layers.map(l => [l.name, Array.from(l.cels.keys())])),
     makeZip, crc32, lzw, newDocument, layerMat, foxOpen, foxAssemble, openDocumentFile, activeLayer, celBBox, insertKeyframe, createTween, ensureKeyHere, ensureXf,
-    renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, groupOf, sutToDefs, prCurve, HELP_LESSONS, faceRender, faceTweens, swapUse, applyRuler: () => 0
+    renderExportFrame, gifFrame, ByteBuf, toDoc, screenToDoc, groupOf, sutToDefs, prCurve, HELP_LESSONS, faceRender, faceTweens, swapUse,
+    scope: src => eval(src), // unit tests (tools/tests/unit.cjs) run their checks inside the app's scope
+    applyRuler: () => 0
   };
 }
 init();

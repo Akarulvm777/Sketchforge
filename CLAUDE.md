@@ -103,16 +103,21 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 
 ## 4. Règles de travail
 
-1. Modifie `parts/`, puis lance `python3 build.py`, puis `python3 tools/smoke.py`, puis commit. Une modification = un commit, avec `app.js` régénéré dans le même commit.
+0. **Branches** (demandé par l'utilisateur le 20/11/2026) :
+   - `dev` : nouvelles fonctions et corrections. La branche de session Claude est poussée sur `dev` (fusion).
+   - `prerelease` : nettoyage avant une version (architecture, noms, pas de duplication, documentation). On y fusionne `dev` quand les fonctions prévues marchent.
+   - `master` : le code de la **dernière version publiée**, rien d'autre. **Jamais de push direct** : on fusionne `prerelease` par une pull request, seulement quand les tests passent (le workflow les lance sur la PR). Une version de `package.json` sans tag sur `master` = publication automatique de la Release.
+   - Après chaque version : copier `master` sur `dev` (et `prerelease`) pour repartir d'une base propre.
+1. Modifie `parts/`, puis lance `npm test` (build + contrôles de version + tests unitaires + smoke), puis commit. Une modification = un commit, avec `app.js` régénéré dans le même commit. Avant une version : aussi `npm run test:e2e` (suite complète).
 2. **Release** : bumpe la version de façon cohérente aux 4 endroits suivants :
    - `package.json` → `version`
    - `index.html` → `<title>`, `?v=` sur `style.css` et `app.js`, texte de la barre d'état
    - `sw.js` → `CACHE` (sinon les PWA installées gardent l'ancien code)
-   - `README.md` → titre et une section changelog
-   - Installeurs : `.github/workflows/build.yml` construit .exe / .dmg / .AppImage (electron-builder) et l'APK Android (Capacitor, `tools/build_www.mjs` + `tools/android_icons.sh`). Les tags ne passent pas par le proxy : un commit dont la **première ligne** du message contient `[build]` lance une build de test, `[release]` publie la Release GitHub `v<version>`.
+   - `CHANGELOG.md` → une section `## X.Y: titre` avec des lignes `- …` (la plus récente en haut). **`README.md` ne contient que la présentation du projet** (pas d'historique, pas de numéro de version) ; `tools/tests/test_release.py` le vérifie.
+   - Installeurs : `.github/workflows/build.yml` construit .exe / .dmg / .AppImage (electron-builder) et l'APK Android (Capacitor, `tools/build_www.mjs` + `tools/android_icons.sh`). Les tags ne passent pas par le proxy : un commit dont la **première ligne** du message contient `[build]` lance une build de test (toute branche). La Release GitHub `v<version>` est publiée **uniquement** quand `master` reçoit une version sans tag ; ses notes viennent de `CHANGELOG.md` (`tools/release_notes.py`). Actions › Build apps › Run workflow avec `fix_notes` réécrit les notes de toutes les releases existantes. Chaque build attend le job `test`.
    - **Clé de signature Android** : secret GitHub `ANDROID_KEYSTORE` (keystore PKCS12 en base64, alias `androiddebugkey`, mots de passe `android`, écrite comme `debug.keystore` avant `assembleDebug`). Sans elle, chaque APK a une clé aléatoire et ne s'installe pas par-dessus l'ancienne. **Ne jamais la mettre dans le dépôt (public).**
-   - Historique : `build.py` injecte aussi `APP_HISTORY` (toutes les sections `## X.Y` du README, regroupées, avec dates tirées de l'historique git de `package.json`, gardées dans `release-dates.json` à committer) ; What's new les affiche sous « Earlier updates », et `version.json` (`history`) pour le site.
-   - Notes de version : `build.py` injecte `APP_CHANGES` (sections `## X.Y: …` du README pour la version courante) : popup « What's new » au premier lancement d'une nouvelle version (`whatsNew`, clé `sketchforge.lastver`) et section du site.
+   - Historique : `build.py` injecte aussi `APP_HISTORY` (toutes les sections `## X.Y` de `CHANGELOG.md`, lues par `tools/changelog.py`, regroupées, avec dates tirées de l'historique git de `package.json`, gardées dans `release-dates.json` à committer) ; What's new les affiche sous « Earlier updates », et `version.json` (`history`) pour le site.
+   - Notes de version : `build.py` injecte `APP_CHANGES` (sections `## X.Y: …` de `CHANGELOG.md` pour la version courante) : popup « What's new » au premier lancement d'une nouvelle version (`whatsNew`, clé `sketchforge.lastver`) et section du site.
    - Avant une release, si l'interface a changé : `node tools/make_screenshots.cjs` (images du site). Une release met à jour toutes les apps installées (≥ 2.4.0) via le site ; si une version a besoin d'une nouvelle app installée (main.js, Capacitor), monte `sketchforge.minShell` dans `package.json`.
 3. Si tu ajoutes un fichier que l'app charge, ajoute-le aussi à `ASSETS` dans `sw.js` **et** à `build.files` dans `package.json`.
 4. Interdit : ajouter une dépendance runtime ou un bundler sans accord de l'utilisateur. Le projet doit rester un dossier statique ouvrable tel quel.
@@ -120,6 +125,9 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 6. Ne recrée jamais `app.js` depuis une sortie d'outil tronquée : regénère-le toujours via `build.py`.
 
 ## 5. Tests
+
+- **`npm test`** (à lancer avant chaque commit poussé) : `build.py`, `tools/tests/test_release.py` (Python unittest : version identique dans package.json / index.html / sw.js / app.js / release-dates.json, section de `CHANGELOG.md`, README sans historique, `app.js` à jour, fichiers chargés empaquetés), `tools/tests/unit.cjs` (tests unitaires des fonctions pures dans la vraie app : formules de fusion, courbe de pression, keyframes, matrices, CRC / zip, lecteurs .sut / tar / TIFF, QuickShape, curseurs de visage… ; ils s'exécutent dans la portée de l'app via `__sketchforge.scope`), puis `tools/smoke.py`. **Une nouvelle fonction pure = un test dans `unit.cjs`.**
+- `npm run test:e2e` = suite navigateur complète ; `npm run test:all` = les deux. Le workflow lance `npm test` à chaque push, et la suite complète sur `prerelease`, `master` et les pull requests.
 
 - `python3 tools/smoke.py` charge l'app, trace un trait, ouvre le panneau 3D, et échoue sur toute erreur JS non capturée ou si three.js ne se charge pas. Capture d'écran : `tools/smoke.png`. Si besoin, définis `CHROME_PATH` pour pointer vers un Chrome existant.
 - **Suite navigateur complète** : `bash tools/e2e/run_all.sh [dossier]` (Node + Playwright ; génère les fichiers de test avec `make_fixtures.sh` : ffmpeg, ImageMagick, Pillow, psd-tools). Un fichier par fonctionnalité (`symtest`, `mdtest`, `psdtest`, `pentest`, `rigtest`…) et `toolsweep.cjs` qui essaie **chaque outil de la palette** (encre, effacement, remplissage, undo, 0 erreur JS). `harness.cjs` expose `pg.d2c` (coordonnées document → écran), `pg.strokeDoc`, `pg.inkAt`. L'app expose ses internes aux tests via `window.__sketchforge`.
@@ -140,7 +148,7 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
 ## 7. Backlog
 
 1. **Récupérer les fonctionnalités perdues** (priorité 1). Demander à l'utilisateur la liste des changements faits après la v2.0.0 (fonctions, bugs corrigés, UI). Créer une issue ou une entrée par élément, puis implémenter et tester un élément à la fois.
-2. (Fait en 2.1) Section « Not yet » du README mise à jour.
+2. (Fait) README réduit à la présentation du projet ; historique dans `CHANGELOG.md` (20/11/2026).
 3. Les 11 pens intégrés viennent des `.sut` de l'utilisateur, et le mesh 3D (`assets/HumanLowPolyBaseMesh.fbx`) d'un pack fourni par l'utilisateur. Vérifier leurs licences avant toute distribution publique.
 4. Il n'y a pas de tests unitaires. À envisager si le moteur de pinceau ou la timeline évoluent beaucoup.
 

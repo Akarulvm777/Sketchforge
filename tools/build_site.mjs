@@ -36,9 +36,9 @@ if (process.env.DOWNLOADS_DIR) {
 } else if (cfg.releasesRepo) {
   for (const [k, n] of Object.entries(names)) downloads[k] = `https://github.com/${cfg.releasesRepo}/releases/download/v${V}/${n}`;
 }
-// notes: the README sections of this version ("## 2.4: …")
+// notes: the CHANGELOG.md sections of this version ("## 2.4: …")
 const mm = V.split('.').slice(0, 2).join('.');
-const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+const readme = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
 const changes = readme.split(/\n(?=## )/).filter(sec => sec.startsWith(`## ${mm}:`)).map(sec => {
   const [head, ...rest] = sec.split('\n');
   return { title: head.slice(mm.length + 4).trim(), items: rest.filter(l => /^- /.test(l)).map(l => l.slice(2).replace(/\*\*/g, '').trim()) };

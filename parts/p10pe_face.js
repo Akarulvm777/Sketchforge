@@ -16,7 +16,7 @@ let faceSeq = 1;
 const FACE = { mouthColor: '#6b2230', smooth: true };
 const facePartsOf = l => (l && !l.vref ? (l.faceParts || (l.faceParts = [])) : []);
 const faceDefaults = l => Object.fromEntries(facePartsOf(l).map(p => [p.id, FACE_KINDS[p.kind].def]));
-function faceVal(cel, p) { const v = cel && cel._face && cel._face.v[p.id]; return v === undefined ? FACE_KINDS[p.kind].def : v; }
+function faceVal(cel, p) { const v = cel && cel._face ? cel._face.v[p.id] : undefined; return typeof v === 'number' ? v : FACE_KINDS[p.kind].def; }
 function faceCopyCanvas(src) { const c = makeCel(true); c.getContext('2d').drawImage(src, 0, 0); return c; }
 
 /* ---- the deformations: each works on the part's box (plus room around it). The face may be drawn on the same layer

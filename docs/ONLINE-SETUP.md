@@ -21,7 +21,7 @@ Netlify as described below.
 3. Branch to deploy: `claude/new-session-vuufqj`. The build settings come from `netlify.toml` (nothing to type). Click **Deploy**.
 4. **Site configuration → Change site name**, for example `sketchforge` → your site is `https://sketchforge.netlify.app`.
 
-From now on the site is rebuilt only when a release is pushed (a commit with `[release]` in its message), so
+From now on the site is rebuilt only when a release is published (a new version merged into `master`), so
 half-finished work never reaches people. Every app checks this site for new versions.
 
 ## B. Public downloads (GitHub)
@@ -74,5 +74,5 @@ and pushes a release. Installed apps from 2.4.0 on pick up the website address f
 ## Keeping it up to date
 
 - `node tools/make_screenshots.cjs` to refresh the website pictures.
-- A release = bump the version (see CLAUDE.md) and push a commit with `[release]`: GitHub builds the installers and
+- A release = bump the version (see CLAUDE.md) and merge it into `master` (pull request from `prerelease`): GitHub tests, then builds the installers and
   copies them to the downloads repository, Netlify publishes the new website and web app, every installed app updates itself.
