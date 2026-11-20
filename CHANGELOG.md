@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: swap drawings tutorial
+- New: Help › Tutorials › 🔁 Swap drawings (practice), also in the Animation menu. A practice file with two drawings of the same girl (calm and excited): add them to the swap bar, swap them on any frame, update everywhere, play. Each step has a Show me button.
+
 ## 2.13: swap drawings and face sliders
 - New: swap drawings in animation: open hand ↔ closed hand, eyes open ↔ closed, any mouth shape. In the Animation workspace the 🔁 Swap bar above the timeline keeps each layer's drawings: draw a version and tap ＋, then tap a drawing on any frame to swap it in. The frame keeps its position, rotation, bones and tweens. Alt+] / Alt+[ = next / previous drawing; ⟳ Update everywhere copies an edited drawing to every frame that uses it; right-click a drawing to rename or remove it. Saved in the .sketchforge file.
 - New: face sliders, Live2D-style (Animation › 🙂 Face sliders). Draw a face, drag a box around each eye, the mouth and the brows, then move the sliders: Eye open / closed, Mouth open, Smile, Brow up / down. Each frame where you move a slider becomes a face key, and the frames between two keys are made for you, smoothly. 👁 Blink here makes a whole blink in one tap. Works when the face is drawn on the skin (the skin colour fills in). You can choose the colour inside the mouth. Saved in the .sketchforge file.
