@@ -81,3 +81,27 @@ create policy "share files" on storage.objects for insert to authenticated
 drop policy if exists "unshare files" on storage.objects;
 create policy "unshare files" on storage.objects for delete to authenticated
   using (bucket_id = 'shared' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- 5. Community (website › Community): art and time-lapse videos join brushes and themes in shared_items, and
+--    comments: a comment on a shared item (item_id) or, without item_id, a review / idea for Sketchforge.
+--    Everyone can read; only signed-in people post, under their own name; people remove only their own posts.
+alter table public.shared_items drop constraint if exists shared_items_kind_check;
+alter table public.shared_items add constraint shared_items_kind_check check (kind in ('brush', 'theme', 'art', 'timelapse'));
+update storage.buckets set file_size_limit = 104857600 where id = 'shared';  -- 100 MB (time-lapse videos)
+create table if not exists public.comments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  item_id uuid references public.shared_items on delete cascade,
+  author text not null default '' check (char_length(author) <= 80),
+  rating smallint check (rating between 1 and 5),
+  body text not null check (char_length(body) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+alter table public.comments enable row level security;
+drop policy if exists "anyone can read comments" on public.comments;
+create policy "anyone can read comments" on public.comments for select to anon, authenticated using (true);
+drop policy if exists "comment as yourself" on public.comments;
+create policy "comment as yourself" on public.comments for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "remove your own comments" on public.comments;
+create policy "remove your own comments" on public.comments for delete to authenticated using (auth.uid() = user_id);
+create index if not exists comments_item on public.comments (item_id, created_at desc);

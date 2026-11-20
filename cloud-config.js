@@ -3,6 +3,6 @@
    Empty = the app works fully offline and the online features say "not set up yet". See docs/ONLINE-SETUP.md. */
 window.SF_CLOUD = {
   "site": "https://akarulvm777.github.io/Sketchforge",
-  "supabaseUrl": "",
-  "supabaseAnonKey": ""
+  "supabaseUrl": "https://qdkrkrqkyycvnykuusbv.supabase.co",
+  "supabaseAnonKey": "sb_publishable_zwK8RNs_Su2LDKsT-fl21A_0-joddln"
 };
