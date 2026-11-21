@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile — Sketchforge</title>
+<meta name="theme-color" content="#05070d">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-page="profile">
+<header class="nav">
+  <a class="brand" href="./"><img class="logo" src="icon-192.png" alt="">Sketchforge</a>
+  <nav><a href="./#features">Features</a><a href="./#download">Download</a><a href="community.html">Community</a><a href="shared.html">Shared</a><a href="app/">Open the app</a></nav>
+  <a class="btn ghost" id="navAccount" href="account.html">Sign in</a>
+</header>
+<main class="page comm">
+  <section id="pNotSetUp" class="card narrow" hidden><h2>Profiles open soon</h2><p class="muted">Online features are not switched on for this website yet.</p></section>
+  <section id="pAsk" class="card narrow" hidden><h2>Your profile</h2><p class="muted">Sign in to see and edit your profile.</p><a class="btn primary" href="account.html">Sign in</a></section>
+  <div id="pMain" hidden>
+    <section class="card pcard">
+      <img id="pAvatar" class="pav" alt="">
+      <div class="pinfo"><h1 id="pName">…</h1><p id="pBio" class="muted"></p><p><a id="pSite" target="_blank" rel="noopener noreferrer"></a></p><p class="small muted" id="pStats"></p></div>
+      <button class="btn" id="pEditBtn" hidden>✏ Edit my profile</button>
+    </section>
+    <form id="pEdit" class="card cform" hidden>
+      <h2>Edit my profile</h2>
+      <label>Name shown on my posts <input name="display_name" maxlength="60" required></label>
+      <label>About me <textarea name="bio" maxlength="1000" rows="4" placeholder="What do you draw? What do you like?"></textarea></label>
+      <label>My website or social link <input name="website" maxlength="200" placeholder="https://…"></label>
+      <label>Profile picture <input type="file" name="avatar" accept="image/*"></label>
+      <p class="small muted">The picture is made square and small (256 px).</p>
+      <div><button class="btn primary">Save</button> <button type="button" class="btn" id="pCancel">Cancel</button> <span class="small muted" id="pMsg"></span></div>
+    </form>
+    <div class="ctabs"><button data-tab="art" class="on">🎨 Art</button><button data-tab="tools">🖌 Tools</button></div>
+    <div id="pList" class="cgrid"></div>
+  </div>
+</main>
+<footer class="foot"><span><img class="logo sm" src="icon-192.png" alt=""> Sketchforge</span><a href="./">Home</a><a href="community.html">Community</a><a href="shared.html">Shared</a><a href="app/">Open the app</a></footer>
+<script src="cloud-config.js"></script>
+<script src="cloud-lib.js"></script>
+<script src="assets/site.js"></script>
+<script src="assets/social.js"></script>
+<script src="assets/profile.js"></script>
+</body>
+</html>

@@ -1024,3 +1024,6 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 #menubar img.logo { width: 25px; height: 25px; border-radius: 6px; background: none; object-fit: cover; margin-right: 4px; }
 #aiPanel .ai-mic, #aiPanel .ai-speak { min-width: 36px; } #aiPanel .ai-mic.on, #aiPanel .ai-speak.on { background: #2e7bd6; color: #fff; }
 #aiPanel .ai-say { margin: 3px 4px 0 0; padding: 4px 10px; border-radius: 14px; border: 1px solid #4a7fc0; background: #243650; color: #d8e8ff; cursor: pointer; font-size: 12px; }
+#m3dPoseBar .m3dcam { display: inline-flex; gap: 2px; margin: 0 6px; padding-left: 6px; border-left: 1px solid #555; }
+#m3dPoseBar .m3dcam button { min-width: 28px; }
+#m3dPoseBar .m3dcam button.on { background: #2e7bd6; color: #fff; }

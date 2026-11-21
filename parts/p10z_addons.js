@@ -149,7 +149,7 @@ const GROUP_ICON = { pen: 'pen', pencil: 'pencil', brush: 'brush', airbrush: 'ai
 /* every engine setting a brush definition can carry (imported tools, the brush editor, .sfbrush files) */
 const BRUSH_KEYS = ['scatter', 'count', 'jitter', 'hueJit', 'wet', 'smudge', 'blurTool', 'nibRatio', 'nibAngle', 'speed', 'pMin', 'pCurve', 'aMin', 'aCurve', 'tipAngle', 'tipRotAmt', 'tipFollow',
   'tipThick', 'sprayFix', 'sprayBias', 'blendOp', 'paint', 'paintDensity', 'texRot', 'tMin', 'tCurve', 'vMin', 'vCurve', 'sRand', 'aRand', 'rotP', 'taperOut',
-  'taperOutRatio', 'fadeIn', 'fadeOut', 'min1', 'flowSp', 'satJit', 'valJit', 'atMin', 'atCurve', 'avMin', 'avCurve', 'grain'];
+  'taperOutRatio', 'fadeIn', 'fadeOut', 'min1', 'flowSp', 'satJit', 'valJit', 'atMin', 'atCurve', 'avMin', 'avCurve', 'grain', 'twoTone', 'twoEdge'];
 /* a brush definition → engine settings (tipIds: registered tip images; texId: registered texture image) */
 function brushPreset(def, tipIds = [], texId = null) {
   const extra = { aa: def.aa ?? 2, taperIn: def.taperIn || 0, taperRatio: def.taperRatio ?? 0.3, spacing: def.spacing || 0.15, tipRot: !!def.tipRot };

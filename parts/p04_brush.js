@@ -133,7 +133,7 @@ function stepAt(st, pr) {
   return Math.max(0.6, d * (st.s.tipId ? (st.s.spacing || 0.15) : st.s.hardness >= 0.97 ? 0.08 : 0.1));
 }
 function growBox(st, x, y, d) {
-  const r = d / 2 + 2;
+  const r = d / 2 * (st.s.twoTone === 'glow' ? 1 + clamp(st.s.twoEdge ?? 0.8, 0.05, 0.9) * 1.6 : 1) + 2; // a glow (two-colour brush) reaches past the dab
   for (const b of [st.box, st.mbox]) {
     if (x - r < b.x0) b.x0 = x - r;
     if (y - r < b.y0) b.y0 = y - r;

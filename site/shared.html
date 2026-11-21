@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shared — Sketchforge</title>
+<meta name="theme-color" content="#05070d">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-page="shared">
+<header class="nav">
+  <a class="brand" href="./"><img class="logo" src="icon-192.png" alt="">Sketchforge</a>
+  <nav><a href="./#features">Features</a><a href="./#download">Download</a><a href="community.html">Community</a><a href="shared.html" class="here">Shared</a><a href="app/">Open the app</a></nav>
+  <a class="btn ghost" id="navAccount" href="account.html">Sign in</a>
+</header>
+<main class="page comm">
+  <h1>Shared</h1>
+  <p class="muted">Art, time-lapses, brushes, tools and themes shared by Sketchforge users. Look, like 👍, comment and download; sign in (free) to share your own.</p>
+  <section id="cNotSetUp" class="card narrow" hidden><h2>Sharing opens soon</h2><p class="muted">Online features are not switched on for this website yet.</p></section>
+  <div id="cMain" hidden>
+    <div class="cpick" id="cPick">
+      <button type="button" data-tab="art"><span>🎨</span><b>Shared art</b><small>Pictures and time-lapse videos</small></button>
+      <button type="button" data-tab="tools"><span>🖌</span><b>Shared tools</b><small>Brushes, Clip Studio tools, themes — to download</small></button>
+    </div>
+    <div id="cBrowse" hidden>
+      <div class="ctabs" role="tablist">
+        <button data-tab="art">🎨 Art & time-lapses</button>
+        <button data-tab="tools">🖌 Brushes & tools</button>
+        <select id="cSort" title="Order"><option value="new">Newest first</option><option value="liked">Most liked</option><option value="downloads">Most downloaded</option></select>
+      </div>
+      <div id="cSignin" class="card csignin" hidden>Sign in to share, like and download: <a class="btn primary" href="account.html">Sign in</a></div>
+      <details id="cShareBox" class="card" hidden><summary class="btn primary">＋ Share something</summary>
+        <form id="cShare" class="cform">
+          <h2 id="cShareTitle">Share</h2>
+          <label>Title <input name="name" maxlength="80" required></label>
+          <label>Description <textarea name="description" maxlength="500" rows="2"></textarea></label>
+          <fieldset class="corig"><legend>Who made it? (required)</legend>
+            <label><input type="radio" name="origin" value="own" required> I made it myself</label>
+            <label><input type="radio" name="origin" value="other"> I took it from somewhere else</label>
+            <label id="cCreditRow" hidden>Credit (who made it / where it comes from) <input name="credit" maxlength="120" placeholder="Artist name, website…"></label>
+          </fieldset>
+          <label>File <input type="file" name="file" required></label>
+          <p class="small muted" id="cFileHelp"></p>
+          <button class="btn primary">Publish</button> <span class="small muted" id="cShareMsg"></span>
+        </form>
+      </details>
+      <div id="cList" class="cgrid"></div>
+    </div>
+  </div>
+</main>
+<footer class="foot"><span><img class="logo sm" src="icon-192.png" alt=""> Sketchforge</span><a href="./">Home</a><a href="community.html">Community</a><a href="account.html">Account</a><a href="app/">Open the app</a></footer>
+<script src="cloud-config.js"></script>
+<script src="cloud-lib.js"></script>
+<script src="assets/site.js"></script>
+<script src="assets/social.js"></script>
+<script src="assets/shared.js"></script>
+</body>
+</html>

@@ -26,7 +26,8 @@ const BE_FORM = [
     ['jitter', 'Smaller dabs at random', 'range', 0, 1, 0.01, '%']]],
   ['Colour', [['hueJit', 'Hue change per dab', 'range', 0, 1, 0.01, '%'], ['satJit', 'Saturation change per dab', 'range', 0, 1, 0.01, '%'], ['valJit', 'Brightness change per dab', 'range', 0, 1, 0.01, '%'],
     ['mixOn', 'Colour mixing (picks up the colour under the brush)', 'check'], ['paint', 'Amount of paint', 'range', 0, 1, 0.01, '%'], ['paintDensity', 'Density of paint', 'range', 0.01, 1, 0.01, '%'],
-    ['smudgeAmt', 'Colour stretch (smudge / mixing)', 'range', 0, 0.95, 0.01, '%'], ['wet', 'Watercolour edge', 'range', 0, 1, 0.01, '%']]],
+    ['smudgeAmt', 'Colour stretch (smudge / mixing)', 'range', 0, 0.95, 0.01, '%'], ['wet', 'Watercolour edge', 'range', 0, 1, 0.01, '%'],
+    ['twoTone', 'Two colours', 'select', [['', 'One colour'], ['edge', 'Main inside, sub colour outside'], ['glow', 'Main colour + sub colour glow']]], ['twoEdge', 'Outline width / glow size', 'range', 0.05, 0.9, 0.01, '%']]],
   ['Texture', [['texSel', 'Paper texture', 'select', BE_TEX], ['teximg', 'Texture picture', 'teximg'], ['texAmt', 'Texture strength', 'range', 0, 1, 0.01, '%'], ['texScale', 'Texture scale', 'range', 0.1, 8, 0.05, '×'],
     ['texRot', 'Texture angle', 'range', 0, 360, 1, '°'], ['texInv', 'Invert the texture', 'check'], ['texBright', 'Texture brightness', 'range', -100, 100, 1, ''], ['texContrast', 'Texture contrast', 'range', -100, 100, 1, '']]]
 ];
@@ -48,7 +49,7 @@ function beFromDef(def) {
 function beToDef(f) {
   const def = {};
   for (const k of ['name', 'group', 'size', 'opacity', 'flow', 'hardness', 'spacing', 'smooth', 'aa', 'min1', 'tipDensity', 'tipOrder', 'rotP', 'tipFollow', 'pSize', 'pMin', 'pCurve', 'pAlpha', 'aMin', 'aCurve',
-    'taperIn', 'taperRatio', 'taperOut', 'taperOutRatio', 'fadeIn', 'fadeOut', 'scatter', 'count', 'sprayBias', 'jitter', 'hueJit', 'satJit', 'valJit', 'wet', 'texAmt', 'texScale', 'texRot', 'texInv', 'texBright', 'texContrast', 'tip', 'tips', 'texImg'])
+    'taperIn', 'taperRatio', 'taperOut', 'taperOutRatio', 'fadeIn', 'fadeOut', 'scatter', 'count', 'sprayBias', 'jitter', 'hueJit', 'satJit', 'valJit', 'wet', 'texAmt', 'texScale', 'texRot', 'texInv', 'texBright', 'texContrast', 'tip', 'tips', 'texImg', 'twoTone', 'twoEdge'])
     if (f[k] != null && f[k] !== '' && f[k] !== false && !(typeof f[k] === 'number' && f[k] === 0 && !['pMin', 'aMin', 'taperRatio', 'taperOutRatio', 'hardness', 'aa'].includes(k))) def[k] = f[k];
   def.pSize = !!f.pSize; def.pAlpha = !!f.pAlpha; def.aa = +f.aa;
   if (f.blendOp) def.blendOp = f.blendOp;
@@ -72,7 +73,7 @@ function beToDef(f) {
 /* keys the form manages; anything else of the original definition is kept as it was */
 const BE_MANAGED = new Set(('name group size opacity flow hardness spacing smooth aa min1 tipDensity tipOrder rotP tipFollow pSize pMin pCurve pAlpha aMin aCurve taperIn taperRatio taperOut taperOutRatio ' +
   'fadeIn fadeOut scatter count sprayBias jitter hueJit satJit valJit wet texAmt texScale texRot texInv texBright texContrast tip tips texImg blendOp nibRatio tipThick nibAngle tipAngle tipRot ' +
-  'tipRotAmt sRand aRand sprayFix speed erase smudge blurTool paint paintDensity tex vMin vCurve tMin tCurve atMin atCurve flowSp').split(' '));
+  'tipRotAmt sRand aRand sprayFix speed erase smudge blurTool paint paintDensity tex vMin vCurve tMin tCurve atMin atCurve flowSp twoTone twoEdge').split(' '));
 function beMerge(base, def) { const out = {}; for (const [k, v] of Object.entries(base || {})) if (!BE_MANAGED.has(k) && k !== 'id') out[k] = v; return Object.assign(out, def); }
 /* a definition from any tool (built-in tools: from their current settings) */
 function beDefOf(id) {

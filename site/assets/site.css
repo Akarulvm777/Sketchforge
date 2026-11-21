@@ -199,3 +199,25 @@ h2 { color: #f2f7ff; }
 .ctag, .tag { background: rgba(46, 168, 255, .15); color: #9fdcff; border: 1px solid rgba(46, 168, 255, .3); }
 .foot { border-top: 1px solid rgba(46, 168, 255, .18); background: rgba(5, 7, 13, .6); }
 ::selection { background: rgba(46, 168, 255, .45); }
+
+/* shared / profile pages */
+.cpick, .cgo { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 22px 0; }
+.cpick button, .cgo a { display: grid; gap: 6px; justify-items: start; text-align: left; padding: 26px 24px; border-radius: var(--radius); border: 1px solid rgba(46, 168, 255, .25); background: linear-gradient(180deg, rgba(16, 24, 42, .95), rgba(10, 14, 26, .95)); color: var(--text); font: inherit; cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .2s; }
+.cpick button:hover, .cgo a:hover { border-color: var(--neon); box-shadow: 0 0 26px rgba(46, 168, 255, .3); transform: translateY(-2px); }
+.cpick span, .cgo span { font-size: 2rem; } .cpick b, .cgo b { font-size: 1.15rem; } .cpick small, .cgo small { color: var(--muted); }
+.ctabs select { margin-left: auto; padding: 8px 10px; border-radius: 10px; background: #0b1120; color: inherit; border: 1px solid #1f2e4f; font: inherit; }
+#cShareBox > summary { list-style: none; display: inline-flex; cursor: pointer; } #cShareBox > summary::-webkit-details-marker { display: none; }
+#cShareBox[open] > summary { margin-bottom: 12px; }
+.corig { border: 1px solid #1f2e4f; border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.corig legend { padding: 0 6px; color: var(--accent2); font-size: .9rem; }
+.corig label { display: flex; gap: 8px; align-items: center; } .corig #cCreditRow { display: grid; }
+.corig #cCreditRow[hidden] { display: none; }
+.corigin { margin: 2px 0; color: #9fb6dc; } .corigin.own { color: #7ee0a6; }
+.creact .mini { border-radius: 999px; padding: 3px 10px; border: 1px solid #22345a; background: #0b1120; color: inherit; cursor: pointer; }
+.creact .mini.on { border-color: var(--neon); background: rgba(46, 168, 255, .2); box-shadow: 0 0 12px rgba(46, 168, 255, .35); }
+.creact a.mini { text-decoration: none; }
+.cby a { color: inherit; } .cby a:hover b { color: var(--accent2); }
+.cav { width: 20px; height: 20px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 6px; object-fit: cover; }
+.pcard { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.pav { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(46, 168, 255, .6); box-shadow: 0 0 24px rgba(46, 168, 255, .35); }
+.pinfo { flex: 1; min-width: 220px; } .pinfo h1 { font-size: 2rem; margin-bottom: .2em; } #pEditBtn { align-self: flex-start; }
