@@ -23,7 +23,7 @@ const H = require('./harness.cjs');
   r = await ask('why won\'t you draw for me?');
   check('"why" -> AI is not supposed to steal your job', r.text.includes('AI is not supposed to steal your job'));
   r = await ask('xqzv blorf');
-  check('unknown -> friendly fallback', /couldn't find/i.test(r.text));
+  check('unknown -> friendly fallback', /not sure I understood|didn't quite get/i.test(r.text) && /Drawing and painting/.test(r.text));
   // buttons work
   r = await ask('layers');
   const on0 = await pg.evaluate(() => window.__sketchforge.state.onion.on);

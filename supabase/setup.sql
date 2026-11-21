@@ -78,6 +78,13 @@ create policy "own docs delete" on storage.objects for delete to authenticated
 drop policy if exists "share files" on storage.objects;
 create policy "share files" on storage.objects for insert to authenticated
   with check (bucket_id = 'shared' and (storage.foldername(name))[1] = auth.uid()::text);
+-- uploads can replace a file of your own (upsert): Storage then also needs to read and update it
+drop policy if exists "read own shared files" on storage.objects;
+create policy "read own shared files" on storage.objects for select to authenticated
+  using (bucket_id = 'shared' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "update own shared files" on storage.objects;
+create policy "update own shared files" on storage.objects for update to authenticated
+  using (bucket_id = 'shared' and (storage.foldername(name))[1] = auth.uid()::text);
 drop policy if exists "unshare files" on storage.objects;
 create policy "unshare files" on storage.objects for delete to authenticated
   using (bucket_id = 'shared' and (storage.foldername(name))[1] = auth.uid()::text);

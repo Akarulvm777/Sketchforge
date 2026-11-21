@@ -298,12 +298,16 @@ function smudgeStamp(st, x, y, pr) {
   const s = st.s, g = st.t.ctx, C = 128;
   const d = Math.max(3, diameterAt(st, pr));
   const sx = x - d / 2, sy = y - d / 2;
-  if (!st.carry) { st.carry = makeCanvas(C, C); st.tmpc = makeCanvas(C, C); st.small = makeCanvas(64, 64); }
+  // every work canvas lives on the CPU side (willReadFrequently): the pixels are read back on every dab, and moving them
+  // between the graphics chip and the CPU 4–5 times per dab made colour-mixing brushes (many imported tools) crawl
+  const cpu = (w, h) => { const c = makeCanvas(w, h); c.getContext('2d', { willReadFrequently: true }); return c; };
+  if (!st.carry) { st.carry = cpu(C, C); st.tmpc = cpu(C, C); st.small = cpu(64, 64); }
   const cg = st.carry.getContext('2d'), tg = st.tmpc.getContext('2d');
   // paint brushes (colour mixing): the colour picked up from the canvas is mixed with the brush colour; strength follows opacity too
   const paint = s.paint != null && !s.blurTool, P = paint ? clamp(s.paint, 0, 1) : 0, D = paint ? clamp(s.paintDensity ?? 1, 0, 1) : 1;
   const strength = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.15, 1, typeof prCurve === 'function' ? prCurve(s.aCurve, pr) : pr) : 1) * (paint ? s.opacity : 1), 0, 1);
-  const tip = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness);
+  if (!st.tipCpu) { const t0 = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness); st.tipCpu = cpu(t0.width, t0.height); st.tipCpu.getContext('2d').drawImage(t0, 0, 0); }
+  const tip = st.tipCpu;
   const [BR, BG, BB] = paint ? hexToRgb(st.color) : [0, 0, 0];
   // paper texture while mixing colours: the texture grain lowers the strength pixel by pixel
   const tv = paint && s.tex ? texBaseFor(s.tex)._vals : null, tN = TEX_N, tk = s.texScale || 1, tA = clamp(s.texAmt ?? 0.6, 0, 1);
@@ -312,8 +316,10 @@ function smudgeStamp(st, x, y, pr) {
   // the area under the brush, copied 1:1 first: scaling straight from the full-size picture made the browser process
   // the whole picture on every dab (over a second per pen move on big pages)
   const D0 = Math.ceil(d) + 2, ox = Math.floor(sx), oy = Math.floor(sy);
-  if (!st.grab || st.grab.width < D0) st.grab = makeCanvas(D0, D0);
-  const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0); gg.drawImage(st.t.cel, ox, oy, D0, D0, 0, 0, D0, D0);
+  if (!st.grab || st.grab.width < D0) st.grab = cpu(D0, D0);
+  const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0);
+  { const x0 = Math.max(0, ox), y0 = Math.max(0, oy), w0 = Math.min(state.w, ox + D0) - x0, h0 = Math.min(state.h, oy + D0) - y0; // one read of the layer for this dab
+    if (w0 > 0 && h0 > 0) gg.putImageData(g.getImageData(x0, y0, w0, h0), x0 - ox, y0 - oy); }
   const gx = sx - ox, gy = sy - oy, src = st.grab;
   if (s.blurTool) {
     const n = clamp(Math.round(d / 7), 3, 64);
@@ -331,12 +337,12 @@ function smudgeStamp(st, x, y, pr) {
   const rx = Math.max(0, Math.floor(sx)), ry = Math.max(0, Math.floor(sy));
   const rw = Math.min(state.w, Math.ceil(sx + d) + 1) - rx, rh = Math.min(state.h, Math.ceil(sy + d) + 1) - ry;
   if (rw > 0 && rh > 0) {
-    if (!st.rc || st.rc.width !== rw || st.rc.height !== rh) { st.rc = makeCanvas(rw, rh); st.mc = makeCanvas(rw, rh); }
+    if (!st.rc || st.rc.width !== rw || st.rc.height !== rh) { st.rc = cpu(rw, rh); st.mc = cpu(rw, rh); }
     const rg = st.rc.getContext('2d', { willReadFrequently: true }), mg = st.mc.getContext('2d', { willReadFrequently: true });
     rg.clearRect(0, 0, rw, rh); rg.drawImage(st.tmpc, sx - rx, sy - ry, d, d);
     mg.clearRect(0, 0, rw, rh); mg.drawImage(tip, sx - rx, sy - ry, d, d);
     const cd = rg.getImageData(0, 0, rw, rh).data, md = mg.getImageData(0, 0, rw, rh).data;
-    const im = g.getImageData(rx, ry, rw, rh), od = im.data;
+    const im = gg.getImageData(rx - ox, ry - oy, rw, rh), od = im.data; // the layer pixels, from the copy read above (no second read of the layer)
     for (let i = 0; i < od.length; i += 4) {
       let km = strength * md[i + 3] / 255;
       if (km <= 0) continue;

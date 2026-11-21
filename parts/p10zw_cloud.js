@@ -220,7 +220,7 @@ function shareDialog() {
     try {
       if (file.size > 20 * 1024 * 1024) throw new Error('files up to 20 MB');
       const k = kind() === 'brush' ? 'brush' : 'theme', id = crypto.randomUUID(), path = `${SB().user().id}/${id}/${file.name.replace(/[^\w.\- ]+/g, '_')}`;
-      await SB().upload('shared', path, file);
+      await SB().upload('shared', path, file, file.type, { upsert: false }); // new file: plain upload (no Storage update rule needed)
       await SB().rest('shared_items', { method: 'POST', body: { id, kind: k, name, description: d.querySelector('#shD').value.trim(), author: d.querySelector('#shA').value.trim(), file_path: path, file_name: file.name, size: file.size }, headers: { Prefer: 'return=minimal' } });
       d.close(); toast(`"${name}" is shared ✓`); libraryDialog();
     } catch (e) { toast('Sharing failed: ' + e.message, 5000); }

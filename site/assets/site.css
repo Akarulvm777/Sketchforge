@@ -158,3 +158,44 @@ img.logo.sm { width: 22px; height: 22px; border-radius: 6px; }
 .cstarsro span { color: #555; }
 .cdel { margin-left: auto; }
 [hidden] { display: none !important; }
+
+/* ===== Neo theme: black + neon blue (overrides the colours above) ===== */
+:root {
+  --bg: #05070d; --bg2: #0a0e18; --card: #0d1220; --line: #1b2740; --text: #e6efff; --muted: #8a9bbd;
+  --accent: #1f8fff; --accent2: #4cc3ff; --blue: #4cc3ff; --neon: #2ea8ff; --radius: 14px;
+}
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(46, 168, 255, .16), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(80, 60, 255, .10), transparent 60%),
+    linear-gradient(rgba(46, 168, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(46, 168, 255, .045) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--bg);
+  background-attachment: fixed;
+}
+a { color: var(--accent2); }
+.nav { background: rgba(5, 7, 13, .78); border-bottom: 1px solid rgba(46, 168, 255, .22); box-shadow: 0 1px 24px rgba(46, 168, 255, .08); }
+.nav nav a:hover, .nav nav a.here { color: #fff; text-shadow: 0 0 12px rgba(76, 195, 255, .7); }
+.btn { background: rgba(13, 18, 32, .85); border-color: #22345a; }
+.btn:hover { background: #111a2e; border-color: var(--neon); box-shadow: 0 0 0 1px rgba(46, 168, 255, .35), 0 0 18px rgba(46, 168, 255, .25); }
+.btn.primary { background: linear-gradient(135deg, #1f8fff, #5b5bff); color: #fff; box-shadow: 0 0 22px rgba(46, 140, 255, .45), inset 0 1px 0 rgba(255, 255, 255, .2); }
+.btn.primary:hover { filter: brightness(1.12); box-shadow: 0 0 30px rgba(46, 168, 255, .65); }
+.kicker { color: var(--accent2); text-shadow: 0 0 14px rgba(76, 195, 255, .55); }
+.lead { color: #b9c6e3; }
+.hero h1 span { background: linear-gradient(90deg, #4cc3ff, #8f7bff, #4cc3ff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px rgba(76, 195, 255, .35)); }
+h2 { color: #f2f7ff; }
+.card, .newscard, .citem, .ccomment, .dl, .community .cgrid > *, .feat > div, .features > div {
+  background: linear-gradient(180deg, rgba(16, 24, 42, .92), rgba(10, 14, 26, .92));
+  border: 1px solid rgba(46, 168, 255, .18); border-radius: var(--radius);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .02), 0 18px 50px rgba(0, 0, 0, .55);
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.card:hover, .newscard:hover, .citem:hover, .dl:hover { border-color: rgba(76, 195, 255, .5); box-shadow: 0 0 24px rgba(46, 168, 255, .18), 0 18px 50px rgba(0, 0, 0, .55); }
+.hero-shot img, .feature img { border: 1px solid rgba(46, 168, 255, .3); box-shadow: 0 0 40px rgba(46, 168, 255, .18), 0 30px 80px rgba(0, 0, 0, .7); }
+.ctabs button { background: #0b1120; border-color: #1f2e4f; }
+.ctabs button.on { background: linear-gradient(135deg, #1f8fff, #5b5bff); border-color: transparent; box-shadow: 0 0 18px rgba(46, 140, 255, .5); }
+.cform input, .cform textarea, .cform select, .ccomform input { background: #070b15; border-color: #1f2e4f; }
+.cform input:focus, .cform textarea:focus, .ccomform input:focus { outline: none; border-color: var(--neon); box-shadow: 0 0 0 3px rgba(46, 168, 255, .2); }
+.ctag, .tag { background: rgba(46, 168, 255, .15); color: #9fdcff; border: 1px solid rgba(46, 168, 255, .3); }
+.foot { border-top: 1px solid rgba(46, 168, 255, .18); background: rgba(5, 7, 13, .6); }
+::selection { background: rgba(46, 168, 255, .45); }

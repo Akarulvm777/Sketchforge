@@ -70,8 +70,9 @@
   SB.rest = (path, opts) => authed('/rest/v1/' + path, opts);
   SB.restPublic = (path, opts) => raw('/rest/v1/' + path, opts);
   SB.rpc = (fn, args) => raw('/rest/v1/rpc/' + fn, { method: 'POST', body: args || {} });
-  SB.upload = (bucket, path, blob, contentType) => authed(`/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`,
-    { method: 'POST', body: blob, headers: { 'x-upsert': 'true', 'content-type': contentType || blob.type || 'application/octet-stream' } });
+  // upsert (replace an existing file) needs Storage read + update rules too; pass { upsert: false } for new files
+  SB.upload = (bucket, path, blob, contentType, opts = {}) => authed(`/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`,
+    { method: 'POST', body: blob, headers: { 'x-upsert': opts.upsert === false ? 'false' : 'true', 'content-type': contentType || blob.type || 'application/octet-stream' } });
   SB.list = (bucket, prefix) => authed(`/storage/v1/object/list/${bucket}`, { method: 'POST', body: { prefix, limit: 200, offset: 0, sortBy: { column: 'updated_at', order: 'desc' } } });
   SB.download = (bucket, path) => authed(`/storage/v1/object/authenticated/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`, { type: 'blob' });
   SB.publicUrl = (bucket, path) => `${base}/storage/v1/object/public/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
