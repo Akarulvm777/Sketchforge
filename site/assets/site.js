@@ -2,7 +2,7 @@
 (function () {
   const SB = window.SFSB, $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-  const page = location.pathname.endsWith('account.html') ? 'account' : location.pathname.endsWith('link.html') ? 'link' : location.pathname.endsWith('community.html') ? 'community' : 'home';
+  const page = location.pathname.endsWith('account.html') ? 'account' : location.pathname.endsWith('link.html') ? 'link' : /(community|shared|profile)\.html$/.test(location.pathname) ? 'social' : 'home';
   const os = (() => { const u = navigator.userAgent; if (/iPad|iPhone|iPod/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1)) return 'ios'; if (/Android/.test(u)) return 'android'; if (/Mac/.test(u)) return 'mac'; if (/Win/.test(u)) return 'windows'; if (/Linux/.test(u)) return 'linux'; return 'web'; })();
 
   function navAccount() {
@@ -120,6 +120,6 @@
   (async () => {
     await loginFromHash();
     navAccount();
-    if (page === 'home') home(); else if (page === 'account') account(); else if (page === 'link') link(); // community: assets/community.js
+    if (page === 'home') home(); else if (page === 'account') account(); else if (page === 'link') link(); // community / shared / profile: assets/social.js and their own script
   })();
 })();

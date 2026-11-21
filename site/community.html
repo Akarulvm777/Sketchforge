@@ -4,49 +4,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Community — Sketchforge</title>
-<meta name="theme-color" content="#1c1d20">
+<meta name="theme-color" content="#05070d">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
 </head>
-<body>
+<body data-page="community">
 <header class="nav">
   <a class="brand" href="./"><img class="logo" src="icon-192.png" alt="">Sketchforge</a>
-  <nav><a href="./#features">Features</a><a href="./#download">Download</a><a href="community.html" class="here">Community</a><a href="app/">Open the app</a></nav>
+  <nav><a href="./#features">Features</a><a href="./#download">Download</a><a href="community.html" class="here">Community</a><a href="shared.html">Shared</a><a href="app/">Open the app</a></nav>
   <a class="btn ghost" id="navAccount" href="account.html">Sign in</a>
 </header>
 <main class="page comm">
   <h1>Community</h1>
-  <p class="muted">Share your art, your time-lapses and your brushes, download other people's tools, and tell us what you think. Everyone can look; sign in (free, with Google or GitHub) to post, upload and download tools.</p>
-  <section id="cNotSetUp" class="card narrow" hidden><h2>The community opens soon</h2><p class="muted">Online features are not switched on for this website yet. Sketchforge itself works fully without them.</p></section>
+  <p class="muted">Tell us what you think: what you like, what we should improve, ideas for new features. Everyone can read; sign in (free, with Google or GitHub) to post.</p>
+  <div class="cgo">
+    <a class="card" href="shared.html#art"><span>🎨</span><b>Shared art</b><small>Pictures and time-lapses from the community</small></a>
+    <a class="card" href="shared.html#tools"><span>🖌</span><b>Shared tools</b><small>Brushes, Clip Studio tools and themes to download</small></a>
+    <a class="card" id="cMyProfile" href="profile.html"><span>👤</span><b>My profile</b><small>Your name, picture, bio and everything you shared</small></a>
+  </div>
+  <section id="cNotSetUp" class="card narrow" hidden><h2>The community opens soon</h2><p class="muted">Online features are not switched on for this website yet.</p></section>
   <div id="cMain" hidden>
-    <div class="ctabs" role="tablist">
-      <button data-tab="art" class="on">🎨 Art & time-lapses</button>
-      <button data-tab="tools">🖌 Brushes & tools</button>
-      <button data-tab="reviews">💬 Reviews & ideas</button>
-    </div>
-    <div id="cSignin" class="card csignin" hidden>Sign in to post and download: <a class="btn primary" href="account.html">Sign in</a></div>
-    <form id="cShare" class="card cform" hidden>
-      <h2 id="cShareTitle">Share</h2>
-      <label>Title <input name="name" maxlength="80" required></label>
-      <label>Description <textarea name="description" maxlength="500" rows="2"></textarea></label>
-      <label id="cKindRow">Type <select name="kind"></select></label>
-      <label>File <input type="file" name="file" required></label>
-      <p class="small muted" id="cFileHelp"></p>
-      <button class="btn primary">Publish</button> <span class="small muted" id="cShareMsg"></span>
-    </form>
+    <h2>💬 Reviews & ideas</h2>
+    <div id="cSignin" class="card csignin" hidden>Sign in to post: <a class="btn primary" href="account.html">Sign in</a></div>
     <form id="cReview" class="card cform" hidden>
-      <h2>Your review or idea</h2>
+      <h3>Your review or idea</h3>
       <div class="cstars" id="cStars" title="Your rating (optional)"></div>
       <textarea name="body" maxlength="2000" rows="4" required placeholder="What do you like? What should we improve? Any idea for a new feature?"></textarea>
       <button class="btn primary">Post</button> <span class="small muted" id="cReviewMsg"></span>
     </form>
-    <div id="cList" class="cgrid"></div>
+    <div id="cList" class="clist"></div>
   </div>
 </main>
-<footer class="foot"><span><img class="logo sm" src="icon-192.png" alt=""> Sketchforge</span><a href="./">Home</a><a href="account.html">Account</a><a href="app/">Open the app</a></footer>
+<footer class="foot"><span><img class="logo sm" src="icon-192.png" alt=""> Sketchforge</span><a href="./">Home</a><a href="shared.html">Shared</a><a href="account.html">Account</a><a href="app/">Open the app</a></footer>
 <script src="cloud-config.js"></script>
 <script src="cloud-lib.js"></script>
 <script src="assets/site.js"></script>
+<script src="assets/social.js"></script>
 <script src="assets/community.js"></script>
 </body>
 </html>

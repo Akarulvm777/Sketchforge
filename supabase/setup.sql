@@ -122,3 +122,44 @@ grant select, insert, update on public.settings to authenticated;
 grant insert on public.device_links to authenticated;
 grant execute on function public.count_download(uuid) to anon, authenticated;
 grant execute on function public.claim_device_link(text) to anon, authenticated;
+
+-- 7. Profiles, "made it myself / credit", reshares and likes (website › Shared, profile.html).
+create table if not exists public.profiles (
+  id uuid primary key default auth.uid() references auth.users on delete cascade,
+  display_name text not null default '' check (char_length(display_name) <= 60),
+  avatar_url text not null default '' check (char_length(avatar_url) <= 500),
+  bio text not null default '' check (char_length(bio) <= 1000),
+  website text not null default '' check (char_length(website) <= 200),
+  updated_at timestamptz not null default now()
+);
+alter table public.profiles enable row level security;
+drop policy if exists "anyone can see profiles" on public.profiles;
+create policy "anyone can see profiles" on public.profiles for select to anon, authenticated using (true);
+drop policy if exists "make your profile" on public.profiles;
+create policy "make your profile" on public.profiles for insert to authenticated with check (auth.uid() = id);
+drop policy if exists "edit your profile" on public.profiles;
+create policy "edit your profile" on public.profiles for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
+alter table public.shared_items add column if not exists origin text not null default 'own';
+alter table public.shared_items drop constraint if exists shared_items_origin_check;
+alter table public.shared_items add constraint shared_items_origin_check check (origin in ('own', 'other'));
+alter table public.shared_items add column if not exists credit text not null default '';
+alter table public.shared_items add column if not exists reshare_of uuid references public.shared_items on delete cascade;
+create table if not exists public.reactions (
+  item_id uuid not null references public.shared_items on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  value smallint not null check (value in (1, -1)),
+  created_at timestamptz not null default now(),
+  primary key (item_id, user_id)
+);
+alter table public.reactions enable row level security;
+drop policy if exists "anyone can see reactions" on public.reactions;
+create policy "anyone can see reactions" on public.reactions for select to anon, authenticated using (true);
+drop policy if exists "react as yourself" on public.reactions;
+create policy "react as yourself" on public.reactions for insert to authenticated with check (auth.uid() = user_id);
+drop policy if exists "change your reaction" on public.reactions;
+create policy "change your reaction" on public.reactions for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "remove your reaction" on public.reactions;
+create policy "remove your reaction" on public.reactions for delete to authenticated using (auth.uid() = user_id);
+grant select on public.profiles, public.reactions to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+grant insert, update, delete on public.reactions to authenticated;

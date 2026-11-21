@@ -4,6 +4,13 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: profiles, a Shared page, likes and reshares
+- Website: a new **Shared** page holds everything people share. Choose 🎨 Shared art (pictures, time-lapses) or 🖌 Shared tools (brushes, Clip Studio tools, themes), sort by newest, most liked or most downloaded, comment and download.
+- Website: when you share, you say who made it — "I made it myself" or "I took it from somewhere else" with a credit. Every post shows it.
+- Website: 👍 like, 👎 dislike and 🔁 reshare on every post (a reshare shows on your profile with the original author's credit).
+- Website: **profiles**: click a name to see the person's profile and everything they shared; on your own profile you edit your name, picture, bio and link.
+- Website: Community is now for reviews and ideas, with links to Shared and your profile.
+
 ## 2.13: ✨ Ask talks with you, reset, faster imported tools
 - New: ✨ Ask has a real conversation: say hi and it says hi back and asks what you want to do; "I need help" → it asks what kind of help, with buttons to tap; after an answer it asks "Did that help?" — "yes" does it, "no" or "more" shows other ideas; "something is not working" asks what happens (lag, pen pressure, lost drawing…) and gives tips. 🔊 reads the answers aloud, 🎤 lets you ask with your voice. Still free and offline.
 - New: Edit › Reset Sketchforge to defaults… (also in Help) puts every setting back and removes every imported tool, custom brush, theme and colour set. Your drawings and your account stay.
