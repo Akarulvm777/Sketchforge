@@ -9,7 +9,10 @@ const fs = require('fs'), path = require('path');
   const ok = []; const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
   const fresh = () => pg.evaluate(() => { const SF = window.__sketchforge; SF.newDocument(800, 600, 1, 12, false, 'Import'); });
   const choose = async (cmd, files) => {
-    const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(c => window.__sketchforge.CMD[c](), cmd)]);
+    // the file window sometimes does not open on a busy CI machine: try again (up to 3 times) before failing
+    let fc = null;
+    for (let t = 0; t < 3 && !fc; t++) [fc] = await Promise.all([pg.waitForEvent('filechooser', { timeout: 10000 }).catch(() => null), pg.evaluate(c => window.__sketchforge.CMD[c](), cmd)]);
+    if (!fc) throw new Error('the file window did not open for ' + cmd);
     await fc.setFiles(files.map(f => path.join(dir, f))); await pg.waitForTimeout(700);
   };
   // colour in the middle of the active layer at frame f

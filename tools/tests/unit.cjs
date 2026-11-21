@@ -158,6 +158,32 @@ const TESTS = {
     return !!(p && p.locked);
   },
 
+  'hair & cloth chain: still on frame 0, lags when the part moves, keeps bone lengths': () => {
+    const pts = [[0, 0], [0, 40], [0, 80]], mats = [];
+    for (let f = 0; f < 20; f++) mats.push([1, 0, 0, 1, Math.min(f, 5) * 20, 0]);
+    const s = chainSolve(pts, mats, { stiff: 0.3, bounce: 0.5, grav: 0.5 });
+    const len = Math.hypot(s[3][2][0] - s[3][1][0], s[3][2][1] - s[3][1][1]);
+    return s[0][2][0] === 0 && s[3][2][0] < -5 && s[3][0][0] === 0 && Math.abs(len - 40) < 1 ? true : { f0: s[0][2], f3: s[3], len };
+  },
+
+  'hair & cloth chain: mix 0 = as drawn, inertia 0 = no lag, old settings still read': () => {
+    const pts = [[0, 0], [0, 40], [0, 80]], mats = []; for (let f = 0; f < 10; f++) mats.push([1, 0, 0, 1, f * 20, 0]);
+    const m0 = chainSolve(pts, mats, { mix: 0 })[5][2], i0 = chainSolve(pts, mats, { inertia: 0, gravity: 0 })[5][2], old = chainParams({ stiff: 0.7, bounce: 0.2, grav: 0.1 });
+    return m0[0] === 0 && Math.abs(i0[0]) < 1 && old.strength === 0.7 && Math.abs(old.damping - 0.8) < 1e-9 && old.gravity === 0.1 ? true : { m0, i0, old };
+  },
+
+  'chain pose: a turned bone moves the bones after it, keys ease in between, lengths kept': () => {
+    const pts = [[0, 0], [0, 10], [0, 20]], poses = [[0, [0, 0]], [10, [90, 0]]];
+    const a = chainPosed(pts, poses, 10), m = chainPosed(pts, poses, 5), h = chainPosed(pts, poses, 30);
+    const ok = Math.abs(a[1][0] + 10) < 1e-6 && Math.abs(a[2][0] + 20) < 1e-6 && Math.abs(Math.hypot(m[2][0] - m[1][0], m[2][1] - m[1][1]) - 10) < 1e-6 && m[2][0] < 0 && m[2][0] > -20 && h[2][0] === a[2][0];
+    return ok ? true : { a, m, h };
+  },
+
+  'auto-save: only with changes, when quiet, not busy, after the minutes': () => {
+    const b = { on: true, dirty: true, busy: false, quiet: true, now: 10 * 60000, last: 4 * 60000, min: 5 };
+    return autoSaveDue(b) && !autoSaveDue({ ...b, dirty: false }) && !autoSaveDue({ ...b, quiet: false }) && !autoSaveDue({ ...b, busy: true }) && !autoSaveDue({ ...b, last: 6 * 60000 }) && !autoSaveDue({ ...b, on: false });
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

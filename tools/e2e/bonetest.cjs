@@ -8,7 +8,7 @@ const H = require('./harness.cjs');
   const ok = []; const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
   const groups = await pg.evaluate(() => window.__sketchforge.GROUPS.map(g => g.id));
   check('Bone group comes right after the Shading pens', groups.indexOf('bone') === groups.indexOf('shade') + 1);
-  check('…with "link parts" and "pose" sub tools', await pg.evaluate(() => window.__sketchforge.GROUPS.find(g => g.id === 'bone').subs.join() === 'bone,bonepose'));
+  check('…with "link parts", "pose" and "hair & cloth" sub tools', await pg.evaluate(() => window.__sketchforge.GROUPS.find(g => g.id === 'bone').subs.join() === 'bone,bonepose,bonechain'));
   // the fox practice parts, put together, nothing linked yet
   await pg.evaluate(async () => { await window.__sketchforge.foxOpen(); await window.__sketchforge.foxAssemble(false); });
   await pg.waitForTimeout(300);
