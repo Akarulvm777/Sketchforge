@@ -1,0 +1,60 @@
+// Hair & cloth bones (Bone › Hair & cloth): click points along the hair with the tool, the body moves → the hair
+// drawing BENDS (lags, swings, settles); frame 0 and the pixels are untouched; the stage and exports show the bent
+// drawing; undo removes a point; saved in the file.
+const H = require('./harness.cjs');
+const path = require('path');
+(async () => {
+  const root = process.argv[2], out = process.argv[3];
+  const { pg, errors, done } = await H.open(root, 8906, { width: 1300, height: 860 });
+  const ok = []; const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
+  const ids = await pg.evaluate(() => {
+    const SF = window.__sketchforge; SF.newDocument(400, 400, 30, 12, false, 'Chain');
+    const mk = (name, x, y, w, h, col) => { SF.CMD.layerAdd(); const l = SF.activeLayer(); l.name = name; const g = l.cels.get(0).getContext('2d'); g.fillStyle = col; g.fillRect(x, y, w, h); l.cels.get(0)._ink = true; return l; };
+    const body = mk('Body', 150, 80, 100, 160, '#333'), hair = mk('Hair', 235, 90, 24, 200, '#c33');
+    return { body: body.id, hair: hair.id };
+  });
+  await pg.evaluate(i => { const SF = window.__sketchforge, L = SF.state.layers, body = L.find(l => l.id === i.body), hair = L.find(l => l.id === i.hair);
+    SF.scope('setLayerParent')(hair, body.id); hair.px = 247; hair.py = 90;
+    SF.state.activeId = body.id; SF.gotoFrame(6); SF.insertKeyframe(false); body.cels.get(6)._xf = { x: 120, y: 0, rot: 0, sx: 1, sy: 1, alpha: 1 };
+    body.cels.get(0)._xf = { x: 0, y: 0, rot: 0, sx: 1, sy: 1, alpha: 1, tween: true, ease: 0 }; SF.gotoFrame(0); SF.state.activeId = hair.id; SF.selectTool('bonechain'); }, ids);
+  check('the tool is in the Bone group', await pg.evaluate(() => window.__sketchforge.scope('GROUPS').find(g => g.id === 'bone').subs.includes('bonechain')));
+  for (const y of [92, 140, 190, 240, 285]) { const [cx, cy] = await pg.d2c(247, y); await pg.mouse.click(cx, cy); await pg.waitForTimeout(60); }
+  const n = await pg.evaluate(id => window.__sketchforge.state.layers.find(l => l.id === id).chain.pts.length, ids.hair);
+  check(`clicking along the hair makes a chain (${n} points)`, n === 5);
+  const tip = await pg.evaluate(id => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.id === id); return Array.from({ length: 30 }, (_, f) => +SF.scope('chainAt')(h, f)[4][0].toFixed(1)); }, ids.hair);
+  console.log('     tip x per frame: ' + tip.join(' '));
+  check('frame 0 is the drawing as made', Math.abs(tip[0] - 247) < 1);
+  check('the tip lags behind while the body moves', Math.min(...tip.slice(1, 7)) < 240);
+  check('…swings past and settles back', Math.max(...tip.slice(6, 20)) > 252 && Math.abs(tip[29] - 247) < Math.abs(Math.min(...tip.slice(1, 7)) - 247));
+  // the stage shows a bent view on frame 4; exports bend too; the cel pixels are untouched
+  const st = await pg.evaluate(id => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.id === id); SF.selectTool('bonechain'); SF.gotoFrame(4); SF.scope('refreshAll()');
+    const v = h._chainView, shown = !!(v && v.parentNode && h.canvas.style.display === 'none' && v.style.display !== 'none');
+    const comp = SF.compositeFrame(4).getContext('2d'), cel = h.cels.get(0).getContext('2d');
+    const bentInk = [...comp.getImageData(0, 0, 400, 400).data].filter((x, i) => i % 4 === 0 && x > 180).length; // red channel of the hair
+    const celSame = cel.getImageData(240, 280, 1, 1).data[3] === 255;
+    // the hair's lower end in the export is no longer where it is drawn on the moved body (x 235+~72…)
+    return { shown, celSame, bentInk }; }, ids.hair);
+  console.log('     ' + JSON.stringify(st));
+  check('the stage shows the bent hair', st.shown);
+  check('the drawing itself is not changed', st.celSame);
+  const diff = await pg.evaluate(id => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.id === id);
+    const a = SF.compositeFrame(4).getContext('2d').getImageData(0, 0, 400, 400).data; const keep = h.chain; h.chain = null; h._chainCache = null; SF.scope('refreshAll()');
+    const b = SF.compositeFrame(4).getContext('2d').getImageData(0, 0, 400, 400).data; h.chain = keep; SF.scope('refreshAll()'); let d = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) > 60) d++; return d; }, ids.hair);
+  check(`exports show the bent hair (${diff} px differ)`, diff > 200);
+  // undo removes the last point
+  await pg.evaluate(() => window.__sketchforge.CMD.undo());
+  check('undo removes the last point', await pg.evaluate(id => window.__sketchforge.state.layers.find(l => l.id === id).chain.pts.length === 4, ids.hair));
+  await pg.evaluate(() => window.__sketchforge.CMD.redo());
+  // settings in Tool Property
+  check('Tool Property: stiffness, bounce, gravity, wind', await pg.evaluate(() => { const t = document.querySelector('#propBody').textContent; return /stiff/.test(t) && /Bounce/.test(t) && /Gravity/.test(t) && /Wind/.test(t); }));
+  // play a few frames: no errors
+  await pg.evaluate(() => window.__sketchforge.scope('play')()); await pg.waitForTimeout(800); await pg.evaluate(() => window.__sketchforge.scope('stop')());
+  // save / open
+  const [dl] = await Promise.all([pg.waitForEvent('download'), pg.evaluate(() => window.__sketchforge.CMD.save())]);
+  const fl = path.join(out, 'chain.sketchforge'); await dl.saveAs(fl);
+  const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.open())]);
+  await fc.setFiles(fl); await pg.waitForTimeout(1200);
+  check('saved and opened: the chain is kept', await pg.evaluate(() => { const h = window.__sketchforge.state.layers.find(l => l.name === 'Hair'); return !!(h && h.chain && h.chain.pts.length === 5); }));
+  console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
+  await done(); process.exit(ok.every(Boolean) && !errors.length ? 0 : 1);
+})();

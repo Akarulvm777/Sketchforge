@@ -20,10 +20,11 @@ const MORE_TUTORIALS = [
     { t: 'Start, end and colour', x: '<b>Thin start / end</b> (in pixels) and <b>fade</b> make tapered lines. <b>Colour change per dab</b> (hue, saturation, brightness) gives natural, painterly strokes. <b>Blending</b> = the tool\'s own mode (multiply, add…).' },
     { t: 'Stroke quality', x: '<b>Best</b>: smoother, denser strokes. <b>Fast</b>: fewer dabs for slow tablets and phones. <b>↺ Reset this tool</b> brings back its first settings.' }
   ] },
-  { id: 'gravity', cat: 'Animation & rigging', icon: '🌬', title: 'Main part & gravity bones', desc: 'One part holds the character; hair and cloth swing by themselves.', steps: [
+  { id: 'gravity', cat: 'Animation & rigging', icon: '🌬', title: 'Main part, gravity & hair bones', desc: 'One part holds the character; hair and cloth swing, bend and flow by themselves.', steps: [
     { el: menuEl('Animation'), pre: anim, t: 'Make main part', x: 'Select the body layer, then Animation › <b>🦴 Make main part</b>: every free part follows it, so moving or turning it moves the whole character.', demo: ['Make the active layer the main part', () => makeMainPart()] },
     { t: 'Joints', x: 'Each part turns around its <b>pivot</b> (its joint). Use the <b>Bone</b> tool to link a part to the one it hangs from and place the joint where they touch.' },
     { el: menuEl('Animation'), pre: anim, t: 'Gravity bone', x: 'Select hair, a cape, a tail or ears, then Animation › <b>🌬 Gravity bone…</b>: tick “Swing with gravity” and set soft ↔ stiff, bounce and gravity.', demo: ['Open Gravity bone', () => physDialog()] },
+    { el: toolEl('bone'), pre: tutGroup('bone'), t: 'Hair & cloth bones', x: 'For long hair, a cape, a skirt or a ribbon that should <b>bend</b> and flow (like Spine): Bone group › <b>Hair & cloth</b>. Click points from where it is attached (orange dot) to its tip. Each pair of points is a bone; the drawing bends along them. Set soft ↔ stiff, bounce, gravity and wind in Tool Property.', demo: ['Pick the tool', () => selectTool('bonechain')] },
     { el: '#btnPlay', pre: anim, t: 'Play', x: 'Animate the body with keyframes (move / turn it). Press <b>Enter</b>: the gravity parts lag behind, swing and settle by themselves. Your keyframes are never changed.' }
   ] },
   { id: 'face', cat: 'Animation & rigging', icon: '🙂', title: 'Face sliders', desc: 'Blink, open the mouth, smile and raise the brows with sliders.', steps: [

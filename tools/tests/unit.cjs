@@ -158,6 +158,14 @@ const TESTS = {
     return !!(p && p.locked);
   },
 
+  'hair & cloth chain: still on frame 0, lags when the part moves, keeps bone lengths': () => {
+    const pts = [[0, 0], [0, 40], [0, 80]], mats = [];
+    for (let f = 0; f < 20; f++) mats.push([1, 0, 0, 1, Math.min(f, 5) * 20, 0]);
+    const s = chainSolve(pts, mats, { stiff: 0.3, bounce: 0.5, grav: 0.5 });
+    const len = Math.hypot(s[3][2][0] - s[3][1][0], s[3][2][1] - s[3][1][1]);
+    return s[0][2][0] === 0 && s[3][2][0] < -5 && s[3][0][0] === 0 && Math.abs(len - 40) < 1 ? true : { f0: s[0][2], f3: s[3], len };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

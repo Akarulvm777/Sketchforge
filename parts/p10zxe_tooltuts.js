@@ -43,7 +43,7 @@ const TOOL_TIPS = {
   airbrush: 'Soft sprayed colour that builds up.', spray: 'Sprays fine dots of colour.', droplet: 'Sprays round droplets.', noisespr: 'Sprays a noisy texture.',
   sparkle: 'Little sparkles along the stroke.', glitter: 'Glitter dots.', dapple: 'Soft spots of light, like sun through leaves.', petal: 'Petals scattered along the stroke.', heart: 'Hearts.', bubble: 'Bubbles.', feather: 'Feathers.',
   toneera: 'Erases tone only.', shadowpen: 'A solid black shadow pen.', hatchbrush: 'Paints hatching lines.', xhatchbrush: 'Paints cross-hatching.', stipple: 'Paints little dots (stippling).',
-  bone: 'Click a part, then the part it hangs from: they are linked; drag the dot to place the joint.', bonepose: 'Drag a part to turn it around its joint; everything attached follows.',
+  bone: 'Click a part, then the part it hangs from: they are linked; drag the dot to place the joint.', bonepose: 'Drag a part to turn it around its joint; everything attached follows.', bonechain: 'Click points along hair or cloth, from where it is attached to its tip: the drawing bends and flows when the body moves.',
   fill: 'Fills an area using the lines on all layers.', fillone: 'Fills using only the current layer.', fillref: 'Fills using the layers marked as reference.', fillenclose: 'Draw around an area: every closed shape inside is filled.', filllasso: 'Draw a lasso: the inside is filled.',
   linear: 'A straight gradient from the main to the sub colour.', radial: 'A round gradient from the middle out.', gerase: 'Fades the layer out along the gradient.', gmanga: 'A dotted manga gradient.',
   pick: 'Click anywhere to take that colour. Tip: hold the pen still at the start of a stroke to pick a colour without changing tool.',

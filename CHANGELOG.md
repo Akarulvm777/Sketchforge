@@ -4,6 +4,10 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: hair & cloth bones that bend and flow
+- New: Bone group › Hair & cloth (also Animation › 〰 Hair & cloth bones): click points along long hair, a cape, a skirt, a tail or a ribbon, from where it is attached to its tip. When the body moves or turns, the drawing bends along these bones — it lags behind, swings, bounces and settles, like in Spine. Soft ↔ stiff, bounce, gravity and wind (keeps it moving) in Tool Property.
+- The bending shows on the canvas, when playing and in every export; your drawing and keyframes are never changed (you draw the hair straight, as it rests).
+
 ## 2.13: advanced tool setup and better stroke quality
 - New: Tool Property › ▸ Advanced setup for every brush, pen, pencil and airbrush (built-in and imported): quick setups (✒ Crisp ink, ✏ Soft sketch, 🖌 Painterly, ☁ Airy), the pen pressure curve, minimum size and opacity, thin start / end and fade, spacing and rotation for picture tips, colour change per dab and the tool's blending mode.
 - New: ↺ Reset this tool brings a tool back to its first settings.

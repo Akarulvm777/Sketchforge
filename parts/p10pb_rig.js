@@ -114,11 +114,17 @@ function pupRender(cel) {
   cel._sv = (cel._sv || 0) + 1;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cel.width, cel.height);
   if (!P.pins.length) { g.drawImage(rest, 0, 0); g.restore(); cel._bb = undefined; return; }
-  const bb = celBBox(rest); if (!bb) { g.restore(); return; }
-  const m = PUP_GRID * 2, x0 = bb.x - m, y0 = bb.y - m, x1 = bb.x + bb.w + m, y1 = bb.y + bb.h + m;
-  const nx = Math.max(1, Math.ceil((x1 - x0) / PUP_GRID)), ny = Math.max(1, Math.ceil((y1 - y0) / PUP_GRID));
+  pupWarp(g, rest, P.pins, P.cur);
+  g.restore();
+  cel._bb = undefined; cel._ink = true;
+}
+/* draw `rest` bent so that the points `pins` move to `cur` (rigid MLS on a grid of textured triangles) */
+function pupWarp(g, rest, pins, cur, grid = PUP_GRID) {
+  const bb = celBBox(rest); if (!bb) return;
+  const m = grid * 2, x0 = bb.x - m, y0 = bb.y - m, x1 = bb.x + bb.w + m, y1 = bb.y + bb.h + m;
+  const nx = Math.max(1, Math.ceil((x1 - x0) / grid)), ny = Math.max(1, Math.ceil((y1 - y0) / grid));
   const pts = [];
-  for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) { const sx = x0 + i * (x1 - x0) / nx, sy = y0 + j * (y1 - y0) / ny; pts.push([sx, sy, ...pupDeform(P.pins, P.cur, sx, sy)]); }
+  for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) { const sx = x0 + i * (x1 - x0) / nx, sy = y0 + j * (y1 - y0) / ny; pts.push([sx, sy, ...pupDeform(pins, cur, sx, sy)]); }
   const tri = (a, b, c) => {
     // affine map from source triangle (a,b,c)[0..1] to destination (a,b,c)[2..3]
     const [sx0, sy0, dx0, dy0] = a, [sx1, sy1, dx1, dy1] = b, [sx2, sy2, dx2, dy2] = c;
@@ -136,8 +142,6 @@ function pupRender(cel) {
     const a = pts[j * (nx + 1) + i], b = pts[j * (nx + 1) + i + 1], c = pts[(j + 1) * (nx + 1) + i], d = pts[(j + 1) * (nx + 1) + i + 1];
     tri(a, b, d); tri(a, d, c);
   }
-  g.restore();
-  cel._bb = undefined; cel._ink = true;
 }
 const pupClone = P => P ? { rest: P.rest, pins: P.pins.map(p => p.slice()), cur: P.cur.map(p => p.slice()) } : null;
 function pupLayerToScreen(l, x, y) { const m = layerMat(l, state.frame) || [1, 0, 0, 1, 0, 0]; return docToScreen(...applyMat(m, x, y)); }
