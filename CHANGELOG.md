@@ -4,6 +4,12 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: advanced tool setup and better stroke quality
+- New: Tool Property › ▸ Advanced setup for every brush, pen, pencil and airbrush (built-in and imported): quick setups (✒ Crisp ink, ✏ Soft sketch, 🖌 Painterly, ☁ Airy), the pen pressure curve, minimum size and opacity, thin start / end and fade, spacing and rotation for picture tips, colour change per dab and the tool's blending mode.
+- New: ↺ Reset this tool brings a tool back to its first settings.
+- New: Stroke quality (in Advanced setup, for all tools): Best gives smoother, denser strokes; Fast draws fewer dabs for slow tablets and phones; Normal is the usual balance.
+- Fix: a tool with a thin start but no start size drew nothing.
+
 ## 2.13: smoother special blend modes
 - Faster: layers with a special blending mode (Linear burn, Add (Glow), Divide, Hard mix…) no longer recompute the whole page after every stroke: the layers below are kept ready, only the area you just drew is redone, and nothing is redone when you draw on another layer.
 
