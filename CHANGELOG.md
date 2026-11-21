@@ -4,6 +4,14 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: ✨ Ask talks with you, reset, faster imported tools
+- New: ✨ Ask has a real conversation: say hi and it says hi back and asks what you want to do; "I need help" → it asks what kind of help, with buttons to tap; after an answer it asks "Did that help?" — "yes" does it, "no" or "more" shows other ideas; "something is not working" asks what happens (lag, pen pressure, lost drawing…) and gives tips. 🔊 reads the answers aloud, 🎤 lets you ask with your voice. Still free and offline.
+- New: Edit › Reset Sketchforge to defaults… (also in Help) puts every setting back and removes every imported tool, custom brush, theme and colour set. Your drawings and your account stay.
+- New: every imported tool reacts to pen pressure: a tool saved without pressure now gets pressure → size automatically (you can turn it off in ⚙).
+- Faster: colour-mixing tools (many imported Clip Studio tools) make far fewer dabs per stroke and read the layer once per dab instead of 4–5 times — about 4× faster.
+- The website has a new black and neon-blue look.
+- Fixed: Community uploads were refused by the online storage rules ("new row violates row-level security policy").
+
 ## 2.13: no more lost layers on big pages
 - Fixed: on big pages (and most of all on iPad), drawing got slower and slower and the page could reload by itself, wiping what was drawn and texture layers. Each undo step kept two full copies of the area the stroke touched (30 big strokes = about 2 GB of picture memory, far over the iPad browser's limit). Now each step keeps one copy, and the undo history has a memory budget (smaller on iPad and phones; the oldest steps go first).
 - Faster: the helper pictures behind the onion skin, the selection outline and some brushes now take memory only while they are used (about 175 MB less on an A4 page), and strong anti-aliasing only works on the stroke's area instead of the whole page.
