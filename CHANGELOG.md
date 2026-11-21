@@ -4,6 +4,10 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: gravity bones and a main part
+- New: Animation › 🦴 Make main part: the selected part (e.g. the body) holds the character — every free part follows it, so moving or turning it moves everything.
+- New: Animation › 🌬 Gravity bone…: hair, cloth, a tail or ears swing by themselves when the part they hang from moves or turns, lag behind, bounce and settle — like secondary motion in rigging apps. Soft ↔ stiff, bounce and gravity are adjustable; playback and exports show it; your keyframes are not changed.
+
 ## 2.13: two-colour brushes
 - New: brushes with two colours: the main colour inside and the sub colour (the second colour square) outside — as a clean outline, or as a soft glow like a neon light. Two new tools in the Pen group: Outline marker and Neon glow pen. Any round brush can do it: Tool Property › Two colours (and in the brush editor ⚙), with the outline width / glow size.
 
