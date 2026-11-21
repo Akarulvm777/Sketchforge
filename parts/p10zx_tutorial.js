@@ -128,7 +128,7 @@ const TUTORIALS = [
     { t: 'Your work is remembered', x: 'Close the app any time: next start reopens your files on the same frame and zoom. (File › Reopen my last work: on / off.)' }
   ] },
   { id: 'animation', cat: 'Animation & rigging', icon: '🎞', title: 'Make an animation', desc: 'One layer, new drawing per frame, onion skin, play, export.', steps: [
-    { el: '#modeSwitch', pre: anim, t: 'Animation mode', x: 'The timeline appears at the bottom. Each <b>column is a frame</b>, each <b>row a layer</b>.' },
+    { el: '#timeline', pre: anim, t: 'Animation mode', x: 'The timeline appears at the bottom. Each <b>column is a frame</b>, each <b>row a layer</b>.' },
     { el: '#timeline', pre: anim, t: 'One layer is enough', x: 'You can draw a <b>whole animation on one layer</b>: every frame gets its own drawing. Use extra layers only for colours, backgrounds or effects.' },
     { el: '#viewport', pre: () => { anim(); tutNoDock(); }, t: '1. First drawing', x: 'On frame 1, draw your first pose.' },
     { el: '#anNewBtn', pre: anim, t: '2. Next drawing', x: 'Press <b>＋ New drawing</b> (Shift+→): it goes to the next frame, adds it if needed, and gives you a clean page. Draw the next pose.', demo: ['＋ New drawing', () => { anim(); newDrawing(); }] },

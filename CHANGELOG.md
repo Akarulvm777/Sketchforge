@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: tutorial fix
+- Fixed: in the Make an animation tutorial, the "Animation mode" card talks about the timeline, so it now lights up the timeline (it showed the Drawing / Animation buttons).
+
 ## 2.13: a start screen and a Pages panel for manga
 - New: the start screen (File › 🏠 Start screen). Start a new illustration, manga / comic, animation or webtoon, or open a file; Continue drawing shows the files you have open and your recent files with pictures (click to reopen); What's new in this version, tutorials and videos, tips, and the newest shares from the community. The desktop, Android and iPad apps (and the installed web app) show it when they start; tick "Show when Sketchforge starts" to choose.
 - New: the 📖 Pages panel for manga and comic files: every page as a picture on the right of the canvas, ＋ New page as many times as you like (new pages keep the panel borders and print guides), click a page to open it, move, duplicate or delete pages. It opens by itself with a manga / comic file and closes when you switch to another file; Window › Pages panel turns it off.
