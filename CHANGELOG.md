@@ -5,7 +5,8 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 `tools/release_notes.py`).
 
 ## 2.13: hair & cloth bones that bend and flow
-- New: Bone group › Hair & cloth (also Animation › 〰 Hair & cloth bones): click points along long hair, a cape, a skirt, a tail or a ribbon, from where it is attached to its tip. When the body moves or turns, the drawing bends along these bones — it lags behind, swings, bounces and settles, like in Spine. Soft ↔ stiff, bounce, gravity and wind (keeps it moving) in Tool Property.
+- New: Bone group › Hair & cloth (also Animation › 〰 Hair & cloth bones): click points along long hair, a cape, a skirt, a tail or a ribbon, from where it is attached to its tip. When the body moves or turns, the drawing bends along these bones — it lags behind, swings, bounces and settles, like in Spine. Settings like Spine's physics: inertia, strength, damping, mass, gravity, wind and mix, plus ready settings (long hair, cape, skirt, ribbon, tail).
+- New: Animation › 🧝 Hair & cloth practice model: a character with long hair and a cape that already have bones — press Play and watch them flow, then try the settings.
 - The bending shows on the canvas, when playing and in every export; your drawing and keyframes are never changed (you draw the hair straight, as it rests).
 
 ## 2.13: advanced tool setup and better stroke quality

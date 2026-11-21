@@ -46,7 +46,7 @@ const path = require('path');
   check('undo removes the last point', await pg.evaluate(id => window.__sketchforge.state.layers.find(l => l.id === id).chain.pts.length === 4, ids.hair));
   await pg.evaluate(() => window.__sketchforge.CMD.redo());
   // settings in Tool Property
-  check('Tool Property: stiffness, bounce, gravity, wind', await pg.evaluate(() => { const t = document.querySelector('#propBody').textContent; return /stiff/.test(t) && /Bounce/.test(t) && /Gravity/.test(t) && /Wind/.test(t); }));
+  check('Tool Property: strength, damping, gravity, wind', await pg.evaluate(() => { const t = document.querySelector('#propBody').textContent; return /Strength/.test(t) && /Damping/.test(t) && /Gravity/.test(t) && /Wind/.test(t); }));
   // play a few frames: no errors
   await pg.evaluate(() => window.__sketchforge.scope('play')()); await pg.waitForTimeout(800); await pg.evaluate(() => window.__sketchforge.scope('stop')());
   // save / open
@@ -55,6 +55,13 @@ const path = require('path');
   const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.open())]);
   await fc.setFiles(fl); await pg.waitForTimeout(1200);
   check('saved and opened: the chain is kept', await pg.evaluate(() => { const h = window.__sketchforge.state.layers.find(l => l.name === 'Hair'); return !!(h && h.chain && h.chain.pts.length === 5); }));
+  // practice model: hair and cape with bones, the body sways, they bend
+  await pg.evaluate(() => window.__sketchforge.CMD.chainPractice()); await pg.waitForTimeout(1200);
+  const pr = await pg.evaluate(() => { const SF = window.__sketchforge; SF.scope('stop()'); const L = SF.state.layers, h = L.find(l => l.name === 'Hair'), c = L.find(l => l.name === 'Cape');
+    const ch = SF.scope('chainAt'); return { hair: !!(h && h.chain), cape: !!(c && c.chain), bend: Math.abs(ch(h, 12)[4][0] - h.chain.pts[4][0]) + Math.abs(ch(c, 12)[4][0] - c.chain.pts[4][0]), tool: SF.state.tool }; });
+  console.log('     ' + JSON.stringify(pr));
+  check('practice model: hair and cape have bones and bend while the body sways', pr.hair && pr.cape && pr.bend > 10 && pr.tool === 'bonechain');
+  check('Spine-like settings (inertia, strength, damping, mass, gravity, wind, mix) and ready settings', await pg.evaluate(() => { const t = document.querySelector('#propBody').textContent; return ['Inertia', 'Strength', 'Damping', 'Mass', 'Gravity', 'Wind', 'Mix', 'Ready setting'].every(w => t.includes(w)); }));
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done(); process.exit(ok.every(Boolean) && !errors.length ? 0 : 1);
 })();
