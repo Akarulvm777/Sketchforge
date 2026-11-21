@@ -112,3 +112,13 @@ create policy "comment as yourself" on public.comments for insert to authenticat
 drop policy if exists "remove your own comments" on public.comments;
 create policy "remove your own comments" on public.comments for delete to authenticated using (auth.uid() = user_id);
 create index if not exists comments_item on public.comments (item_id, created_at desc);
+
+-- 6. Access rights for the website and the app (newer Supabase projects do not give them automatically: without these
+--    lines posting says "permission denied for table …"). Row level security above still decides which rows.
+grant usage on schema public to anon, authenticated;
+grant select on public.shared_items, public.comments to anon, authenticated;
+grant insert, delete on public.shared_items, public.comments to authenticated;
+grant select, insert, update on public.settings to authenticated;
+grant insert on public.device_links to authenticated;
+grant execute on function public.count_download(uuid) to anon, authenticated;
+grant execute on function public.claim_device_link(text) to anon, authenticated;
