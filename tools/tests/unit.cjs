@@ -184,6 +184,12 @@ const TESTS = {
     return autoSaveDue(b) && !autoSaveDue({ ...b, dirty: false }) && !autoSaveDue({ ...b, quiet: false }) && !autoSaveDue({ ...b, busy: true }) && !autoSaveDue({ ...b, last: 6 * 60000 }) && !autoSaveDue({ ...b, on: false });
   },
 
+  'start screen and pages panel: when they show, recent list order': () => {
+    let l = []; for (const n of ['a', 'b', 'a', 'c']) l = recentMerge(l, { name: n }, 3);
+    return hubShouldShow(null, true) && !hubShouldShow(null, false) && hubShouldShow('on', false) && !hubShouldShow('off', true)
+      && l.map(e => e.name).join() === 'c,a,b' && pagesPanelWanted('auto', 'comic') && !pagesPanelWanted('off', 'comic') && !pagesPanelWanted('auto', 'illust');
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
