@@ -172,6 +172,13 @@ const TESTS = {
     return m0[0] === 0 && Math.abs(i0[0]) < 1 && old.strength === 0.7 && Math.abs(old.damping - 0.8) < 1e-9 && old.gravity === 0.1 ? true : { m0, i0, old };
   },
 
+  'chain pose: a turned bone moves the bones after it, keys ease in between, lengths kept': () => {
+    const pts = [[0, 0], [0, 10], [0, 20]], poses = [[0, [0, 0]], [10, [90, 0]]];
+    const a = chainPosed(pts, poses, 10), m = chainPosed(pts, poses, 5), h = chainPosed(pts, poses, 30);
+    const ok = Math.abs(a[1][0] + 10) < 1e-6 && Math.abs(a[2][0] + 20) < 1e-6 && Math.abs(Math.hypot(m[2][0] - m[1][0], m[2][1] - m[1][1]) - 10) < 1e-6 && m[2][0] < 0 && m[2][0] > -20 && h[2][0] === a[2][0];
+    return ok ? true : { a, m, h };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

@@ -9,7 +9,7 @@
    to the drawn shape + gravity relative to the drawn pose) and the drawing is warped with the puppet warp (pupWarp)
    into a view canvas shown instead of the cel (refreshStage) and used for exports (compositeFrame). Keyframes and
    pixels are never changed. Saved in the .sketchforge file (layers[].chain). */
-const CHAIN = { hover: -1, drag: null };
+const CHAIN = { hover: -1, drag: null, mode: 'edit' };
 let chainBusy = false, chainExport = false;
 /* settings like Spine's physics constraints: inertia (how much of the part's motion makes it lag), strength (pull back
    to the drawn shape), damping (calms the swinging), mass (heavier = forces move it less), gravity, wind, mix (0 = as
@@ -26,17 +26,34 @@ const CHAIN_PRESETS = [
   ['Tail / ears', { inertia: 0.7, strength: 0.6, damping: 0.5, mass: 1, gravity: 0.2, wind: 0 }]
 ];
 const chainOn = l => !!(l && l.chain && l.chain.pts && l.chain.pts.length >= 2);
-/* pure: rest points (layer space), one layer matrix per frame, settings → the points (layer space) on every frame */
-function chainSolve(pts, mats, P0) {
-  const n = pts.length, out = [], P = chainParams(P0 || {});
-  if (n < 2 || !mats.length) return mats.map(() => pts.map(p => p.slice()));
+/* pure: the chain posed on frame f. poses = [[frame, [degrees per bone]]…] (pose keys, sorted); between keys the angles
+   are eased; each bone turns around its start and every bone after it follows (the first bone is the main / parent bone) */
+function chainPosed(pts, poses, f) {
+  if (!poses || !poses.length) return pts.map(p => p.slice());
+  const nb = pts.length - 1, ang = j => { const a = poses[j][1]; return Array.from({ length: nb }, (_, i) => +a[i] || 0); };
+  let A;
+  if (f <= poses[0][0]) A = ang(0);
+  else if (f >= poses[poses.length - 1][0]) A = ang(poses.length - 1);
+  else { let j = 0; while (poses[j + 1][0] < f) j++; const a = ang(j), b = ang(j + 1), t0 = (f - poses[j][0]) / (poses[j + 1][0] - poses[j][0]), t = t0 * t0 * (3 - 2 * t0); A = a.map((x, i) => x + (b[i] - x) * t); }
+  const out = [pts[0].slice()]; let turn = 0;
+  for (let i = 1; i < pts.length; i++) {
+    turn += A[i - 1] * DEG; const dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1], c = Math.cos(turn), s = Math.sin(turn);
+    out.push([out[i - 1][0] + c * dx - s * dy, out[i - 1][1] + s * dx + c * dy]);
+  }
+  return out;
+}
+/* pure: rest points (layer space), one layer matrix per frame, settings (and optionally the posed points of every frame)
+   → the points (layer space) on every frame: the pose, plus the physics on top */
+function chainSolve(pts0, mats, P0, posed) {
+  const n = pts0.length, out = [], P = chainParams(P0 || {}), PF = f => posed ? posed[f] : pts0;
+  if (n < 2 || !mats.length) return mats.map((_, f) => PF(f).map(p => p.slice()));
   const W = (m, p) => [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]];
   const k = 0.01 + P.strength * 0.32, damp = 0.03 + P.damping * 0.5, mass = Math.max(0.1, P.mass), G = P.gravity * 6 / mass, wind = P.wind * 3 / mass;
   const carry = 1 - clamp(P.inertia, 0, 1), mix = clamp(P.mix, 0, 1), SUB = 3;
   const a0 = Math.atan2(mats[0][1], mats[0][0]);
   let pos = [], prev = [], Rp = null;
   for (let f = 0; f < mats.length; f++) {
-    const m = mats[f], R = pts.map(p => W(m, p));
+    const m = mats[f], pts = PF(f), R = pts.map(p => W(m, p));
     if (f === 0) { pos = R.map(p => p.slice()); prev = R.map(p => p.slice()); Rp = R; out.push(pts.map(p => p.slice())); continue; }
     // inertia: the part of the motion that does NOT make the chain lag is carried along directly
     if (carry) for (let i = 1; i < n; i++) { const dx = (R[i][0] - Rp[i][0]) * carry, dy = (R[i][1] - Rp[i][1]) * carry; pos[i][0] += dx; pos[i][1] += dy; prev[i][0] += dx; prev[i][1] += dy; }
@@ -70,7 +87,8 @@ function chainAt(l, f) {
   if (!c || c.key !== key) {
     chainBusy = true;
     let mats; try { mats = Array.from({ length: state.frameCount }, (_, i) => layerMat(l, i) || I6); } finally { chainBusy = false; }
-    l._chainCache = { key, sim: chainSolve(C.pts, mats, C) };
+    const posed = C.poses && C.poses.length ? mats.map((_, f) => chainPosed(C.pts, C.poses, f)) : null;
+    l._chainCache = { key, sim: chainSolve(C.pts, mats, C, posed) };
   }
   return l._chainCache.sim[clamp(f, 0, state.frameCount - 1)];
 }
@@ -102,11 +120,41 @@ function chainHit(l, x, y) {
   let best = -1, bd = 12; pts.forEach((p, i) => { const s = docToScreen(p[0], p[1]), d = Math.hypot(s[0] - S[0], s[1] - S[1]); if (d < bd) { bd = d; best = i; } });
   return best;
 }
+/* posing a chain bone: dragging point i turns bone i−1 around its start (every bone after it follows) and stores a
+   pose key on this frame; the physics still runs on top of the pose */
+function chainPoseAngles(C, f) {
+  const nb = C.pts.length - 1, P = C.poses || [];
+  if (!P.length) return new Array(nb).fill(0);
+  const posed = chainPosed(C.pts, P, f), out = [];
+  let prevTurn = 0;
+  for (let i = 1; i < C.pts.length; i++) { // read the eased angles back from the posed points
+    const a0 = Math.atan2(C.pts[i][1] - C.pts[i - 1][1], C.pts[i][0] - C.pts[i - 1][0]), a1 = Math.atan2(posed[i][1] - posed[i - 1][1], posed[i][0] - posed[i - 1][0]);
+    let turn = (a1 - a0) / DEG; const d = turn - prevTurn; let rel = ((d + 540) % 360) - 180; out.push(rel); prevTurn += rel;
+  }
+  return out;
+}
+function chainSetPose(C, f, angles) {
+  C.poses = (C.poses || []).filter(p => p[0] !== f); C.poses.push([f, angles.map(a => Math.round(a * 100) / 100)]); C.poses.sort((a, b) => a[0] - b[0]);
+}
+function chainPoseDown(o, l, idx) {
+  if (idx < 1) { toast('The first point is fixed to the part: move or turn the part itself (Bone: pose).'); return false; }
+  o.layer = l; o.cpose = idx; o.before = JSON.parse(JSON.stringify(l.chain)); o.ang = chainPoseAngles(l.chain, state.frame); return true;
+}
+function chainPoseMove(o) {
+  const l = o.layer, C = l.chain, i = o.cpose, posed = chainPosed(C.pts, C.poses, state.frame);
+  const inv = invMat(layerMat(l, state.frame) || I6), q = applyMat(inv, o.x1, o.y1), a = posed[i - 1], b = posed[i];
+  let d = (Math.atan2(q[1] - a[1], q[0] - a[0]) - Math.atan2(b[1] - a[1], b[0] - a[0])) / DEG; d = ((d + 540) % 360) - 180;
+  if (o.shift) d = Math.round(d / 15) * 15;
+  const ang = chainPoseAngles(C, state.frame); ang[i - 1] += d;
+  chainSetPose(C, state.frame, ang); l._chainCache = null; o.moved = true; refreshStage(); drawOverlay();
+}
+function chainPoseEnd(o) { if (o.moved) { chainUndo(o.layer, o.before); toast(`Pose key on frame ${state.frame + 1}. Pose another frame: the bones move smoothly between keys, the physics stays on top.`, 3500); } refreshAll(); }
 const BONE_CHAIN = {
   name: 'Bone: hair & cloth', kind: 'dragdraw', icon: 'bonechain',
   ddDown(o) {
     let l = activeLayer();
     const hit = l && l.chain ? chainHit(l, o.x0, o.y0) : -1;
+    if (CHAIN.mode === 'pose') { if (hit >= 0 && !l.locked) chainPoseDown(o, l, hit); else if (hit < 0) toast('Pose mode: drag a bone point of the hair / cloth (switch to "Add / edit" to add bones)'); return; }
     if (hit >= 0) { o.layer = l; o.idx = hit; o.before = JSON.parse(JSON.stringify(l.chain)); return; }
     const p = partAt(o.x0, o.y0); if (p && p !== l && !(l && l.chain && l.chain.pts.length)) { l = p; state.activeId = p.id; }
     if (!l || l.paper || l.vref) { toast('Pick the hair / cloth layer first'); return; }
@@ -114,12 +162,14 @@ const BONE_CHAIN = {
     o.layer = l; o.add = true; o.before = l.chain ? JSON.parse(JSON.stringify(l.chain)) : null;
   },
   ddMove(o) {
+    if (o.cpose) { chainPoseMove(o); return; }
     if (!o.layer || o.idx == null) { CHAIN.hover = activeLayer() ? chainHit(activeLayer(), o.x1, o.y1) : -1; return; }
     if (state.frame !== 0 && keyAt(o.layer, state.frame) !== keyAt(o.layer, 0)) { /* rest pose edits use this frame's matrix */ }
     const inv = invMat(layerMat(o.layer, state.frame) || I6), q = applyMat(inv, o.x1, o.y1);
     o.layer.chain.pts[o.idx] = q; o.layer._chainCache = null; o.moved = true; refreshStage();
   },
   ddEnd(o) {
+    if (o.cpose) { chainPoseEnd(o); return; }
     const l = o.layer; if (!l) return;
     if (o.idx != null) { if (o.moved) chainUndo(l, o.before); if (o.alt && !o.moved) { l.chain.pts.splice(o.idx, 1); chainUndo(l, o.before); } refreshAll(); return; }
     if (!o.add) return;
@@ -131,9 +181,9 @@ const BONE_CHAIN = {
     toast(n === 1 ? `"${l.name}": the first point is where it is attached. Click along it to its tip.` : `${n - 1} bone${n > 2 ? 's' : ''} on "${l.name}". Animate the part it hangs from and press Play.`, 3500);
     refreshAll();
   },
-  overlay(g, S) {
-    const l = activeLayer(); if (!l || !l.chain || !l.chain.pts.length) { drawBones(g, S); return; }
-    drawBones(g, S);
+  overlay(g, S, noBones) {
+    const l = activeLayer(); if (!l || !l.chain || !l.chain.pts.length) { if (!noBones) drawBones(g, S); return; }
+    if (!noBones) drawBones(g, S);
     const pts = chainPtsDoc(l).map(p => S(p[0], p[1]));
     g.save(); g.lineCap = 'round';
     for (let i = 1; i < pts.length; i++) { // bone shapes: a thin diamond from each point to the next
@@ -150,6 +200,16 @@ const BONE_CHAIN = {
     const st = document.createElement('div'); st.className = 'small muted'; st.style.margin = '4px 0 6px';
     st.textContent = l ? (C && C.pts.length ? `"${l.name}": ${Math.max(0, C.pts.length - 1)} bone${C.pts.length === 2 ? '' : 's'}` : `"${l.name}": no hair / cloth bones yet — click on the drawing`) : 'No layer';
     body.appendChild(st);
+    seg(body, [['edit', 'Add / edit bones'], ['pose', 'Pose bones']], CHAIN.mode, v => { CHAIN.mode = v; refreshProps(); drawOverlay(); });
+    if (CHAIN.mode === 'pose') hint(body, 'Drag a point to turn the bone before it: every bone after it follows (the first bone is the main bone, fixed to the part). Each pose is a key on this frame; between keys the bones move smoothly, and gravity / physics still play on top. Shift: steps of 15°.');
+    if (C && C.poses && C.poses.length) {
+      const kd = document.createElement('div'); kd.className = 'small'; kd.style.margin = '4px 0';
+      kd.textContent = 'Pose keys on frames: ' + C.poses.map(p => p[0] + 1).join(', '); body.appendChild(kd);
+      btns(body, [
+        ['Delete the pose key here', () => { const b = JSON.parse(JSON.stringify(C)); const n = C.poses.length; C.poses = C.poses.filter(p => p[0] !== state.frame); if (C.poses.length === n) { toast('No pose key on this frame'); return; } l._chainCache = null; chainUndo(l, b); refreshProps(); }],
+        ['Clear all poses', () => { const b = JSON.parse(JSON.stringify(C)); delete C.poses; l._chainCache = null; chainUndo(l, b); refreshProps(); }]
+      ]);
+    }
     if (C && C.pts.length) {
       const P = chainParams(C);
       const commit = before => { if (!commit.b) commit.b = before; clearTimeout(commit.t); commit.t = setTimeout(() => { chainUndo(l, commit.b); commit.b = null; }, 400); };
@@ -202,6 +262,13 @@ function installChainBones() {
   IC.bonechain = '<circle cx="5" cy="4" r="2.2"/><path d="M6.5 5.6c3 2.5 1 5 3.5 7.4s5 1 7 4"/><circle cx="10" cy="13" r="1.6"/><circle cx="18" cy="18.5" r="1.8"/>';
   TOOLDEF.bonechain = BONE_CHAIN; settings.bonechain = {};
   const g = GROUPS.find(x => x.id === 'bone'); if (g && !g.subs.includes('bonechain')) g.subs.push('bonechain');
+  { // Bone: pose also turns hair & cloth bones (drag a bone point of the picked layer)
+    const T = TOOLDEF.bonepose, d0 = T.ddDown, m0 = T.ddMove, e0 = T.ddEnd;
+    T.ddDown = o => { const l = activeLayer(), h = l && chainOn(l) ? chainHit(l, o.x0, o.y0) : -1; if (h >= 1 && !l.locked && chainPoseDown(o, l, h)) return; return d0(o); };
+    T.ddMove = o => o.cpose ? chainPoseMove(o) : m0(o);
+    T.ddEnd = o => o.cpose ? chainPoseEnd(o) : e0(o);
+    const ov0 = T.overlay; T.overlay = (g, S) => { ov0(g, S); const l = activeLayer(); if (l && chainOn(l)) BONE_CHAIN.overlay(g, S, true); };
+  }
   CMD.boneChain = () => selectTool('bonechain'); CMD.chainPractice = chainPractice;
   const A = MENUS.find(m => m[0] === 'Animation'); if (A) { const i = A[1].findIndex(x => Array.isArray(x) && x[1] === 'physBone'); A[1].splice(i < 0 ? A[1].length : i + 1, 0, ['〰 Hair & cloth bones (bend and flow)', 'boneChain'], ['🧝 Hair & cloth practice model', 'chainPractice']); }
   // the stage shows the bent drawing instead of the cel

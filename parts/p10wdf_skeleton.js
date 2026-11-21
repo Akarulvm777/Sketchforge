@@ -58,7 +58,9 @@ function installSkeleton() {
   }
   // "Make main part" also clears the star from a previous main part (one root)
   const mm0 = makeMainPart;
-  makeMainPart = function () { const a = activeLayer(); if (a && !a.paper && !a.vref) for (const l of state.layers) if (l !== a) delete l.mainPart; return mm0.apply(this, arguments); };
+  makeMainPart = function () { // the main part is the root: it follows nothing (no loop), and there is only one
+    const a = activeLayer(); if (a && !a.paper && !a.vref) { for (const l of state.layers) if (l !== a) delete l.mainPart; if (a.parent) setLayerParent(a, null); }
+    return mm0.apply(this, arguments); };
   CMD.mainPart = makeMainPart;
 }
 /* ★ label at the main part's joint on the canvas */

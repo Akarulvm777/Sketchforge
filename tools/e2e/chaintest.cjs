@@ -68,6 +68,26 @@ const path = require('path');
   check('skeleton tree: ★ main part first, Head under Body, Hair under Head', tree[0] === '6:Body' && tree.includes('20:Head') && tree.includes('34:Hair') && tree.includes('20:Cape'));
   check('only one main part', await pg.evaluate(() => { const SF = window.__sketchforge, L = SF.state.layers; SF.state.activeId = L.find(l => l.name === 'Head').id; SF.CMD.mainPart(); return L.filter(l => l.mainPart).length === 1 && L.find(l => l.name === 'Head').mainPart; }));
   check('tutorial "Rig like Spine" is in the list', await pg.evaluate(() => window.__sketchforge.scope('TUTORIALS').some(t => t.id === 'spinerig')));
+  // pose the bones (Pose bones mode): drag a point → a pose key on this frame; bones after it follow; physics on top
+  await pg.evaluate(() => { const SF = window.__sketchforge; SF.CMD.chainPractice(); });
+  await pg.waitForTimeout(900);
+  await pg.evaluate(() => { const SF = window.__sketchforge; SF.scope('stop()'); SF.gotoFrame(0); const h = SF.state.layers.find(l => l.name === 'Hair'); SF.state.activeId = h.id; SF.selectTool('bonechain'); SF.scope("CHAIN.mode = 'pose'"); SF.scope('refreshProps()'); });
+  const hp = await pg.evaluate(() => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.name === 'Hair'), m = SF.layerMat(h, 0) || [1, 0, 0, 1, 0, 0]; const p = SF.scope('chainAt')(h, 0)[2]; return [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]]; });
+  { const a = await pg.d2c(hp[0], hp[1]), b = await pg.d2c(hp[0] + 60, hp[1] - 10); await pg.mouse.move(a[0], a[1]); await pg.mouse.down(); await pg.mouse.move(b[0], b[1], { steps: 6 }); await pg.mouse.up(); }
+  const posed = await pg.evaluate(() => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.name === 'Hair'), C = h.chain, c0 = SF.scope('chainAt')(h, 0);
+    return { keys: (C.poses || []).map(p => p[0]), ang: C.poses && C.poses[0][1], tipMoved: c0[4][0] - C.pts[4][0], rootSame: Math.abs(c0[0][0] - C.pts[0][0]) < 0.01 }; });
+  console.log('     ' + JSON.stringify(posed));
+  check('Pose bones: dragging a point makes a pose key on this frame', posed.keys.length === 1 && posed.keys[0] === 0);
+  check('…the bone turns and every bone after it follows (the main bone stays attached)', posed.tipMoved > 20 && posed.rootSame && Math.abs(posed.ang[1]) > 5);
+  check('…and the physics still plays on top of the pose', await pg.evaluate(() => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.name === 'Hair'), ch = SF.scope('chainAt'), P = SF.scope('chainPosed');
+    const a = ch(h, 12), p = P(h.chain.pts, h.chain.poses, 12); return Math.hypot(a[4][0] - p[4][0], a[4][1] - p[4][1]) > 5; }));
+  // Bone: pose tool poses chain bones too (another frame → a second key)
+  await pg.evaluate(() => { const SF = window.__sketchforge; SF.gotoFrame(20); SF.selectTool('bonepose'); });
+  const hp2 = await pg.evaluate(() => { const SF = window.__sketchforge, h = SF.state.layers.find(l => l.name === 'Hair'), m = SF.layerMat(h, 20) || [1, 0, 0, 1, 0, 0]; const p = SF.scope('chainAt')(h, 20)[3]; return [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]]; });
+  { const a = await pg.d2c(hp2[0], hp2[1]), b = await pg.d2c(hp2[0] - 50, hp2[1]); await pg.mouse.move(a[0], a[1]); await pg.mouse.down(); await pg.mouse.move(b[0], b[1], { steps: 6 }); await pg.mouse.up(); }
+  check('Bone: pose turns hair bones too (second pose key)', await pg.evaluate(() => { const h = window.__sketchforge.state.layers.find(l => l.name === 'Hair'); return (h.chain.poses || []).length === 2; }));
+  await pg.evaluate(() => window.__sketchforge.CMD.undo());
+  check('undo removes that pose key', await pg.evaluate(() => { const h = window.__sketchforge.state.layers.find(l => l.name === 'Hair'); return (h.chain.poses || []).length === 1; }));
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done(); process.exit(ok.every(Boolean) && !errors.length ? 0 : 1);
 })();
