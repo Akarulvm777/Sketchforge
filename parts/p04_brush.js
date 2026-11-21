@@ -99,7 +99,7 @@ function prCurve(c, p) {
 function diameterAt(st, pr) {
   const s = st.s;
   let d = s.size * ((s.pSize || s.speed > 0) ? lerp(s.pMin ?? 0.12, 1, prCurve(s.pCurve, pr)) : 1) *
-    (s.taperIn ? lerp(s.taperRatio, 1, clamp((st.travel || 0) / s.taperIn, 0, 1)) : 1);
+    (s.taperIn ? lerp(s.taperRatio ?? 0.3, 1, clamp((st.travel || 0) / s.taperIn, 0, 1)) : 1);
   // imported tools: pen tilt and drawing speed through their own curves, thin end of the stroke
   if (s.tCurve && st.tilt != null) d *= lerp(s.tMin ?? 0, 1, prCurve(s.tCurve, st.tilt));
   if (s.vCurve && st.vel != null) d *= lerp(s.vMin ?? 0, 1, prCurve(s.vCurve, st.vel));
