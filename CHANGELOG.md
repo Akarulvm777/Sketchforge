@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: two-colour brushes
+- New: brushes with two colours: the main colour inside and the sub colour (the second colour square) outside — as a clean outline, or as a soft glow like a neon light. Two new tools in the Pen group: Outline marker and Neon glow pen. Any round brush can do it: Tool Property › Two colours (and in the brush editor ⚙), with the outline width / glow size.
+
 ## 2.13: pose the 3D model like a pro
 - New: in the 3D model, pointing at a body part lights it up blue; clicking it turns it red and shows red, green and blue rotation rings at the joint — drag a ring to turn the part around exactly that axis (fingers get small rings too). Dragging the part itself still moves it.
 - New: a floor grid and a soft ground shadow under the model (Look › Floor grid / Ground shadow; the grid never goes into "Place on new layer").

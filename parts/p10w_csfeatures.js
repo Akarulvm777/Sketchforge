@@ -654,7 +654,7 @@ function registerWave2() {
 function installCsFeatures() {
   registerExtraTools();
   registerWave2();
-  registerManga();
+  registerManga(); if (typeof installTwoTone === "function") installTwoTone();
   /* every painting tool responds to pen pressure out of the box: size always, opacity for soft / light media */
   for (const k in TOOLDEF) {
     const d = TOOLDEF[k], pr = d.preset;
