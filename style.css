@@ -1023,3 +1023,4 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 .layer-item .clip-arrow { color: #c890ff; font-size: 16px; font-weight: bold; margin-right: -2px; line-height: 1; }
 #menubar img.logo { width: 25px; height: 25px; border-radius: 6px; background: none; object-fit: cover; margin-right: 4px; }
 #aiPanel .ai-mic, #aiPanel .ai-speak { min-width: 36px; } #aiPanel .ai-mic.on, #aiPanel .ai-speak.on { background: #2e7bd6; color: #fff; }
+#aiPanel .ai-say { margin: 3px 4px 0 0; padding: 4px 10px; border-radius: 14px; border: 1px solid #4a7fc0; background: #243650; color: #d8e8ff; cursor: pointer; font-size: 12px; }

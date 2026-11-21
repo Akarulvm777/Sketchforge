@@ -12285,16 +12285,63 @@ function helpAnswer(q) {
   const n = hnorm(q);
   if (WHY_NOT.test(n)) return 'AI is not supposed to steal your job. Your art is yours to make — I can show you every tool that helps. [[tut:welcome|Welcome tour]]';
   if (DRAW_ASK.test(n)) return "I don't draw for you — the art is yours! But I can show you the tools: ask me things like \"where is the eraser?\" or \"how do I animate?\". [[tut:first|Your first drawing]]";
-  if (/^\s*(hi|hello|hey|bonjour|salut|coucou|yo)\b/.test(n) && n.length < 20) return 'Hi! Ask me where a tool is or how to do something, e.g. "how do I make an animation?", "eraser", "pen pressure not working".';
-  if (/\b(thanks?|thank you|merci)\b/.test(n)) return 'You\'re welcome! Have fun drawing 🎨';
+  const talk = chatReply(q, n); if (talk) return talk; // conversation first (greetings, "I need help", yes / no / more…)
   if (typeof lessonList === 'function' && /^\s*(learn|lessons?|teach me|tips|techniques?|tutorial list|apprendre|lecons?)\s*[?!.]*\s*$/.test(n)) return lessonList();
   const res = helpSearch(q);
   if (res.length && res[0].kind === 'lesson') { // a technique question: the whole lesson, then the closest app answers
     const L = HELP_LESSONS.find(x => x.id === res[0].id), more = res.slice(1, 3).filter(e => e.kind !== 'lesson');
     return lessonAnswer(L) + (more.length ? '\n\n' + more.map(e => helpLine(e)).join('\n\n') : '');
   }
-  if (!res.length) return 'I couldn\'t find that. Try other words (e.g. "layer", "export gif", "onion skin"), or look in the tutorials. [[cmd:tutorials|All tutorials]]';
-  return res.map(helpLine).join('\n\n');
+  if (!res.length) { AI.ctx = { pending: 'topic' }; return aiPick(["Hmm, I'm not sure I understood. Can you tell me a bit more?", "I didn't quite get that — could you say it another way?"]) + ' Is it about one of these?\n' + TOPIC_CHIPS; }
+  AI.ctx = { results: res, shown: Math.min(res.length, 3), offer: firstAction(res[0]), asked: 'helped' };
+  return aiPick(['Here is what I found:', 'Sure! Look at this:', 'This should help:']) + '\n\n' + res.slice(0, 3).map(helpLine).join('\n\n') + '\n\nDid that help? [[say:Yes]] [[say:No]]' + (res.length > 3 ? ' [[say:Show me more]]' : '');
+}
+/* ---- conversation: ✨ Ask talks back like a chat (offline, rules + memory of the last answer in AI.ctx) ---- */
+const aiPick = a => a[Math.floor(Math.random() * a.length)];
+const TOPIC_CHIPS = '[[say:Drawing and painting]] [[say:Animation]] [[say:Learn a technique]] [[say:Find a tool]] [[say:Something is not working]]';
+function firstAction(e) { if (!e) return null; if (e.kind === 'cmd') return ['cmd', e.id]; if (e.kind === 'tool') return ['tool', e.id]; if (e.kind === 'tut') return ['tut', e.id + '.' + (e.step || 0)]; if (e.kind === 'lesson') return ['lesson', e.id]; const a = (e.acts || [])[0]; return a ? [a[0], a[1]] : null; }
+function chatReply(q, n) {
+  const ctx = AI.ctx || {}, only = re => re.test(n) && n.split(/\s+/).length <= 6;
+  // short answers to what was just asked
+  if (only(/^(yes|yeah|yep|yup|sure|ok|okay|oui|ouais|d'accord|please|go|do it)\b/)) {
+    if (ctx.asked === 'helped') { AI.ctx = {}; return aiPick(['Great! 😊', 'Awesome, glad it helped!', 'Nice!']) + ' Anything else I can help you with?'; }
+    if (ctx.offer) { const [k, id] = ctx.offer; AI.ctx = {}; setTimeout(() => aiDo(k, id), 300); return 'Okay, opening it for you…'; }
+    return 'Okay! What would you like to do?\n' + TOPIC_CHIPS;
+  }
+  if (only(/^(no|nope|nah|non|not really|it didn ?t)\b/)) {
+    if (ctx.asked === 'helped' && ctx.results && ctx.results.length > ctx.shown) return moreResults(ctx);
+    AI.ctx = { pending: 'topic' };
+    return aiPick(["No problem. Tell me more about what you're trying to do and I'll look again.", "Sorry about that! Can you describe it with other words?"]) + '\n' + TOPIC_CHIPS + ' [[cmd:tutorials|All tutorials]]';
+  }
+  if (only(/^(more|show me more|other|another|others|next|autre|plus)\b/) && ctx.results) return moreResults(ctx);
+  // small talk
+  if (/^\s*(hi|hello|hey|hiya|good (morning|afternoon|evening)|bonjour|salut|coucou|yo)\b/.test(n) && n.split(/\s+/).length <= 4) {
+    AI.ctx = { pending: 'topic' };
+    return aiPick(['Hi there! 👋', 'Hello! 😊', 'Hey! Nice to see you.']) + ' I\'m the Sketchforge helper. What would you like to do today?\n' + TOPIC_CHIPS;
+  }
+  if (/\b(how are you|how r u|how's it going|ca va|ça va|comment vas)/.test(n)) return "I'm doing great, thanks for asking! 😊 Ready to help. What are you working on?\n" + TOPIC_CHIPS;
+  if (/\b(who are you|what are you|your name|qui es tu|t ?es qui)\b/.test(n)) return "I'm the Sketchforge helper ✨. I know every tool and menu in the app, I can walk you through tutorials and teach painting and animation techniques. I won't draw for you — the art is yours! What can I do for you?\n" + TOPIC_CHIPS;
+  if (/\b(thanks?|thank you|thx|merci)\b/.test(n)) { AI.ctx = {}; return aiPick(["You're welcome! 😊", 'Anytime!', 'Happy to help!']) + ' Anything else?'; }
+  if (only(/^(bye|goodbye|see you|see ya|au revoir|ciao)\b/)) { AI.ctx = {}; return 'Bye! Have fun drawing 🎨 I\'m here whenever you need me.'; }
+  if (/^\s*(help|help me|i need help|need help|can you help( me)?|aide|aide moi|j ?ai besoin d ?aide|please help)\s*[?!.]*\s*$/.test(n)) {
+    AI.ctx = { pending: 'topic' };
+    return "Of course, I'm here to help! What kind of help do you need?\n" + TOPIC_CHIPS;
+  }
+  // answers to "what kind of help?"
+  if (/^(drawing( and painting)?|painting|draw|dessin)$/.test(n.trim())) { AI.ctx = { pending: 'drawing' }; return 'Nice! What about drawing?\n[[say:Choose a brush]] [[say:Layers]] [[say:Colours]] [[say:Selection]] [[say:Pen pressure]] [[say:Paper texture]]'; }
+  if (/^(animation|animate|animer)$/.test(n.trim())) { AI.ctx = { pending: 'anim' }; return 'Cool, animation! What do you want to do?\n[[say:Frame by frame]] [[say:Onion skin]] [[say:Tween]] [[say:Bone rig]] [[say:Swap drawings]] [[say:Face sliders]] [[say:Export gif]]'; }
+  if (/^(learn( a technique)?|teach me|technique)$/.test(n.trim())) return lessonList();
+  if (/^(find a tool|a tool|tool|outil)$/.test(n.trim())) { AI.ctx = { pending: 'tool' }; return 'Sure — which tool are you looking for? Type its name or what it does, e.g. "eraser", "fill", "blur", "ruler".'; }
+  if (/^(something is not working|a problem|problem|bug|not working|probleme|problème)$/.test(n.trim())) { AI.ctx = { pending: 'problem' }; return "Oh no, let's fix it. What's happening?\n[[say:It is slow or laggy]] [[say:Pen pressure not working]] [[say:My drawing disappeared]] [[say:Imported tool looks wrong]] [[say:Cannot save or open]]"; }
+  if (/^it is slow or laggy$/.test(n.trim())) return "Sorry it's slow! A few things help a lot:\n• Use a smaller page (File › New: e.g. 1500 × 2000 instead of print size).\n• Fewer layers on big pages.\n• Turn the time-lapse off if you don't need it (REC button).\n• Update to the newest version (installed apps update by themselves).\nDid that help? [[say:Yes]] [[say:No]]";
+  if (/^my drawing disappeared$/.test(n.trim())) return "That can happen when the browser runs out of picture memory on very big pages (mostly iPad). Version 2.13.6 fixed the main cause. Your work is saved automatically: reopening Sketchforge brings back your last files. Also try Edit › Undo. To be safe, save often with File › Save. [[cmd:save|Save now]]\nDid that help? [[say:Yes]] [[say:No]]";
+  return null;
+}
+function moreResults(ctx) {
+  const next = ctx.results.slice(ctx.shown, ctx.shown + 3);
+  if (!next.length) { AI.ctx = { pending: 'topic' }; return "That's everything I found. Try telling me with other words, or pick a topic:\n" + TOPIC_CHIPS; }
+  ctx.shown += next.length; ctx.offer = firstAction(next[0]); ctx.asked = 'helped'; AI.ctx = ctx;
+  return 'Here are some other ideas:\n\n' + next.map(helpLine).join('\n\n') + '\n\nDid that help? [[say:Yes]] [[say:No]]' + (ctx.results.length > ctx.shown ? ' [[say:Show me more]]' : '');
 }
 function helpLine(e) {
   if (e.kind === 'lesson') return `**📚 ${e.title}** — lesson\n[[lesson:${e.id}|Read the lesson]]`;
@@ -12327,21 +12374,29 @@ function aiOpen() {
 }
 function aiFormat(text) {
   const h = esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
-  return h.replace(/\[\[(cmd|tut|tool|learn|lesson):([\w.-]+)\|([^\]]{1,60})\]\]/g, (m, k, id, label) => `<button type="button" class="ai-act" data-k="${k}" data-id="${id}">${label}</button>`);
+  return h.replace(/\[\[say:([^\]|]{1,60})\]\]/g, (m, t) => `<button type="button" class="ai-say">${t}</button>`)
+    .replace(/\[\[(cmd|tut|tool|learn|lesson):([\w.-]+)\|([^\]]{1,60})\]\]/g, (m, k, id, label) => `<button type="button" class="ai-act" data-k="${k}" data-id="${id}">${label}</button>`);
 }
 function aiRender() {
   const log = $('#aiPanel .ai-log'); if (!log) return;
   log.innerHTML = AI.msgs.length ? AI.msgs.map(m => `<div class="ai-msg ${m.role}">${aiFormat(m.content)}</div>`).join('')
     : `<div class="ai-msg assistant">${aiFormat('Hi! Ask me where a tool is, what a setting does, or how to do something. For example:')}<div class="ai-ex">${['How do I animate?', 'Where is the eraser?', 'How do I shade skin?', 'Perspective', 'Mouth shapes for talking', 'Export a GIF'].map(x => `<button type="button" class="ai-q">${x}</button>`).join('')}</div></div>`;
   log.querySelectorAll('.ai-q').forEach(b => b.onclick = () => aiAsk(b.textContent));
-  log.querySelectorAll('.ai-act').forEach(b => b.onclick = () => {
-    const k = b.dataset.k, id = b.dataset.id;
+  log.querySelectorAll('.ai-say').forEach(b => b.onclick = () => aiAsk(b.textContent));
+  log.querySelectorAll('.ai-act').forEach(b => b.onclick = () => aiDo(b.dataset.k, b.dataset.id));
+  aiScroll();
+}
+function aiDo(k, id) {
+  {
     if (k === 'cmd' && CMD[id]) CMD[id]();
     else if (k === 'tool' && TOOLDEF[id]) { selectTool(id); toast(TOOLDEF[id].name + ' selected'); }
     else if (k === 'learn') { AI.msgs.push({ role: 'assistant', content: lessonList(id) }); aiRender(); }
     else if (k === 'lesson') { const L = HELP_LESSONS.find(x => x.id === id); if (L) { AI.msgs.push({ role: 'user', content: L.t }, { role: 'assistant', content: lessonAnswer(L) }); aiRender(); } }
     else if (k === 'tut') { const [tid, st] = id.split('.'); $('#aiPanel').hidden = true; tutStart(tid); if (+st > 0) { TUT.i = Math.min(+st, TUT.steps.length - 1); tutShow(); } }
-  });
+  }
+}
+function aiScroll() {
+  const log = $('#aiPanel .ai-log'); if (!log) return;
   const last = log.querySelector('.ai-msg.user:last-of-type');
   log.scrollTop = last ? last.offsetTop - 8 : log.scrollHeight; // show the start of the newest answer
 }
