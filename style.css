@@ -1031,3 +1031,10 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 #propBody .advhead { display:block; width:100%; margin:10px 0 4px; padding:6px 8px; text-align:left; font-size:12px; font-weight:600; background:var(--panel2, rgba(127,127,127,.12)); border:1px solid var(--line, rgba(127,127,127,.3)); border-radius:6px; color:inherit; cursor:pointer; }
 #propBody .advbox { border-left:2px solid var(--line, rgba(127,127,127,.3)); padding-left:6px; }
 #propBody .advcurve canvas { width:132px; height:132px; display:block; margin:4px auto; }
+/* Skeleton tree in the Bone tools (p10wdf) */
+#skelTree .skellist { display:flex; flex-direction:column; gap:1px; max-height:220px; overflow:auto; margin:2px 0 4px; border:1px solid var(--line, rgba(127,127,127,.3)); border-radius:6px; padding:2px; }
+#skelTree .skelrow { display:flex; align-items:center; gap:6px; width:100%; text-align:left; background:none; border:0; border-radius:4px; padding:3px 6px; color:inherit; font-size:12px; cursor:pointer; }
+#skelTree .skelrow:hover { background:rgba(127,127,127,.15); }
+#skelTree .skelrow.on { background:rgba(120,200,255,.25); }
+#skelTree .skelrow.main .sk-name { font-weight:700; color:#ff8a3d; }
+#skelTree .sk-ico { width:12px; opacity:.7; } #skelTree .sk-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } #skelTree .sk-badge { opacity:.85; }

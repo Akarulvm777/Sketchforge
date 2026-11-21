@@ -62,6 +62,12 @@ const path = require('path');
   console.log('     ' + JSON.stringify(pr));
   check('practice model: hair and cape have bones and bend while the body sways', pr.hair && pr.cape && pr.bend > 10 && pr.tool === 'bonechain');
   check('Spine-like settings (inertia, strength, damping, mass, gravity, wind, mix) and ready settings', await pg.evaluate(() => { const t = document.querySelector('#propBody').textContent; return ['Inertia', 'Strength', 'Damping', 'Mass', 'Gravity', 'Wind', 'Mix', 'Ready setting'].every(w => t.includes(w)); }));
+  // skeleton tree: main part on top, parts indented under what they follow
+  const tree = await pg.evaluate(() => { const SF = window.__sketchforge; SF.selectTool('bone'); return [...document.querySelectorAll('#skelTree .skelrow')].map(r => parseInt(r.style.paddingLeft) + ':' + r.querySelector('.sk-name').textContent); });
+  console.log('     tree: ' + tree.join(' | '));
+  check('skeleton tree: ★ main part first, Head under Body, Hair under Head', tree[0] === '6:Body' && tree.includes('20:Head') && tree.includes('34:Hair') && tree.includes('20:Cape'));
+  check('only one main part', await pg.evaluate(() => { const SF = window.__sketchforge, L = SF.state.layers; SF.state.activeId = L.find(l => l.name === 'Head').id; SF.CMD.mainPart(); return L.filter(l => l.mainPart).length === 1 && L.find(l => l.name === 'Head').mainPart; }));
+  check('tutorial "Rig like Spine" is in the list', await pg.evaluate(() => window.__sketchforge.scope('TUTORIALS').some(t => t.id === 'spinerig')));
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done(); process.exit(ok.every(Boolean) && !errors.length ? 0 : 1);
 })();

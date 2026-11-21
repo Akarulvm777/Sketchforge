@@ -185,7 +185,7 @@ function chainPractice() {
   const bc = makeCel(true); body.cels = new Map([[0, bc]]); { const g = bc.getContext('2d'); g.fillStyle = '#3a6ea5'; round(g, 256, 188, 88, 190, 26); g.fillStyle = '#2b5583'; g.fillRect(256, 300, 88, 12); }
   state.layers.push(body);
   const head = add('Head', g => { g.fillStyle = '#f1c7a0'; g.beginPath(); g.arc(300, 150, 46, 0, 7); g.fill(); g.fillStyle = '#5b3420'; g.beginPath(); g.arc(300, 138, 48, Math.PI, 0); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.arc(284, 158, 4, 0, 7); g.arc(316, 158, 4, 0, 7); g.fill(); });
-  setLayerParent(head, body.id); setLayerParent(cape, body.id); setLayerParent(hair, head.id);
+  setLayerParent(head, body.id); setLayerParent(cape, body.id); setLayerParent(hair, head.id); body.mainPart = true;
   head.px = 300; head.py = 192; body.px = 300; body.py = 378; cape.px = 300; cape.py = 202; hair.px = 300; hair.py = 120;
   hair.chain = { pts: [[300, 118], [300, 170], [300, 222], [300, 274], [300, 330]], ...CHAIN_PRESETS[0][1], mix: 1 };
   cape.chain = { pts: [[300, 202], [300, 262], [300, 322], [300, 382], [300, 445]], ...CHAIN_PRESETS[1][1], mix: 1 };

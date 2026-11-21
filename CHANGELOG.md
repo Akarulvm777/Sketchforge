@@ -6,6 +6,8 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 
 ## 2.13: hair & cloth bones that bend and flow
 - New: Bone group › Hair & cloth (also Animation › 〰 Hair & cloth bones): click points along long hair, a cape, a skirt, a tail or a ribbon, from where it is attached to its tip. When the body moves or turns, the drawing bends along these bones — it lags behind, swings, bounces and settles, like in Spine. Settings like Spine's physics: inertia, strength, damping, mass, gravity, wind and mix, plus ready settings (long hair, cape, skirt, ribbon, tail).
+- New: Skeleton tree in every Bone tool (like Spine's tree): the ★ main part at the top and every part under the part it follows, with its hair & cloth bones (〰) and gravity (🌬); click to pick a part, ★ Make main part (only one), and a ★ label on the canvas.
+- New tutorial: Help › Tutorials › 🦴 Rig like Spine (step by step): main part, what follows what, hair & cloth bones, physics settings, pose and play.
 - New: Animation › 🧝 Hair & cloth practice model: a character with long hair and a cape that already have bones — press Play and watch them flow, then try the settings.
 - The bending shows on the canvas, when playing and in every export; your drawing and keyframes are never changed (you draw the hair straight, as it rests).
 
