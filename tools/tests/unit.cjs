@@ -153,6 +153,11 @@ const TESTS = {
     return s.size === 33 && s.tipId === 'x' && s.hardness === 1 && s.pCurve !== p.pCurve && s.pCurve[1][0] === p.pCurve[1][0];
   },
 
+  'a new file starts with its paper locked': () => {
+    newDocument(64, 64, 1, 12, false, 'u'); const p = state.layers.find(l => l.paper);
+    return !!(p && p.locked);
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

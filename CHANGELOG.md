@@ -9,6 +9,8 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 - New: ↺ Reset this tool brings a tool back to its first settings.
 - New: Stroke quality (in Advanced setup, for all tools): Best gives smoother, denser strokes; Fast draws fewer dabs for slow tablets and phones; Normal is the usual balance.
 - Fix: a tool with a thin start but no start size drew nothing.
+- New: the paper layer is locked in every new file, so you never paint on it by mistake (unlock it any time with the 🔒 on the layer).
+- New tutorials: Make a manga page, Two-colour brushes, Advanced tool setup, Main part & gravity bones, Face sliders, Pose the 3D model (Help › Tutorials).
 
 ## 2.13: smoother special blend modes
 - Faster: layers with a special blending mode (Linear burn, Add (Glow), Divide, Hard mix…) no longer recompute the whole page after every stroke: the layers below are kept ready, only the area you just drew is redone, and nothing is redone when you draw on another layer.

@@ -15,7 +15,7 @@ function newDocument(w, h, frames, fps, transparent, name) {
   state.onion = { on: false, before: 2, after: 1 };
   resizeDocCanvases();
   layerSeq = 1; layerCounter = 1;
-  if (!transparent) { const p = createLayer('Paper', '#ffffff'); p.paper = true; state.layers.push(p); }
+  if (!transparent) { const p = createLayer('Paper', '#ffffff'); p.paper = true; p.locked = true; state.layers.push(p); } // the paper starts locked in every new file (the user can unlock it)
   const l = createLayer('Layer 1');
   state.layers.push(l); state.activeId = l.id;
   history.undo.length = 0; history.redo.length = 0;
