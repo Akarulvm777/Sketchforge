@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: a start screen and a Pages panel for manga
+- New: the start screen (File › 🏠 Start screen). Start a new illustration, manga / comic, animation or webtoon, or open a file; Continue drawing shows the files you have open and your recent files with pictures (click to reopen); What's new in this version, tutorials and videos, tips, and the newest shares from the community. The desktop, Android and iPad apps (and the installed web app) show it when they start; tick "Show when Sketchforge starts" to choose.
+- New: the 📖 Pages panel for manga and comic files: every page as a picture on the right of the canvas, ＋ New page as many times as you like (new pages keep the panel borders and print guides), click a page to open it, move, duplicate or delete pages. It opens by itself with a manga / comic file and closes when you switch to another file; Window › Pages panel turns it off.
+- Manga / comic files stay in the Drawing workspace (pages are not animation frames), and the file now remembers that it is a manga / comic.
+
 ## 2.13: auto-save, video tutorials, new rig tutorial
 - New: auto-save — every 5 minutes, when you are not drawing, your file saves itself (File › ⏱ Auto-save on / off, and settings for the minutes). In Chrome, Edge and the desktop app, File › Save asks once where to save and then keeps that same file up to date; in the Android / iPad app it saves to Documents/Sketchforge; elsewhere it keeps a copy in the app (reopened next time). The status bar shows when it last saved.
 - New videos: ▶ Rig like Spine and ▶ Swap drawings (Help menu, the first card of each tutorial, and the website).
