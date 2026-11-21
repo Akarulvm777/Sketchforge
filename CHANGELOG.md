@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: smoother special blend modes
+- Faster: layers with a special blending mode (Linear burn, Add (Glow), Divide, Hard mix…) no longer recompute the whole page after every stroke: the layers below are kept ready, only the area you just drew is redone, and nothing is redone when you draw on another layer.
+
 ## 2.13: manga page setup
 - New: File › 📖 New manga page… (also in the Manga menu): pick the page (phone / web, manga B5 or A4 print at 350 dpi, square, webtoon strip) and a panel layout (1, 2 or 3 panels, 2 × 2, 2 × 3, classic 5-panel manga, 4-panel strip), the space between panels and the border width. The page comes with print guides and the layers Colour, Tone, Ink, Text & balloons and Panels, with Ink ready to draw on.
 
