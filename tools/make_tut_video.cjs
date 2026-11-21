@@ -37,7 +37,7 @@ const OUT = path.resolve(outArg);
     await press('.tut-next', 1200);
     if (info.last) break;
   }
-  await p.waitForTimeout(2500);
+  await p.waitForTimeout(6000); // the result keeps playing
   await p.mouse.move(1240, 690, { steps: 10 });
   await title('Try it yourself!<small>' + endText + '</small>', 3200);
   const vid = await p.video().path(); await vctx.close(); await done();
