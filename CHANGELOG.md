@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: auto-save, video tutorials, new rig tutorial
+- New: auto-save — every 5 minutes, when you are not drawing, your file saves itself (File › ⏱ Auto-save on / off, and settings for the minutes). In Chrome, Edge and the desktop app, File › Save asks once where to save and then keeps that same file up to date; in the Android / iPad app it saves to Documents/Sketchforge; elsewhere it keeps a copy in the app (reopened next time). The status bar shows when it last saved.
+- New videos: ▶ Rig like Spine and ▶ Swap drawings (Help menu, the first card of each tutorial, and the website).
+- The Rig a character tutorial is updated for the new bones: main part, skeleton tree, linking, joints, hair & cloth bones, posing and animating.
+
 ## 2.13: hair & cloth bones that bend and flow
 - New: Bone group › Hair & cloth (also Animation › 〰 Hair & cloth bones): click points along long hair, a cape, a skirt, a tail or a ribbon, from where it is attached to its tip. When the body moves or turns, the drawing bends along these bones — it lags behind, swings, bounces and settles, like in Spine. Settings like Spine's physics: inertia, strength, damping, mass, gravity, wind and mix, plus ready settings (long hair, cape, skirt, ribbon, tail).
 - New: pose and animate the hair & cloth bones yourself: Hair & cloth › Pose bones (or Bone: pose) — drag a bone point to turn that bone; the first bone is the main bone fixed to the part and every bone after it follows. Each pose is a key on that frame, the bones move smoothly between keys, and gravity / physics still play on top.

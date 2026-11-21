@@ -51,7 +51,28 @@ const MORE_TUTORIALS = [
     { t: 'Draw over it', x: '<b>Place on new layer</b> puts the pose on a layer to trace, or <b>Pose on canvas</b> lets you pose it right over your drawing.' }
   ] }
 ];
+/* video versions of tutorials (recorded by tools/make_tut_video.cjs, served by the website) */
+const TUT_VIDEOS = { swap: ['🔁 Swap drawings — video', 'assets/swap-faces.mp4', 'Swap drawings'], spinerig: ['🦴 Rig like Spine — video', 'assets/rig-spine.mp4', 'Rig like Spine'] };
+function tutVideo(id) {
+  const V = TUT_VIDEOS[id]; if (!V) return;
+  const site = typeof siteUrl === 'function' ? siteUrl() : '', src = site ? site + '/' + V[1] : V[1];
+  let d = $('#tutVideo'); if (d) d.remove();
+  d = document.createElement('dialog'); d.id = 'tutVideo'; d.className = 'csdlg wndlg';
+  d.innerHTML = `<form method="dialog"><h5></h5><video src="${src}" controls autoplay playsinline style="width:100%;max-height:70vh;background:#000;border-radius:8px"></video>
+    <p class="muted small" style="margin:6px 0 0">Needs the internet. The same steps are in Help › Tutorials › ${V[2]}, with "Show me" buttons.</p>
+    <div class="dialog-actions"><span style="flex:1"></span><button value="ok" class="primary">Close</button></div></form>`;
+  d.querySelector('h5').textContent = V[0];
+  document.body.appendChild(d);
+  d.querySelector('video').onerror = () => { d.querySelector('p').textContent = `The video could not load (offline?). Follow Help › Tutorials › ${V[2]} instead.`; };
+  d.addEventListener('close', () => d.remove()); d.showModal();
+}
 function installMoreTutorials() {
+  CMD.videoSwap = () => tutVideo('swap'); CMD.videoSpine = () => tutVideo('spinerig');
+  { const H = MENUS.find(m => m[0] === 'Help'); if (H) { const i = H[1].findIndex(x => Array.isArray(x) && x[1] === 'foxVideo'); H[1].splice(i < 0 ? H[1].length : i + 1, 0, ['▶ Video: rig like Spine', 'videoSpine'], ['▶ Video: swap drawings', 'videoSwap']); } }
+  for (const [id, cmd] of [['swap', 'videoSwap'], ['spinerig', 'videoSpine']]) { // a "watch the video" link on the first card
+    const t = TUTORIALS.find(x => x.id === id) || MORE_TUTORIALS.find(x => x.id === id);
+    if (t && Array.isArray(t.steps) && t.steps[0] && !/Watch the video/.test(t.steps[0].x)) t.steps[0].x += ` <a href="#" onclick="CMD.${cmd}();return false">▶ Watch the video</a>`;
+  }
   for (const t of MORE_TUTORIALS) {
     if (TUTORIALS.some(x => x.id === t.id)) continue;
     let at = -1; TUTORIALS.forEach((x, i) => { if (x.cat === t.cat && !x.auto) at = i; });

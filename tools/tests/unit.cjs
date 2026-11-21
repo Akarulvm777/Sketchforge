@@ -179,6 +179,11 @@ const TESTS = {
     return ok ? true : { a, m, h };
   },
 
+  'auto-save: only with changes, when quiet, not busy, after the minutes': () => {
+    const b = { on: true, dirty: true, busy: false, quiet: true, now: 10 * 60000, last: 4 * 60000, min: 5 };
+    return autoSaveDue(b) && !autoSaveDue({ ...b, dirty: false }) && !autoSaveDue({ ...b, quiet: false }) && !autoSaveDue({ ...b, busy: true }) && !autoSaveDue({ ...b, last: 6 * 60000 }) && !autoSaveDue({ ...b, on: false });
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
