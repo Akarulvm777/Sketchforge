@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: a tutorial for every tool
+- New: Help › Tutorials › Every tool: a tutorial for each tool group (Pen, Sketch, Brush, Eraser, Blend, Liquify, Airbrush, Decoration, Manga tone, Shading pens, Bone, Fill, Gradient, Selection, Move, Figure, Ruler, Frame, Balloon, Text, Navigate…) with a step for every tool: what it is for, and a Try it button that uses it on a practice page. Tools you import (and every tool added later) get their own step automatically.
+
 ## 2.13: gravity bones and a main part
 - New: Animation › 🦴 Make main part: the selected part (e.g. the body) holds the character — every free part follows it, so moving or turning it moves everything.
 - New: Animation › 🌬 Gravity bone…: hair, cloth, a tail or ears swing by themselves when the part they hang from moves or turns, lag behind, bounce and settle — like secondary motion in rigging apps. Soft ↔ stiff, bounce and gravity are adjustable; playback and exports show it; your keyframes are not changed.
