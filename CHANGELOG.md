@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: pose the 3D model like a pro
+- New: in the 3D model, pointing at a body part lights it up blue; clicking it turns it red and shows red, green and blue rotation rings at the joint — drag a ring to turn the part around exactly that axis (fingers get small rings too). Dragging the part itself still moves it.
+- New: a floor grid and a soft ground shadow under the model (Look › Floor grid / Ground shadow; the grid never goes into "Place on new layer").
+- New: in Pose on canvas, the bar floats above the model's head, with Front / Side / Back views, zoom in / out, reset camera and a button to show or hide the rings.
+
 ## 2.13: profiles, a Shared page, likes and reshares
 - Website: a new **Shared** page holds everything people share. Choose 🎨 Shared art (pictures, time-lapses) or 🖌 Shared tools (brushes, Clip Studio tools, themes), sort by newest, most liked or most downloaded, comment and download.
 - Website: when you share, you say who made it — "I made it myself" or "I took it from somewhere else" with a credit. Every post shows it.
