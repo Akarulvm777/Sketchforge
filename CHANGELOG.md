@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: manga page setup
+- New: File › 📖 New manga page… (also in the Manga menu): pick the page (phone / web, manga B5 or A4 print at 350 dpi, square, webtoon strip) and a panel layout (1, 2 or 3 panels, 2 × 2, 2 × 3, classic 5-panel manga, 4-panel strip), the space between panels and the border width. The page comes with print guides and the layers Colour, Tone, Ink, Text & balloons and Panels, with Ink ready to draw on.
+
 ## 2.13: a tutorial for every tool
 - New: Help › Tutorials › Every tool: a tutorial for each tool group (Pen, Sketch, Brush, Eraser, Blend, Liquify, Airbrush, Decoration, Manga tone, Shading pens, Bone, Fill, Gradient, Selection, Move, Figure, Ruler, Frame, Balloon, Text, Navigate…) with a step for every tool: what it is for, and a Try it button that uses it on a practice page. Tools you import (and every tool added later) get their own step automatically.
 
