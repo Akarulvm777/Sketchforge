@@ -141,6 +141,23 @@ const TESTS = {
     return big && tmpCanvas.width === 1 && sizes.every(n => n <= 1 || n === state.w * state.h) ? true : { sizes, big };
   },
 
+  'stroke quality changes the dab distance (mixing tools stay sparse)': () => {
+    const m = QUALITY.mode, r = [];
+    for (const q of ['fast', 'normal', 'best']) { QUALITY.mode = q; r.push(qualityStep(10, false), qualityStep(10, true)); }
+    QUALITY.mode = m;
+    return r[0] > r[2] && r[2] > r[4] && r[1] === 10 && r[3] === 10 && r[5] >= 8 ? true : r;
+  },
+
+  'quick setup sets only its keys and copies curves': () => {
+    const s = { size: 33, tipId: 'x' }, p = ADV_PRESETS[0][1]; advApplyPreset(s, p);
+    return s.size === 33 && s.tipId === 'x' && s.hardness === 1 && s.pCurve !== p.pCurve && s.pCurve[1][0] === p.pCurve[1][0];
+  },
+
+  'a new file starts with its paper locked': () => {
+    newDocument(64, 64, 1, 12, false, 'u'); const p = state.layers.find(l => l.paper);
+    return !!(p && p.locked);
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

@@ -4,6 +4,23 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: advanced tool setup and better stroke quality
+- New: Tool Property › ▸ Advanced setup for every brush, pen, pencil and airbrush (built-in and imported): quick setups (✒ Crisp ink, ✏ Soft sketch, 🖌 Painterly, ☁ Airy), the pen pressure curve, minimum size and opacity, thin start / end and fade, spacing and rotation for picture tips, colour change per dab and the tool's blending mode.
+- New: ↺ Reset this tool brings a tool back to its first settings.
+- New: Stroke quality (in Advanced setup, for all tools): Best gives smoother, denser strokes; Fast draws fewer dabs for slow tablets and phones; Normal is the usual balance.
+- Fix: a tool with a thin start but no start size drew nothing.
+- New: the paper layer is locked in every new file, so you never paint on it by mistake (unlock it any time with the 🔒 on the layer).
+- New tutorials: Make a manga page, Two-colour brushes, Advanced tool setup, Main part & gravity bones, Face sliders, Pose the 3D model (Help › Tutorials).
+
+## 2.13: smoother special blend modes
+- Faster: layers with a special blending mode (Linear burn, Add (Glow), Divide, Hard mix…) no longer recompute the whole page after every stroke: the layers below are kept ready, only the area you just drew is redone, and nothing is redone when you draw on another layer.
+
+## 2.13: manga page setup
+- New: File › 📖 New manga page… (also in the Manga menu): pick the page (phone / web, manga B5 or A4 print at 350 dpi, square, webtoon strip) and a panel layout (1, 2 or 3 panels, 2 × 2, 2 × 3, classic 5-panel manga, 4-panel strip), the space between panels and the border width. The page comes with print guides and the layers Colour, Tone, Ink, Text & balloons and Panels, with Ink ready to draw on.
+
+## 2.13: a tutorial for every tool
+- New: Help › Tutorials › Every tool: a tutorial for each tool group (Pen, Sketch, Brush, Eraser, Blend, Liquify, Airbrush, Decoration, Manga tone, Shading pens, Bone, Fill, Gradient, Selection, Move, Figure, Ruler, Frame, Balloon, Text, Navigate…) with a step for every tool: what it is for, and a Try it button that uses it on a practice page. Tools you import (and every tool added later) get their own step automatically.
+
 ## 2.13: gravity bones and a main part
 - New: Animation › 🦴 Make main part: the selected part (e.g. the body) holds the character — every free part follows it, so moving or turning it moves everything.
 - New: Animation › 🌬 Gravity bone…: hair, cloth, a tail or ears swing by themselves when the part they hang from moves or turns, lag behind, bounce and settle — like secondary motion in rigging apps. Soft ↔ stiff, bounce and gravity are adjustable; playback and exports show it; your keyframes are not changed.

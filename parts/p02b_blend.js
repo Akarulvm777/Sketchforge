@@ -31,11 +31,14 @@ const BLEND_FN = {
   divide: (b, s) => (s <= 0 ? (b > 0 ? 1 : 0) : Math.min(1, b / s))
 };
 const GLOW_BLEND = new Set(['glow-dodge', 'add-glow']); // the source's transparency strengthens / weakens the effect itself
-/* blends canvas src (same size as g's canvas, layer opacity already applied) into g with a custom mode */
-function blendCustom(g, src, mode) {
-  const w = g.canvas.width, h = g.canvas.height;
-  if (!w || !h) return;
-  const D = g.getImageData(0, 0, w, h), d = D.data, sd = src.getContext('2d').getImageData(0, 0, w, h).data;
+/* blends canvas src (same size as g's canvas, layer opacity already applied) into g with a custom mode;
+   r = { x, y, w, h }: only that area (src then holds just that area, at 0,0, when r.local) */
+function blendCustom(g, src, mode, r) {
+  const W = g.canvas.width, Hh = g.canvas.height;
+  if (!W || !Hh) return;
+  const x = r ? r.x : 0, y = r ? r.y : 0, w = r ? r.w : W, h = r ? r.h : Hh;
+  if (w <= 0 || h <= 0) return;
+  const D = g.getImageData(x, y, w, h), d = D.data, sd = src.getContext('2d').getImageData(r && r.local ? 0 : x, r && r.local ? 0 : y, w, h).data;
   const fn = BLEND_FN[mode], glow = GLOW_BLEND.has(mode), dark = mode === 'darker-color', light = mode === 'lighter-color';
   const res = [0, 0, 0];
   for (let i = 0; i < d.length; i += 4) {
@@ -57,20 +60,46 @@ function blendCustom(g, src, mode) {
     d[i + 2] = Math.round((sb * wS + res[2] * wB + bb * wD) / ao * 255);
     d[i + 3] = Math.round(Math.min(1, ao) * 255);
   }
-  g.putImageData(D, 0, 0);
+  g.putImageData(D, x, y);
 }
 const hasCustomBlend = () => state.layers.some(l => l.visible && isCustomBlend(l.blend));
 /* on screen: a layer with a custom mode is shown as "everything below + this layer, blended" */
+/* what the layers below look like: a key that changes when any of them changes (pixels, transform, visibility…) */
+function cbBelowKey(i) {
+  let k = state.frame + '|' + state.w + 'x' + state.h;
+  for (let j = 0; j < i; j++) { const L = state.layers[j], fp = frameParams(L, state.frame); k += `|${L.id}:${L.visible ? 1 : 0}${L.opacity}${L.blend}${L.clip ? 1 : 0}${L.draft ? 1 : 0}${L.ref ? 1 : 0}:${fp ? (fp.cel._sv || 0) + ',' + fp.key + ',' + [fp.p.x, fp.p.y, fp.p.rot, fp.p.sx, fp.p.sy, fp.p.alpha].join(',') : '-'}${L.mask ? ':m' + ((L.mask.cels.get(0) || {})._sv || 0) : ''}`; }
+  return k;
+}
+let CB_DIRTY = null; // the area changed by the last edits (celEntry), or null = everything
 function customBlendView(l, i) {
   let cv = l._bv;
-  if (!cv || cv.width !== state.w || cv.height !== state.h) cv = l._bv = makeCanvas(state.w, state.h);
+  const full = !cv || cv.width !== state.w || cv.height !== state.h;
+  if (full) cv = l._bv = makeCanvas(state.w, state.h);
   const g = cv.getContext('2d');
-  g.clearRect(0, 0, state.w, state.h);
-  g.drawImage(compositeFrame(state.frame, { until: i, view: true }), 0, 0);
+  // the layers below are composited once and kept until one of them changes (a stroke on this layer or above only
+  // redoes the changed area: a whole-page redo per stroke lagged big pages)
+  const key = cbBelowKey(i), belowOk = l._belowKey === key && l._below && l._below.width === state.w;
+  if (!belowOk) { l._below = compositeFrame(state.frame, { until: i, view: true }); l._belowKey = key; }
   const fp = frameParams(l, state.frame);
+  const st = fp ? `${l.visible}${l.opacity}${l.blend}${l.draft}${l.clip ? 1 : 0}${l.mask ? 'm' + ((l.mask.cels.get(0) || {})._sv || 0) : ''}|${fp.key},${fp.p.x},${fp.p.y},${fp.p.rot},${fp.p.sx},${fp.p.sy},${fp.p.alpha}` : 'none';
+  const self = st + '|' + (fp ? fp.cel._sv || 0 : 0);
+  const styleIt = () => { const s = cv.style; s.display = l.visible ? 'block' : 'none'; s.opacity = '1'; s.mixBlendMode = 'normal'; s.transform = 'none'; s.zIndex = 10 + i * 2; s.position = 'absolute'; s.left = s.top = '0'; s.width = s.height = '100%'; return cv; };
+  if (!full && belowOk && l._bvSelf === self) return styleIt(); // nothing below or here changed (e.g. a stroke on a layer above)
+  let r = null;
+  if (!full && belowOk && CB_DIRTY && fp && l._bvState === st && !l.clip && !l.mask && !layerMat(l, state.frame)) {
+    const b = clampBox(CB_DIRTY.x0, CB_DIRTY.y0, CB_DIRTY.x1, CB_DIRTY.y1); if (b && b.w > 0 && b.h > 0) r = b;
+  }
+  l._bvState = st; l._bvSelf = self;
+  const x = r ? r.x : 0, y = r ? r.y : 0, w = r ? r.w : state.w, h = r ? r.h : state.h;
+  g.clearRect(x, y, w, h);
+  g.drawImage(l._below, x, y, w, h, x, y, w, h);
   if (fp && l.visible) {
-    const lc = layerPixels(l, i, state.frame, fp, l.opacity * fp.p.alpha * (l.draft ? 0.45 : 1));
-    blendCustom(g, lc, l.blend);
+    const alpha = l.opacity * fp.p.alpha * (l.draft ? 0.45 : 1);
+    if (r) { // the layer's pixels of that area only
+      const lc = makeCanvas(w, h), lg = lc.getContext('2d'); lg.globalAlpha = alpha; lg.translate(-x, -y);
+      { const m = layerMat(l, state.frame); if (m) lg.transform(...m); } lg.drawImage(fp.cel, 0, 0);
+      blendCustom(g, lc, l.blend, { x, y, w, h, local: true });
+    } else blendCustom(g, layerPixels(l, i, state.frame, fp, alpha), l.blend);
   }
   const s = cv.style;
   s.display = l.visible ? 'block' : 'none'; s.opacity = '1'; s.mixBlendMode = 'normal'; s.transform = 'none'; s.zIndex = 10 + i * 2;
@@ -94,4 +123,10 @@ function layerPixels(l, i, f, fp, alpha) {
 }
 let _cbvT = 0;
 /* after an edit: refresh the baked views (once per frame) */
-function refreshCustomBlends() { if (!hasCustomBlend() || _cbvT) return; _cbvT = requestAnimationFrame(() => { _cbvT = 0; refreshStage(); }); }
+function refreshCustomBlends() { if (!hasCustomBlend() || _cbvT) return; _cbvT = requestAnimationFrame(() => { _cbvT = 0; refreshStage(); CB_DIRTY = null; }); }
+/* the area of each pixel edit (undo steps know it): the next refresh only redoes that area */
+function cbMarkDirty(b) {
+  if (!b) { CB_DIRTY = null; return; }
+  const box = { x0: b.x - 2, y0: b.y - 2, x1: b.x + b.w + 2, y1: b.y + b.h + 2 };
+  CB_DIRTY = CB_DIRTY && CB_DIRTY !== 'all' ? { x0: Math.min(CB_DIRTY.x0, box.x0), y0: Math.min(CB_DIRTY.y0, box.y0), x1: Math.max(CB_DIRTY.x1, box.x1), y1: Math.max(CB_DIRTY.y1, box.y1) } : box;
+}

@@ -64,8 +64,9 @@ function restoreRegion(ctx, b, canvas) {
    and the page reloaded). bytes = the memory the step holds, for the history budget (pushHistory). */
 function celEntry(t, b, before, after) {
   t.cel._bb = undefined;
+  if (typeof cbMarkDirty === 'function') cbMarkDirty(b);
   let patch = before;
-  const swap = () => { const cur = crop(t.cel, b); restoreRegion(t.ctx, b, patch); patch = cur; t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; };
+  const swap = () => { const cur = crop(t.cel, b); restoreRegion(t.ctx, b, patch); patch = cur; t.cel._bb = undefined; t.cel._sv = (t.cel._sv || 0) + 1; if (typeof cbMarkDirty === 'function') cbMarkDirty(b); };
   return {
     frame: t.frame, bytes: b.w * b.h * 4,
     undo() { swap(); if (t.created) t.layer.cels.delete(t.key); },
