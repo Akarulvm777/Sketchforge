@@ -100,7 +100,7 @@
     msg.textContent = 'Uploading…';
     try {
       const path = `${me().id}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '_')}`;
-      await SB.upload('shared', path, file);
+      await SB.upload('shared', path, file, file.type, { upsert: false }); // a new file name every time: plain upload
       await SB.rest('shared_items', { method: 'POST', body: { kind, name: f.name.value.trim(), description: f.description.value.trim(), author: me().name, file_path: path, file_name: file.name, size: file.size }, headers: { Prefer: 'return=minimal' } });
       f.reset(); msg.textContent = 'Published!'; load();
     } catch (er) { msg.textContent = 'Could not publish: ' + er.message; }
