@@ -302,8 +302,40 @@ const MIR_T = 256;
 function mirTile(st, tx, ty) {
   if (!st.mir) st.mir = new Map();
   const k = tx + ',' + ty; let t = st.mir.get(k);
-  if (!t) { const cv = st.t.ctx.canvas, x = tx * MIR_T, y = ty * MIR_T, w = Math.min(MIR_T, cv.width - x), h = Math.min(MIR_T, cv.height - y); t = { x, y, w, h, im: st.t.ctx.getImageData(x, y, w, h), d0: null }; st.mir.set(k, t); }
+  if (!t) {
+    const cv = st.t.ctx.canvas, x = tx * MIR_T, y = ty * MIR_T, w = Math.min(MIR_T, cv.width - x), h = Math.min(MIR_T, cv.height - y);
+    // read through a small canvas: calling getImageData on the layer itself makes the browser move the whole layer
+    // to slow memory, and then every change re-sends the full picture to the screen (lag on big pages)
+    const tc = makeCanvas(w, h), tg = tc.getContext('2d', { willReadFrequently: true });
+    tg.drawImage(cv, x, y, w, h, 0, 0, w, h);
+    t = { x, y, w, h, im: tg.getImageData(0, 0, w, h), d0: null, tc };
+    const ov = mirOverlay(st);
+    if (ov) { // shown as a small tile over the layer while the stroke lasts; the layer gets it back at the end (mirFinish)
+      tc.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+      ov.el.appendChild(tc); tg.putImageData(t.im, 0, 0); st.t.ctx.clearRect(x, y, w, h); t.ov = true;
+    }
+    st.mir.set(k, t);
+  }
   return t;
+}
+/* big layers: during a mixing stroke the changed area lives in 256 px tile canvases laid over the layer (same place,
+   transform, opacity and blend), so each frame updates a few small tiles instead of the whole page-size layer */
+let MIR_OV = null;
+function mirOverlay(st) {
+  if (st.mirOv !== undefined) return st.mirOv;
+  st.mirOv = null;
+  const cv = st.t.ctx.canvas, cs = cv.style;
+  if (typeof stage === 'undefined' || cv.parentNode !== stage || cs.display === 'none' || cv.width !== state.w || cv.height !== state.h || cv.width * cv.height < 1.5e6) return null;
+  const el = document.createElement('div'); el.className = 'mir-ov';
+  el.style.cssText = `position:absolute;left:0;top:0;width:${state.w}px;height:${state.h}px;pointer-events:none;transform-origin:${cs.transformOrigin || '0 0'};transform:${cs.transform || 'none'};opacity:${cs.opacity || 1};mix-blend-mode:${cs.mixBlendMode || 'normal'};z-index:${cs.zIndex}`;
+  cv.after(el);
+  return st.mirOv = MIR_OV = { el, cv, st };
+}
+/* end of the stroke: the tiles go back into the layer (one write per tile) and the overlay is removed */
+function mirFinish(st) {
+  if (!st || !st.mir) return;
+  for (const t of st.mir.values()) if (t.ov) { st.t.ctx.clearRect(t.x, t.y, t.w, t.h); st.t.ctx.drawImage(t.tc, t.x, t.y); t.ov = false; }
+  if (st.mirOv) { st.mirOv.el.remove(); if (MIR_OV === st.mirOv) MIR_OV = null; st.mirOv = null; }
 }
 /* copy the rectangle (x0, y0, w, h) between the tiles and an ImageData (put = false: tiles → image; true: image → tiles) */
 function mirCopy(st, im, x0, y0, put) {
@@ -324,87 +356,117 @@ function mirCopy(st, im, x0, y0, put) {
 function mirGet(st, x0, y0, w, h) { const im = new ImageData(w, h); mirCopy(st, im, x0, y0, false); return im; }
 function mirFlush(st) {
   if (!st || !st.mir) return;
-  for (const t of st.mir.values()) if (t.d0) { const [ax, ay, bx, by] = t.d0; st.t.ctx.putImageData(t.im, t.x, t.y, ax - t.x, ay - t.y, bx - ax, by - ay); t.d0 = null; }
+  for (const t of st.mir.values()) if (t.d0) {
+    const [ax, ay, bx, by] = t.d0;
+    if (t.ov) t.tc.getContext('2d').putImageData(t.im, 0, 0, ax - t.x, ay - t.y, bx - ax, by - ay);
+    else st.t.ctx.putImageData(t.im, t.x, t.y, ax - t.x, ay - t.y, bx - ax, by - ay);
+    t.d0 = null;
+  }
   if (st.t.cel) st.t.cel._sv = (st.t.cel._sv || 0) + 1;
 }
+/* one dab of a colour-mixing / blend brush, in plain number math (no canvas calls). The brush carries colour along
+   (st.sm.carry: a G×G premultiplied grid in brush space), picks up the layer under it, mixes it with the brush colour
+   (paint brushes) and lays it back through the tip shape. It used to take ~10 small canvas operations per dab
+   (≈0.15 ms); a pen stroke on a big page zoomed out makes thousands of dabs per second, so the line fell behind the
+   pen. Same result, many times faster. smudgeDab is the pure core (tested in unit.cjs). */
 function smudgeStamp(st, x, y, pr) {
-  const s = st.s, g = st.t.ctx, C = 128;
-  const d = Math.max(3, diameterAt(st, pr));
-  const sx = x - d / 2, sy = y - d / 2;
-  // every work canvas lives on the CPU side (willReadFrequently): the pixels are read back on every dab, and moving them
-  // between the graphics chip and the CPU 4–5 times per dab made colour-mixing brushes (many imported tools) crawl
-  const cpu = (w, h) => { const c = makeCanvas(w, h); c.getContext('2d', { willReadFrequently: true }); return c; };
-  if (!st.carry) { st.carry = cpu(C, C); st.tmpc = cpu(C, C); st.small = cpu(64, 64); }
-  const cg = st.carry.getContext('2d'), tg = st.tmpc.getContext('2d');
-  // paint brushes (colour mixing): the colour picked up from the canvas is mixed with the brush colour; strength follows opacity too
+  const s = st.s, d = Math.max(3, diameterAt(st, pr)), sx = x - d / 2, sy = y - d / 2;
   const paint = s.paint != null && !s.blurTool, P = paint ? clamp(s.paint, 0, 1) : 0, D = paint ? clamp(s.paintDensity ?? 1, 0, 1) : 1;
   const strength = clamp(s.flow * (s.pAlpha ? lerp(s.aMin ?? 0.15, 1, typeof prCurve === 'function' ? prCurve(s.aCurve, pr) : pr) : 1) * (paint ? s.opacity : 1), 0, 1);
-  if (!st.tipCpu) { const t0 = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness); st.tipCpu = cpu(t0.width, t0.height); st.tipCpu.getContext('2d').drawImage(t0, 0, 0); }
-  const tip = st.tipCpu;
-  const [BR, BG, BB] = paint ? hexToRgb(st.color) : [0, 0, 0];
-  // paper texture while mixing colours: the texture grain lowers the strength pixel by pixel
-  const tv = paint && s.tex ? texBaseFor(s.tex)._vals : null, tN = TEX_N, tk = s.texScale || 1, tA = clamp(s.texAmt ?? 0.6, 0, 1);
-  tg.globalCompositeOperation = 'source-over';
-  tg.clearRect(0, 0, C, C);
-  // the area under the brush, copied 1:1 first: scaling straight from the full-size picture made the browser process
-  // the whole picture on every dab (over a second per pen move on big pages)
-  const D0 = Math.ceil(d) + 2, ox = Math.floor(sx), oy = Math.floor(sy);
-  if (!st.grab || st.grab.width < D0) st.grab = cpu(D0, D0);
-  const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0);
-  { const x0 = Math.max(0, ox), y0 = Math.max(0, oy), w0 = Math.min(state.w, ox + D0) - x0, h0 = Math.min(state.h, oy + D0) - y0; // one read of the layer for this dab
-    if (w0 > 0 && h0 > 0) gg.putImageData(mirGet(st, x0, y0, w0, h0), x0 - ox, y0 - oy); }
-  const gx = sx - ox, gy = sy - oy, src = st.grab;
-  if (s.blurTool) {
-    const n = clamp(Math.round(d / 7), 3, 64);
-    const sg = st.small.getContext('2d');
-    sg.clearRect(0, 0, 64, 64);
-    sg.imageSmoothingQuality = 'high';
-    sg.drawImage(src, gx, gy, d, d, 0, 0, n, n);
-    tg.imageSmoothingQuality = 'high';
-    tg.drawImage(st.small, 0, 0, n, n, 0, 0, C, C);
-  } else {
-    if (!st.carryInit) { st.carryInit = true; cg.drawImage(src, gx, gy, d, d, 0, 0, C, C); }
-    else { cg.globalAlpha = 1 - s.smudge; cg.drawImage(src, gx, gy, d, d, 0, 0, C, C); cg.globalAlpha = 1; }
-    tg.drawImage(st.carry, 0, 0);
+  if (!st.sm) { // per stroke: the tip's alpha as numbers, and the carried-colour grid
+    const t0 = s.tipId && customTips.has(s.tipId) ? customTips.get(s.tipId) : getTip('#000000', s.hardness);
+    const c = makeCanvas(t0.width, t0.height), g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(t0, 0, 0);
+    const td = g.getImageData(0, 0, c.width, c.height).data, ta = new Float32Array(c.width * c.height);
+    for (let i = 0; i < ta.length; i++) ta[i] = td[i * 4 + 3] / 255;
+    const G = clamp(Math.ceil(Math.max(d, diameterAt(st, 1)) / 2), 4, 40); // carried colour is smooth: half the brush size is plenty
+    st.sm = { tw: c.width, th: c.height, ta, G, carry: new Float32Array(G * G * 4), pick: new Float32Array(G * G * 4), init: false };
   }
-  const rx = Math.max(0, Math.floor(sx)), ry = Math.max(0, Math.floor(sy));
-  const rw = Math.min(state.w, Math.ceil(sx + d) + 1) - rx, rh = Math.min(state.h, Math.ceil(sy + d) + 1) - ry;
-  if (rw > 0 && rh > 0) {
-    if (!st.rc || st.rc.width !== rw || st.rc.height !== rh) { st.rc = cpu(rw, rh); st.mc = cpu(rw, rh); }
-    const rg = st.rc.getContext('2d', { willReadFrequently: true }), mg = st.mc.getContext('2d', { willReadFrequently: true });
-    rg.clearRect(0, 0, rw, rh); rg.drawImage(st.tmpc, sx - rx, sy - ry, d, d);
-    mg.clearRect(0, 0, rw, rh); mg.drawImage(tip, sx - rx, sy - ry, d, d);
-    const cd = rg.getImageData(0, 0, rw, rh).data, md = mg.getImageData(0, 0, rw, rh).data;
-    const im = gg.getImageData(rx - ox, ry - oy, rw, rh), od = im.data; // the layer pixels, from the copy read above (no second read of the layer)
-    for (let i = 0; i < od.length; i += 4) {
-      let km = strength * md[i + 3] / 255;
-      if (km <= 0) continue;
-      if (tv) { const p = i >> 2, u = Math.floor((rx + p % rw) / tk) % tN, w = Math.floor((ry + Math.floor(p / rw)) / tk) % tN; km *= 1 - tA * (1 - tv[(w < 0 ? w + tN : w) * tN + (u < 0 ? u + tN : u)]); }
-      const oa = od[i + 3] / 255;
-      let ca = cd[i + 3] / 255, cr = cd[i], cgr = cd[i + 1], cb = cd[i + 2];
+  const cv = st.t.ctx.canvas, ox = Math.floor(sx), oy = Math.floor(sy), D0 = Math.ceil(d) + 2;
+  const x0 = Math.max(0, ox), y0 = Math.max(0, oy), x1 = Math.min(cv.width, ox + D0), y1 = Math.min(cv.height, oy + D0);
+  if (x1 > x0 && y1 > y0) {
+    const im = mirGet(st, x0, y0, x1 - x0, y1 - y0); // the layer under the dab, from the in-memory copy
+    smudgeDab(st.sm, im.data, x1 - x0, y1 - y0, x0, y0, sx, sy, d, {
+      blur: !!s.blurTool, smudge: s.smudge ?? 0.5, strength, paint, P, D, rgb: paint ? hexToRgb(st.color) : [0, 0, 0],
+      tv: paint && s.tex ? texBaseFor(s.tex)._vals : null, tN: TEX_N, tk: s.texScale || 1, tA: clamp(s.texAmt ?? 0.6, 0, 1)
+    });
+    mirCopy(st, im, x0, y0, true); // to the copy; the layer is updated once per frame (mirFlush)
+  }
+  growBox(st, x, y, d);
+}
+/* the dab itself (pure): M = per-stroke buffers, S = RGBA pixels of the region (rw × rh at x0, y0, changed in place) */
+function smudgeDab(M, S, rw, rh, x0, y0, sx, sy, d, o) {
+  const G = M.G, T = M.pick, cell = d / G;
+  // premultiplied bilinear sample of the region at document point (fx, fy); outside = transparent
+  const samp = (fx, fy, out, k) => {
+    const X = fx - 0.5 - x0, Y = fy - 0.5 - y0, ix = Math.floor(X), iy = Math.floor(Y), ax = X - ix, ay = Y - iy;
+    let r = 0, g = 0, b = 0, a = 0;
+    for (let j = 0; j < 4; j++) {
+      const px = ix + (j & 1), py = iy + (j >> 1); if (px < 0 || py < 0 || px >= rw || py >= rh) continue;
+      const w = ((j & 1) ? ax : 1 - ax) * ((j >> 1) ? ay : 1 - ay); if (!w) continue;
+      const i = (py * rw + px) * 4, al = S[i + 3] / 255 * w; r += S[i] * al; g += S[i + 1] * al; b += S[i + 2] * al; a += al;
+    }
+    out[k] = r; out[k + 1] = g; out[k + 2] = b; out[k + 3] = a;
+  };
+  const sub = cell > 3 ? 2 : 1, q = new Float32Array(4); // big brushes: 2×2 samples per cell
+  const pickCell = (cx, cy, cw, out, k) => { // average of the area [cx, cx + cw)²
+    if (sub === 1) { samp(cx + cw / 2, cy + cw / 2, out, k); return; }
+    let r = 0, g = 0, b = 0, a = 0;
+    for (let v = 0; v < 2; v++) for (let u = 0; u < 2; u++) { samp(cx + cw * (u + 0.5) / 2, cy + cw * (v + 0.5) / 2, q, 0); r += q[0]; g += q[1]; b += q[2]; a += q[3]; }
+    out[k] = r / 4; out[k + 1] = g / 4; out[k + 2] = b / 4; out[k + 3] = a / 4;
+  };
+  if (o.blur) { // blur: the area shrunk to n×n, then stretched back (smooth)
+    const n = clamp(Math.round(d / 7), 3, 64), B = new Float32Array(n * n * 4), bc = d / n;
+    for (let v = 0; v < n; v++) for (let u = 0; u < n; u++) pickCell(sx + u * bc, sy + v * bc, bc, B, (v * n + u) * 4);
+    for (let v = 0; v < G; v++) for (let u = 0; u < G; u++) {
+      const X = clamp((u + 0.5) * n / G - 0.5, 0, n - 1), Y = clamp((v + 0.5) * n / G - 0.5, 0, n - 1), ix = Math.min(n - 2, Math.floor(X)), iy = Math.min(n - 2, Math.floor(Y)), ax = X - ix, ay = Y - iy, k = (v * G + u) * 4;
+      for (let c = 0; c < 4; c++) { const i = (iy * n + ix) * 4 + c; T[k + c] = (B[i] * (1 - ax) + B[i + 4] * ax) * (1 - ay) + (B[i + n * 4] * (1 - ax) + B[i + n * 4 + 4] * ax) * ay; }
+    }
+  } else {
+    for (let v = 0; v < G; v++) for (let u = 0; u < G; u++) pickCell(sx + u * cell, sy + v * cell, cell, T, (v * G + u) * 4);
+    const C = M.carry;
+    if (!M.init) { C.set(T); M.init = true; }
+    else { const k = 1 - o.smudge; for (let i = 0; i < C.length; i += 4) { const f = 1 - T[i + 3] * k; C[i] = T[i] * k + C[i] * f; C[i + 1] = T[i + 1] * k + C[i + 1] * f; C[i + 2] = T[i + 2] * k + C[i + 2] * f; C[i + 3] = T[i + 3] * k + C[i + 3] * f; } }
+  }
+  const CG = o.blur ? T : M.carry, ta = M.ta, tw = M.tw, th = M.th, [BR, BG, BB] = o.rgb, { P, D, paint, strength, tv, tN, tk, tA } = o;
+  const bil = (A, W, H, X, Y, stride, c) => { // clamped bilinear in a W×H grid
+    X = clamp(X, 0, W - 1); Y = clamp(Y, 0, H - 1); const ix = Math.min(W - 2, Math.floor(X)) | 0, iy = Math.min(H - 2, Math.floor(Y)) | 0, ax = X - ix, ay = Y - iy;
+    if (W < 2 || H < 2) return A[c];
+    const i = (iy * W + ix) * stride + c;
+    return (A[i] * (1 - ax) + A[i + stride] * ax) * (1 - ay) + (A[i + W * stride] * (1 - ax) + A[i + W * stride + stride] * ax) * ay;
+  };
+  const rx = Math.max(x0, Math.floor(sx)), ry = Math.max(y0, Math.floor(sy)), ex = Math.min(x0 + rw, Math.ceil(sx + d) + 1), ey = Math.min(y0 + rh, Math.ceil(sy + d) + 1);
+  for (let py = ry; py < ey; py++) {
+    const v = (py + 0.5 - sy) / d; if (v < 0 || v >= 1) continue;
+    for (let px = rx; px < ex; px++) {
+      const u = (px + 0.5 - sx) / d; if (u < 0 || u >= 1) continue;
+      let km = strength * bil(ta, tw, th, u * tw - 0.5, v * th - 0.5, 1, 0);
+      if (km <= 0.0005) continue;
+      if (tv) { const tu = Math.floor(px / tk) % tN, tw2 = Math.floor(py / tk) % tN; km *= 1 - tA * (1 - tv[(tw2 < 0 ? tw2 + tN : tw2) * tN + (tu < 0 ? tu + tN : tu)]); }
+      // carried colour at this point (bilinear, 4 channels at once)
+      const GX = clamp(u * G - 0.5, 0, G - 1), GY = clamp(v * G - 0.5, 0, G - 1), gx = Math.min(G - 2, GX | 0), gy = Math.min(G - 2, GY | 0), fx = GX - gx, fy = GY - gy;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy, j0 = (gy * G + gx) * 4, j1 = j0 + G * 4;
+      let ca = CG[j0 + 3] * w00 + CG[j0 + 7] * w10 + CG[j1 + 3] * w01 + CG[j1 + 7] * w11, cr = 0, cgr = 0, cb = 0;
+      if (ca > 0.0001) {
+        cr = (CG[j0] * w00 + CG[j0 + 4] * w10 + CG[j1] * w01 + CG[j1 + 4] * w11) / ca;
+        cgr = (CG[j0 + 1] * w00 + CG[j0 + 5] * w10 + CG[j1 + 1] * w01 + CG[j1 + 5] * w11) / ca;
+        cb = (CG[j0 + 2] * w00 + CG[j0 + 6] * w10 + CG[j1 + 2] * w01 + CG[j1 + 6] * w11) / ca;
+      }
+      ca = Math.min(1, ca);
+      const i = ((py - y0) * rw + (px - x0)) * 4, oa = S[i + 3] / 255;
       if (paint) { // amount of paint P: brush colour vs picked-up colour; density D: how much it covers
         const wp = (1 - P) * ca, ws = P + wp;
         if (ws > 0.0001) { cr = (BR * P + cr * wp) / ws; cgr = (BG * P + cgr * wp) / ws; cb = (BB * P + cb * wp) / ws; }
         ca = D * Math.min(1, ws);
-      }
-      if (paint) { // paint goes on top (never makes the layer more transparent)
-        const da = km * ca, na = da + oa * (1 - da);
-        if (na > 0.0001) { const wo = oa * (1 - da); od[i] = (cr * da + od[i] * wo) / na; od[i + 1] = (cgr * da + od[i + 1] * wo) / na; od[i + 2] = (cb * da + od[i + 2] * wo) / na; }
-        od[i + 3] = na * 255 + 0.5;
+        const da = km * ca, na = da + oa * (1 - da); // paint goes on top (never makes the layer more transparent)
+        if (na > 0.0001) { const wo = oa * (1 - da); S[i] = (cr * da + S[i] * wo) / na; S[i + 1] = (cgr * da + S[i + 1] * wo) / na; S[i + 2] = (cb * da + S[i + 2] * wo) / na; }
+        S[i + 3] = na * 255 + 0.5;
         continue;
       }
       const keep = 1 - km, na = oa * keep + km * ca;
-      od[i + 3] = na * 255 + 0.5;
-      if (na > 0.0001) {
-        const wo = oa * keep, wc = km * ca;
-        od[i] = (od[i] * wo + cr * wc) / na;
-        od[i + 1] = (od[i + 1] * wo + cgr * wc) / na;
-        od[i + 2] = (od[i + 2] * wo + cb * wc) / na;
-      }
+      S[i + 3] = na * 255 + 0.5;
+      if (na > 0.0001) { const wo = oa * keep, wc = km * ca; S[i] = (S[i] * wo + cr * wc) / na; S[i + 1] = (S[i + 1] * wo + cgr * wc) / na; S[i + 2] = (S[i + 2] * wo + cb * wc) / na; }
     }
-    mirCopy(st, im, rx, ry, true); // to the copy; the layer is updated once per frame (mirFlush)
   }
-  growBox(st, x, y, d);
 }
 function finishDirect(st, b) {
   const t = st.t;

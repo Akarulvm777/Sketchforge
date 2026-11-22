@@ -757,7 +757,7 @@ function endStroke(cancel) {
   if (!st) return;
   stroke = null;
   const t = st.t;
-  if (st.mir && typeof mirFlush === 'function') { cancelAnimationFrame(st.mirRaf); st.mirRaf = 0; mirFlush(st); } // mixing brushes: the last dabs reach the layer
+  if (st.mir && typeof mirFlush === 'function') { cancelAnimationFrame(st.mirRaf); st.mirRaf = 0; mirFlush(st); if (typeof mirFinish === 'function') mirFinish(st); } // mixing brushes: the last dabs reach the layer
   if (typeof holdCancel === 'function') holdCancel(st);
 
   if (cancel) {

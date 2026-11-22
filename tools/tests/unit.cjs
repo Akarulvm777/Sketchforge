@@ -255,6 +255,17 @@ const TESTS = {
 
   'Ask button stays on screen when dragged': () => { const a = fabClamp(-50, 2000, 52, 390, 844), b = fabClamp(100, 200, 52, 390, 844); return a[0] === 6 && a[1] === 844 - 58 && b[0] === 100 && b[1] === 200 ? true : { a, b }; },
 
+  'mixing brush dab: red over red stays red, full paint gives the brush colour': () => {
+    const mk = (r, g, b) => { const S = new Uint8ClampedArray(20 * 20 * 4); for (let i = 0; i < S.length; i += 4) S.set([r, g, b, 255], i); return S; };
+    const M = () => ({ G: 8, tw: 2, th: 2, ta: new Float32Array([1, 1, 1, 1]), carry: new Float32Array(256), pick: new Float32Array(256), init: false });
+    const o = { blur: false, smudge: 0.5, strength: 1, paint: false, P: 0, D: 1, rgb: [0, 0, 0], tv: null };
+    const A = mk(224, 64, 64); smudgeDab(M(), A, 20, 20, 0, 0, 5, 5, 10, o); const a = [...A.slice((10 * 20 + 10) * 4, (10 * 20 + 10) * 4 + 4)];
+    const B = mk(224, 64, 64); smudgeDab(M(), B, 20, 20, 0, 0, 5, 5, 10, { ...o, paint: true, P: 1, D: 1, rgb: [32, 160, 64] }); const b = [...B.slice((10 * 20 + 10) * 4, (10 * 20 + 10) * 4 + 4)];
+    const C = mk(224, 64, 64); smudgeDab(M(), C, 20, 20, 0, 0, 5, 5, 10, { ...o, blur: true }); const c = [...C.slice((10 * 20 + 10) * 4, (10 * 20 + 10) * 4 + 4)];
+    const near = (p, q) => p.every((v, i) => Math.abs(v - q[i]) <= 2);
+    return near(a, [224, 64, 64, 255]) && near(b, [32, 160, 64, 255]) && near(c, [224, 64, 64, 255]) && A[3] === 255 ? true : { a, b, c };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
