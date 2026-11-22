@@ -97,7 +97,7 @@ async function tuneTools(ids, quiet) {
 }
 function installToolTune() {
   // a new import: study the new tools
-  const i0 = importTools; importTools = async function () { const out = await i0.apply(this, arguments); if (out && out.length) setTimeout(() => tuneTools(out.map(t => t.id).filter(id => TOOLDEF[id] && kindOf(id) === 'brush'), false), 300); return out; };
+  const i0 = importTools; importTools = async function () { const out = await i0.apply(this, arguments); if (out && out.length) setTimeout(() => tuneTools(out.map(t => t.id).filter(id => TOOLDEF[id] && kindOf(id) === 'brush'), true), 300); return out; };
   // after an update (or the first time): every imported tool whose study is older than this version
   const l0 = loadAddons; loadAddons = async function () {
     const out = await l0.apply(this, arguments);
