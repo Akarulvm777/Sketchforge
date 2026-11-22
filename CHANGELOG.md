@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.1: blend and mixing brushes on the graphics card
+- Blend, Finger tip, Blur and colour-mixing pens (such as an imported "Sketch pen") now paint on the graphics card when the device can: big brushes on big pages stay smooth (a size 300 blend brush needs about 7× less work from the processor). Same look as before.
+- If a device cannot use its graphics card for this, Sketchforge switches back to the processor by itself. You can also turn it off: View › Graphics card for blend / mixing brushes.
+- The speed test that runs before every release now checks every brush tool of the palette on a big page, not only the mixing tools.
+
 ## 3.0: Sketchforge 3.0.1, smooth mixing and blend tools on big pages
 - Fixed: colour-mixing pens (such as an imported "Sketch pen") and the Blend, Finger tip and Blur tools lagged behind the pen on big pages, especially zoomed out. Each dab of these tools is now plain number math instead of about ten small canvas operations: 3–6× faster, with the same look (smudging red into red no longer leaves dark streaks).
 - Big pages: while you paint with these tools, the changed area is shown in small tiles over the layer, and the layer itself is written once when you lift the pen (the browser no longer re-sends the whole page-size picture to the screen on every frame).
