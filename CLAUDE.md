@@ -134,6 +134,7 @@ Persistance locale : clés `localStorage` préfixées `sketchforge.` (`pen`, `to
    - `master` : le code de la **dernière version publiée**, rien d'autre. **Jamais de push direct** : on fusionne `prerelease` par une pull request, seulement quand les tests passent (le workflow les lance sur la PR). Une version de `package.json` sans tag sur `master` = publication automatique de la Release.
    - Après chaque version : copier `master` sur `dev` (et `prerelease`) pour repartir d'une base propre.
 1. Modifie `parts/`, puis lance `npm test` (build + contrôles de version + tests unitaires + smoke), puis commit. Une modification = un commit, avec `app.js` régénéré dans le même commit. Avant une version : aussi `npm run test:e2e` (suite complète).
+1b. **Versions (demandé par l'utilisateur le 23/11/2026) : Semantic Versioning.** Corrections de bugs seulement → **patch** (3.2.0 → 3.2.1) ; nouvelle fonction (même petite) → **minor** (3.2.x → 3.3.0) ; la section de `CHANGELOG.md` porte le numéro minor (`## 3.3: …`).
 2. **Release** : bumpe la version de façon cohérente aux 4 endroits suivants :
    - `package.json` → `version`
    - `index.html` → `<title>`, `?v=` sur `style.css` et `app.js`, texte de la barre d'état

@@ -4,11 +4,13 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
-## 3.1: Sketchforge 3.1.1, 3D model layer and no more freezes when you pause
+## 3.2: 3D model layer, new website, no more freezes when you pause
 - Fixed: short freezes just before the pen touched the canvas, or right after changing the colour, the brush size or the tool. Background jobs (saving your work in the browser, time-lapse pictures, checking imported tools) started as soon as the pen left the canvas; they now wait until you really stop — hovering the pen and using the panels count as working.
 - The 3D model gets its own layer, "🧍 3D model": move the layer to put the model in front of or behind your drawing, hide it with the eye, fade it with the layer opacity. Delete the layer to remove the model.
 - 3D model with the mouse while posing: right-drag (or Alt+drag) turns the view around it, the wheel zooms, middle-drag (or Shift+drag) moves it. Left-drag still poses.
 - Fixed: importing some tools (such as gradients) stopped with an error at the end of the import.
+- Fixed: saving no longer waits for a time-lapse picture.
+- New website: the real app opens right inside the home page ("Try it in this page") and full screen on the new Studio page, with the animation videos in one player (website redesign by sershoks).
 
 ## 3.1: blend and mixing brushes on the graphics card
 - Blend, Finger tip, Blur and colour-mixing pens (such as an imported "Sketch pen") now paint on the graphics card when the device can: big brushes on big pages stay smooth (a size 300 blend brush needs about 7× less work from the processor). Same look as before.
