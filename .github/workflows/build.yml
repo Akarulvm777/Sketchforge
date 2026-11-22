@@ -283,6 +283,14 @@ jobs:
         continue-on-error: true
       - id: deploy
         uses: actions/deploy-pages@v4
+      - name: Tell search engines about the new pages (IndexNow; the key file is public, in site/)
+        continue-on-error: true
+        env: { INDEXNOW_KEY: f6536befdc21418698b7bdb9f506433d }
+        run: |
+          B="${{ steps.deploy.outputs.page_url }}"; B="${B%/}"; H="${B#https://}"; H="${H%%/*}"
+          sleep 30
+          curl -sS -m 30 -X POST https://api.indexnow.org/indexnow -H 'Content-Type: application/json; charset=utf-8' \
+            -d "{\"host\":\"$H\",\"key\":\"$INDEXNOW_KEY\",\"keyLocation\":\"$B/$INDEXNOW_KEY.txt\",\"urlList\":[\"$B/\",\"$B/app/\",\"$B/community.html\",\"$B/shared.html\"]}" -w ' HTTP %{http_code}\n'
   release:
     needs: [gate, desktop, android, web]
     # a desktop build that could not run (e.g. no macOS machine free) does not block the release
