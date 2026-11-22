@@ -251,6 +251,10 @@ const TESTS = {
     return ok ? true : { h: [...h], g: [...g], c: [...c], d: [...d], p: [...p], e: [E[27], E[25]] };
   },
 
+  'studio look: slider fill percent': () => rangeFillPct(5, 0, 10) === 50 && rangeFillPct(-3, 0, 10) === 0 && rangeFillPct(50, '', '') === 50 && rangeFillPct(1, 2, 2) === 0,
+
+  'Ask button stays on screen when dragged': () => { const a = fabClamp(-50, 2000, 52, 390, 844), b = fabClamp(100, 200, 52, 390, 844); return a[0] === 6 && a[1] === 844 - 58 && b[0] === 100 && b[1] === 200 ? true : { a, b }; },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

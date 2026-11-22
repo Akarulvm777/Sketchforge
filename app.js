@@ -13662,6 +13662,7 @@ function renderAcctBtn() {
   const b = $('#acctBtn'); if (!b) return;
   const p = SB().profile();
   b.innerHTML = p ? (p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<span class="ini">${esc((p.name || '?')[0].toUpperCase())}</span>`) : 'Sign in';
+  b.classList.toggle('out', !p);
   b.title = p ? `${p.name} — account, cloud files, settings sync` : 'Sign in with Google or GitHub';
   b.classList.toggle('in', !!p);
 }
@@ -14266,6 +14267,7 @@ const HELP_TIPS = [
   { q: 'mirror symmetry both sides', t: 'Symmetry', x: 'The Symmetry button mirrors what you draw (Shift+M); ▾ for 4-way, radial or kaleidoscope.', a: [['cmd', 'symToggle', 'Symmetry on / off']] },
   { q: '3d model pose body reference hand fingers', t: '3D model', x: 'The 3D model button opens a posable man / woman: drag a part to move it, bend fingers, change the body shape, then Place on new layer.', a: [['cmd', 'show3d', 'Open the 3D model']] },
   { q: 'hue saturation brightness contrast duotone colourise colorize light leak lens flare neon edge pixel art cartoon cel shading pencil sketch old film vhs scanlines retro more effects', t: 'More effects', x: 'Filter › More effects: hue / saturation / brightness (or one colour), brightness & contrast, duotone, light leak, lens flare, neon edges, pixel art, cartoon (cel look), pencil sketch, old film and VHS scanlines. Live preview, OK = one undo step.', a: [['cmd', 'fxHsb', 'Hue / saturation…'], ['cmd', 'fxNeon', 'Neon edges…'], ['cmd', 'fxCartoon', 'Cartoon…']] },
+  { q: 'ask button move drag hide sparkle round button blocks covers in the way phone corner', t: 'Move or hide the ✨ Ask button', x: 'On phones and tablets, drag the round ✨ button anywhere — it stays there. View › Show / hide the ✨ Ask button hides it (Help › Ask the helper still works).', a: [['cmd', 'toggleAskFab', 'Show / hide it'], ['cmd', 'resetAskFab', 'Back to the corner']] },
   { q: 'theme colours interface dark light customise look icons font', t: 'Change how Sketchforge looks', x: '🎨 Custom P: themes, colours of every part, icons, fonts, layout, canvas and effects.', a: [['cmd', 'cpOpen', 'Open Custom P'], ['tut', 'custom', 'Custom P tutorial']] },
   { q: 'brush import sut clip studio brushes add brush gradient decoration tool zip folder download tools', t: 'Add Clip Studio tools', x: 'Add-ons › Import Clip Studio tools (several .sut, a .zip or a folder), or drop them on the Sub tool panel. Pens, pencils, brushes, airbrushes, decoration brushes, erasers, blend tools and gradients each go to their own group by themselves.', a: [['cmd', 'addSut', 'Import tools…'], ['cmd', 'addSutFolder', 'Import a folder…']] },
   { q: 'psd photoshop clip studio open file layers', t: 'Photoshop & Clip Studio files', x: 'File › Open reads .psd with layers and .clip as one picture; File › Save as Photoshop PSD keeps your layers.', a: [['cmd', 'open', 'Open…']] },
@@ -15842,6 +15844,62 @@ function installStartHub() {
   if (hubShouldShow(hubPref(), hubInstalled())) Promise.resolve(typeof welcomeGate !== 'undefined' ? welcomeGate : null).then(() => setTimeout(() => { if (!document.querySelector('dialog[open]')) hubOpen('home'); }, 900));
 }
 
+/* ---------- 3.0 "Studio" look helpers ----------
+   Sliders show their filled part (CSS var --fill on every range input, kept up to date on input and when panels are
+   rebuilt). rangeFillPct is pure. */
+function rangeFillPct(v, min, max) { const a = +min || 0, b = max === '' || max == null ? 100 : +max; return b > a ? clamp((+v - a) / (b - a) * 100, 0, 100) : 0; }
+function rangeFill(el) { if (el && el.type === 'range') el.style.setProperty('--fill', rangeFillPct(el.value, el.min, el.max).toFixed(1) + '%'); }
+function installStudio() {
+  installAskFab();
+  document.body.classList.add('studio');
+  const all = root => (root.querySelectorAll ? root.querySelectorAll('input[type=range]') : []).forEach(rangeFill);
+  document.addEventListener('input', e => rangeFill(e.target), true);
+  document.addEventListener('change', e => rangeFill(e.target), true);
+  let pend = false;
+  new MutationObserver(() => { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; all(document); }); }).observe(document.body, { childList: true, subtree: true });
+  // values set from code (no input event): refresh now and then while the pointer moves
+  document.addEventListener('pointerup', () => requestAnimationFrame(() => all(document)), true);
+  all(document);
+}
+/* ✨ Ask button on phones / tablets: drag it anywhere (position kept), View › ✨ Ask button shows / hides it.
+   sketchforge.aifab.v1 = { x, y (fractions of the screen), hidden }. fabClamp is pure. */
+const FAB = (() => { try { return JSON.parse(localStorage.getItem('sketchforge.aifab.v1')) || {}; } catch (e) { return {}; } })();
+const fabSave = () => { try { localStorage.setItem('sketchforge.aifab.v1', JSON.stringify(FAB)); } catch (e) {} };
+function fabClamp(x, y, size, W, H, pad = 6) { return [clamp(x, pad, Math.max(pad, W - size - pad)), clamp(y, pad, Math.max(pad, H - size - pad))]; }
+function fabPlace(fab) {
+  fab.classList.toggle('fab-hidden', !!FAB.hidden);
+  if (FAB.x == null) { fab.style.left = fab.style.top = ''; fab.style.right = fab.style.bottom = ''; return; }
+  const s = fab.offsetWidth || 52, [x, y] = fabClamp(FAB.x * innerWidth, FAB.y * innerHeight, s, innerWidth, innerHeight);
+  Object.assign(fab.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+}
+function installAskFab() {
+  const fab = $('#aiFab'); if (!fab) return;
+  let drag = null, moved = false;
+  fab.addEventListener('pointerdown', e => { const r = fab.getBoundingClientRect(); drag = { id: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY }; moved = false; try { fab.setPointerCapture(e.pointerId); } catch (er) {} });
+  fab.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 8) return;
+    moved = true; fab.classList.add('dragging');
+    const [x, y] = fabClamp(e.clientX - drag.dx, e.clientY - drag.dy, fab.offsetWidth, innerWidth, innerHeight);
+    Object.assign(fab.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+  });
+  const up = e => {
+    if (!drag || e.pointerId !== drag.id) return; drag = null; fab.classList.remove('dragging');
+    if (moved) { const r = fab.getBoundingClientRect(); FAB.x = r.left / innerWidth; FAB.y = r.top / innerHeight; fabSave(); }
+  };
+  fab.addEventListener('pointerup', up); fab.addEventListener('pointercancel', up);
+  fab.addEventListener('click', e => { if (moved) { e.stopImmediatePropagation(); e.preventDefault(); moved = false; } }, true);
+  addEventListener('resize', () => fabPlace(fab));
+  CMD.toggleAskFab = () => {
+    FAB.hidden = !FAB.hidden; fabSave(); fabPlace(fab);
+    toast(FAB.hidden ? '✨ Ask button hidden. Bring it back: View › ✨ Ask button (or Help › Ask the helper).' : '✨ Ask button shown — drag it anywhere.', 3500);
+  };
+  CMD.resetAskFab = () => { delete FAB.x; delete FAB.y; FAB.hidden = false; fabSave(); fabPlace(fab); };
+  const V = MENUS.find(m => m[0] === 'View');
+  if (V) V[1].push('-', ['Show / hide the ✨ Ask button (phones: drag it anywhere)', 'toggleAskFab'], ['Put the ✨ Ask button back in the corner', 'resetAskFab']);
+  fabPlace(fab);
+}
+
 /* ---------- pointer input ---------- */
 const pointers = new Map();
 let pinch = null, spaceDown = false;
@@ -16143,7 +16201,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installText(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installFx2(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installText(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installFx2(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); installStudio(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

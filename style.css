@@ -1112,3 +1112,130 @@ dialog.toolreport .row { display: flex; gap: 8px; justify-content: flex-end; mar
 /* the floating ✨ helper button never covers the start screen or the Pages panel's button (phones) */
 body.hub-open #aiFab { display: none !important; }
 @media (max-width: 900px) { #pagesPanel { bottom: calc(100px + env(safe-area-inset-bottom, 0px)); } }
+
+/* =====================================================================
+   3.0 — "Studio" look: calm dark neutrals, rounded controls, quiet
+   panel headers, one warm accent. Selectors unchanged (layout only).
+   Greys stay neutral and the accent stays copper / slate so Custom P
+   themes still repaint everything.
+   ===================================================================== */
+:root {
+  --bg: #1f2023; --menu: #1b1c1f; --panel: #26272b; --panel2: #2f3135; --line: #141518; --line2: #3c3e43;
+  --text: #e4e5e8; --muted: #8f9198;
+  --accent: #e08a3c; --accent-2: #384a63; --canvas: #18191c;
+  --sf-r: 6px; --sf-hover: #34363b; --sf-sel: #384a63; --sf-sel-b: #50678a;
+}
+html, body { font: 12px/1.35 "Inter", "Segoe UI Variable Text", "Segoe UI", -apple-system, "SF Pro Text", "Yu Gothic UI", system-ui, sans-serif; letter-spacing: .1px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3c3e43; border: 2px solid #26272b; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #55585e; }
+
+button { background: #2f3135; border: 1px solid #3a3c41; border-radius: var(--sf-r); color: #e4e5e8; transition: background-color .12s, border-color .12s; }
+button:hover { background: #393b40; border-color: #4a4d53; }
+button:active { background: #44464c; }
+button.primary, button.accent, dialog.csdlg button.primary { background: #e08a3c; border-color: #e08a3c; color: #1b1c1f; font-weight: 600; }
+button.primary:hover, button.accent:hover { background: #eb9a50; border-color: #eb9a50; }
+input[type=number], input[type=text], input:not([type]), select, textarea { background: #1b1c1f; border: 1px solid #3a3c41; border-radius: var(--sf-r); padding: 4px 7px; }
+input:focus, select:focus, textarea:focus { border-color: #e08a3c; outline: none; }
+:focus-visible { outline: 2px solid rgba(224,138,60,.7); outline-offset: 1px; }
+
+/* sliders: thin track, round thumb */
+input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; height: 18px; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) var(--fill, 0%), var(--line2) var(--fill, 0%)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: #e4e5e8; border: 3px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.5); cursor: pointer; }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 4px; background: #3c3e43; }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--accent); }
+input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #e4e5e8; border: 3px solid #e08a3c; }
+
+/* top bars */
+#menubar { height: 32px; background: #1b1c1f; border-bottom: 1px solid #141518; padding: 0 6px 0 0; }
+#menubar .logo { width: 32px; height: 32px; background: transparent; }
+.menu-btn { padding: 5px 10px; border-radius: var(--sf-r); color: #c9cacf; border: 0; }
+.menu.open > .menu-btn, .menu-btn:hover { background: #2f3135; color: #fff; }
+.dropdown { background: #26272b; border: 1px solid #3a3c41; border-radius: 10px; box-shadow: 0 14px 40px rgba(0,0,0,.55); padding: 5px; }
+.dropdown .mi { border-radius: var(--sf-r); padding: 5px 24px 5px 26px; }
+.dropdown .mi:hover { background: #384a63; color: #fff; }
+.dropdown hr { border: 0; border-top: 1px solid #34363b; margin: 4px 6px; }
+#cmdbar { background: #222326; border-bottom: 1px solid #141518; padding: 4px 8px; gap: 2px; }
+#cmdbar button { background: transparent; border-color: transparent; border-radius: var(--sf-r); padding: 4px 6px; color: #c9cacf; }
+#cmdbar button:hover { background: #2f3135; border-color: transparent; color: #fff; }
+#cmdbar .tl-sep { background: #34363b; box-shadow: none; margin: 0 6px; }
+#modeSwitch { background: #141518; border: 1px solid #2f3135; border-radius: 8px; padding: 2px; gap: 2px; }
+#modeSwitch button { border-radius: 6px; color: #9a9ca3; }
+#modeSwitch button:hover { color: #fff; background: #2a2c30; }
+#modeSwitch button.on { background: #e08a3c; color: #1b1c1f; }
+#tabbar { background: #1b1c1f; border-bottom: 1px solid #141518; height: 30px; padding: 0 6px; align-items: flex-end; }
+#tabbar .tab { height: 26px; background: transparent; color: #9a9ca3; border: 0; border-top: 0; border-radius: 8px 8px 0 0; }
+#tabbar .tab:hover { color: #e4e5e8; background: #232427; }
+#tabbar .tab.active, #tabbar .tab.on { background: #26272b; color: #fff; box-shadow: inset 0 2px 0 #e08a3c; }
+
+/* tool column */
+#toolbox { width: 44px; background: #1f2023; border-right: 1px solid #141518; padding: 6px 0; gap: 2px; }
+#toolbox .tool { width: 34px; height: 32px; border-radius: 8px; border: 0; color: #b8bac0; }
+#toolbox .tool:hover { background: #2f3135; color: #fff; }
+#toolbox .tool.active { background: #384a63; color: #fff; box-shadow: inset 0 0 0 1px #50678a; }
+#toolbox .tsep { background: #2f3135; box-shadow: none; margin: 4px 9px; }
+
+/* docks: card-like palettes with quiet headers */
+#leftdock, #rightdock { background: #1f2023; border-color: #141518; }
+.pal { background: #26272b; border: 0; border-bottom: 1px solid #141518; padding-bottom: 8px; }
+.pal h4 { background: transparent; border: 0; border-bottom: 1px solid #2f3135; padding: 7px 10px 6px 24px; margin: 0 0 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #8f9198; }
+.pal h4::before { color: #55585e; top: 5px; }
+.pal > *:not(h4) { margin-left: 8px; margin-right: 8px; }
+
+/* sub tools */
+#subtoolList { background: #1f2023; border: 1px solid #2f3135; border-radius: 8px; margin-left: 8px; margin-right: 8px; overflow: auto; }
+.sub-item { background: #26272b; border-bottom: 1px solid #1f2023; color: #e4e5e8; height: 26px !important; }
+.sub-item:hover { background: #2f3135; }
+.sub-item.active { background: #384a63; box-shadow: inset 3px 0 0 #e08a3c; border-bottom-color: #1f2023; }
+
+/* properties */
+label.slider { grid-template-columns: 66px 1fr 38px; margin: 4px 0; color: #c9cacf; }
+label.slider > span:last-child, label.slider output { color: #8f9198; font-variant-numeric: tabular-nums; }
+.seg { background: #1b1c1f; border-radius: 8px; padding: 2px; gap: 2px; }
+.seg button { border: 0; background: transparent; border-radius: 6px; color: #9a9ca3; }
+.seg button:hover { background: #2f3135; color: #fff; }
+.seg button.on { background: #384a63; color: #fff; border: 0; }
+.sizegrid { background: #1b1c1f; border-radius: 8px; padding: 2px; gap: 2px; }
+.sizegrid .sz { background: #26272b; border-radius: 5px; }
+.sizegrid .sz:hover { background: #2f3135; }
+.sizegrid .sz.on { background: #384a63; box-shadow: inset 0 0 0 1px #50678a; }
+.subtabs { background: #1b1c1f; border-radius: 8px; padding: 2px; margin: 0 8px 6px; border: 0; gap: 2px; }
+.subtabs button { background: transparent; border: 0; border-radius: 6px; color: #9a9ca3; }
+.subtabs button.on { background: #384a63; color: #fff; box-shadow: none; }
+
+/* layers */
+.layer-list { border-top: 0; margin-left: 8px; margin-right: 8px; border-radius: 8px; overflow: hidden; background: #1f2023; }
+.layer-item { background: #26272b; border-bottom: 1px solid #1f2023; padding: 4px 6px; }
+.layer-item:hover { background: #2f3135; }
+.layer-item.active { background: #384a63; box-shadow: inset 3px 0 0 #e08a3c; }
+.layer-item .thumb { border-radius: 4px; border-color: #141518; }
+.layer-item .name small { color: #9a9ca3; }
+
+/* canvas area, status bar, timeline */
+#viewport { background: #18191c; background-image: radial-gradient(circle at 50% 40%, #202125 0, #18191c 70%); }
+#stage { box-shadow: 0 0 0 1px rgba(0,0,0,.6), 0 18px 50px rgba(0,0,0,.55); }
+#statusbar { height: 24px; background: #1b1c1f; border-top: 1px solid #141518; color: #8f9198; padding: 0 10px; }
+.tl-head { background: #222326; border-top: 1px solid #141518; }
+#tlResize { background: #141518; }
+.tl-row.active .tl-name { background: #384a63; }
+dialog { background: #26272b; border: 1px solid #3a3c41; border-radius: 12px; box-shadow: 0 24px 70px rgba(0,0,0,.6); color: #e4e5e8; }
+dialog::backdrop { background: rgba(10,10,12,.5); }
+dialog.csnew { background: #26272b; border-radius: 12px; }
+dialog.csnew h2 { background: #1f2023; border-bottom: 1px solid #141518; }
+.nw-types button { background: #2f3135; border-color: #3a3c41; border-radius: 8px; }
+.nw-types button.on { background: #384a63; border-color: #e08a3c; }
+@media (max-width: 560px) {
+  #modeSwitch { margin-left: 6px; flex: 0 0 auto; }
+  #acctBtn { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 8px !important; padding-right: 8px !important; }
+  #menubar .logo { width: 26px; margin-right: 2px; }
+  #acctBtn.out { font-size: 0; flex: 0 0 auto; }
+  #acctBtn.out::before { content: '👤'; font-size: 14px; }
+  #modeSwitch button { padding: 3px 7px; font-size: 11.5px; white-space: nowrap; }
+  #menubar button { white-space: nowrap; }
+  #menubar .menu-btn, #btnMenu, #btnDocks { padding: 4px 9px; }
+}
+#aiFab { touch-action: none; }
+#aiFab.dragging { transform: scale(1.08); box-shadow: 0 10px 28px rgba(0,0,0,.55); transition: none; }
+#aiFab.fab-hidden { display: none !important; }
