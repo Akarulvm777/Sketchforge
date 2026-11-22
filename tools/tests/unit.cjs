@@ -207,6 +207,19 @@ const TESTS = {
     return reads <= 4 && px[0] === 255 && px[1] === 255 ? true : { reads, px: [...px] };
   },
 
+  'smart fill: a gap in a circle leaks without "close gaps" and is sealed with it; auto-flat finds each area': () => {
+    const w = 60, h = 60, data = new Uint8ClampedArray(w * h * 4), line = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) data[i * 4 + 3] = 0;
+    // a ring (radius 20, 2 px thick) with a 3 px gap on the right, and a line splitting the inside in two
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const d = Math.hypot(x - 30, y - 30), gapHere = x > 46 && Math.abs(y - 30) <= 1;
+      if ((d >= 19 && d <= 21 && !gapHere) || (x === 30 && d < 20)) { const i = y * w + x; line[i] = 1; data[i * 4 + 3] = 255; } }
+    const g0 = state.fillGap; state.fillGap = 0; const plain = floodMask(data, w, h, 40, 30, 10); state.fillGap = g0; const sealed = floodGapMask(data, w, h, 40, 30, 10, 4);
+    const leaked = plain.mask[2 * w + 2] === 1, inside = sealed && sealed.mask[30 * w + 40] === 1 && sealed.mask[2 * w + 2] === 0 && sealed.mask[30 * w + 22] === 0;
+    const flats = flatLabels(line, w, h, 4, 10, true, 1), L = flats.labels;
+    const two = L[30 * w + 22] > 0 && L[30 * w + 40] > 0 && L[30 * w + 22] !== L[30 * w + 40] && L[2 * w + 2] === 0;
+    return leaked && inside && two ? true : { leaked, inside, two, a: L[30 * w + 22], b: L[30 * w + 40], out: L[2 * w + 2] };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
