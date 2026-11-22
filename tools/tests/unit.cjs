@@ -220,6 +220,15 @@ const TESTS = {
     return leaked && inside && two ? true : { leaked, inside, two, a: L[30 * w + 22], b: L[30 * w + 40], out: L[2 * w + 2] };
   },
 
+  'vector lines: crossings, erase to the crossing, slice, soft bend': () => {
+    const h = { s: { size: 4 }, color: '#000', pts: [[0, 50, 1], [100, 50, 1]] }, v1 = { pts: [[30, 0, 1], [30, 100, 1]] }, v2 = { pts: [[70, 0, 1], [70, 100, 1]] };
+    const xs = polyCross(h.pts, v1.pts), mid = vecErasePieces(h, [v1, v2], 50, 'cross'), whole = vecErasePieces(h, [v1, v2], 50, 'whole');
+    const sl = polySlice(h.pts, 25, 75), bent = vecBend([[0, 0, 1], [50, 0, 1], [100, 0, 1]], 50, 0, 10, 40);
+    const ok = Math.abs(xs[0] - 30) < 1e-6 && mid.length === 2 && Math.abs(mid[0].pts[1][0] - 30) < 1e-6 && Math.abs(mid[1].pts[0][0] - 70) < 1e-6 && whole.length === 0
+      && Math.abs(sl[0][0] - 25) < 1e-6 && Math.abs(sl[sl.length - 1][0] - 75) < 1e-6 && bent[1][1] === 10 && bent[0][1] === 0;
+    return ok ? true : { xs, mid: mid.map(m => m.pts), sl, bent };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
