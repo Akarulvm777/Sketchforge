@@ -26,14 +26,14 @@ const H = require('./harness.cjs');
   // whole body, drag the right hand up (IK)
   await pg.click('#m3dCam'); await pg.click('#m3dPoses button:text("Stand")'); await pg.waitForTimeout(200);
   await E(() => { const M3 = window.__sketchforge.M3; M3.cam = { az: 0, el: 0.1, dist: 1.8, tx: -0.2, ty: 0.95 }; document.querySelector('#m3dLa').dispatchEvent(new Event('input')); }); await pg.waitForTimeout(300);
-  await E(() => document.querySelector('#m3dPreview').scrollIntoView({ block: 'center' })); await pg.waitForTimeout(150);
+  await E(() => window.__sketchforge.scope('setPoseOnCanvas(true)')); await pg.waitForTimeout(150); // posed on the canvas (no small window)
   const handScreen = await E(() => { const M3 = window.__sketchforge.M3, T = M3.T, mesh = M3.parts[0]; M3.root.updateMatrixWorld(true); mesh.skeleton.update();
     const src = mesh.geometry.attributes.position, di = mesh.userData.boneNames.indexOf('forearmR'), v = new T.Vector3(), c = new T.Vector3(); let n = 0;
     for (let i = 0; i < src.count; i++) if (mesh.userData.dom[i] === di) { v.fromBufferAttribute(src, i); mesh.applyBoneTransform(i, v); c.add(v); n++; }
-    c.multiplyScalar(1 / n); c.z += 0.03; c.project(M3.camera); const r = document.querySelector('#m3dPreview').getBoundingClientRect(); return [r.left + (c.x + 1) / 2 * r.width, r.top + (1 - c.y) / 2 * r.height, r.height]; });
+    c.multiplyScalar(1 / n); c.z += 0.03; c.project(M3.camera); const r = document.querySelector('#model3d-canvas').getBoundingClientRect(); return [r.left + (c.x + 1) / 2 * r.width, r.top + (1 - c.y) / 2 * r.height, r.height]; });
   const before = await E(() => { const M3 = window.__sketchforge.M3, v = new M3.T.Vector3(); M3.joints.handR.getWorldPosition(v); return v.y; });
   await pg.mouse.move(handScreen[0], handScreen[1]); await pg.mouse.down();
-  await pg.mouse.move(handScreen[0] - 10, handScreen[1] - handScreen[2] * 0.3, { steps: 12 }); await pg.mouse.up();
+  await pg.mouse.move(handScreen[0] - 10, handScreen[1] - handScreen[2] * 0.45, { steps: 12 }); await pg.mouse.up();
   const after = await E(() => { const M3 = window.__sketchforge.M3, v = new M3.T.Vector3(); M3.root.updateMatrixWorld(true); M3.joints.handR.getWorldPosition(v); return { y: v.y, sel: M3.sel, el: new M3.T.Euler().setFromQuaternion(M3.joints.forearmR.quaternion, 'YXZ').x }; });
   console.log('     hand y', before.toFixed(3), '->', after.y.toFixed(3), 'grabbed', after.sel, 'elbow', (after.el * 57.3).toFixed(0));
   check('drag the hand: the arm follows (hand goes up)', after.y > before + 0.15);

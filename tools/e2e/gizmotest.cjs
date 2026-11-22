@@ -7,7 +7,7 @@ const H = require('./harness.cjs');
   const ok = []; const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
   await pg.evaluate(() => window.__sketchforge.newDocument(1000, 1000, 1, 12, false, 'G'));
   await pg.evaluate(() => window.__sketchforge.CMD.show3d()); await pg.waitForTimeout(6000);
-  await pg.click('#m3dPoseCanvas'); await pg.waitForTimeout(400);
+  await pg.evaluate(() => window.__sketchforge.scope('setPoseOnCanvas(true)')); await pg.waitForTimeout(400); // the model is posed on the canvas (no small window)
   const scr = (name, dy = 0) => pg.evaluate(([name, dy]) => { const SF = window.__sketchforge, M3 = SF.M3, T = M3.T, v = new T.Vector3(); M3.root.updateMatrixWorld(true); M3.joints[name].getWorldPosition(v); v.y += dy; v.project(M3.camera);
     const dx = (v.x + 1) / 2 * SF.state.w, dyy = (1 - v.y) / 2 * SF.state.h, r = document.querySelector('#viewport').getBoundingClientRect(), V = SF.view, k = V.scale; return [r.left + V.x + dx * k, r.top + V.y + dyy * k]; }, [name, dy]);
   const G = () => pg.evaluate(() => { const g = window.__sketchforge.scope('GIZ'); return { rings: !!(g.group && g.group.visible), hover: g.hover, grid: !!(g.grid && g.grid.visible), shadow: !!(g.floor && g.floor.visible) }; });

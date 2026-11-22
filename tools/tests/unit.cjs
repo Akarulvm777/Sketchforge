@@ -190,6 +190,23 @@ const TESTS = {
       && l.map(e => e.name).join() === 'c,a,b' && pagesPanelWanted('auto', 'comic') && !pagesPanelWanted('off', 'comic') && !pagesPanelWanted('auto', 'illust');
   },
 
+  'tool tuner: same strokes look the same, a missing half looks different, mixing tools are not tuned': () => {
+    const w = 60, h = 12, A = new Uint8ClampedArray(w * h * 4), B = new Uint8ClampedArray(w * h * 4);
+    for (let i = 3; i < A.length; i += 4) { A[i] = 255; B[i] = (i >> 2) % w < w / 2 ? 255 : 0; }
+    const mix = tuneTool({ size: 10, smudge: 0.5, paint: 0.5 });
+    return tuneDiffData(A, A, w, h) === 0 && tuneDiffData(A, B, w, h) > 0.4 && !Object.keys(mix.perf).length;
+  },
+
+  'mixing brushes paint on a copy in memory: read once, written back on flush': () => {
+    const c = makeCanvas(300, 300), g = c.getContext('2d'); g.fillStyle = '#ff0000'; g.fillRect(0, 0, 300, 300);
+    let reads = 0; const gi = g.getImageData.bind(g); g.getImageData = (...a) => { reads++; return gi(...a); };
+    const st = { t: { ctx: g, cel: c } };
+    for (let k = 0; k < 20; k++) { const im = mirGet(st, 100 + k, 100, 20, 20); for (let i = 0; i < im.data.length; i += 4) im.data[i + 1] = 255; mirCopy(st, im, 100 + k, 100, true); }
+    cancelAnimationFrame(st.mirRaf); mirFlush(st);
+    const px = gi(110, 110, 1, 1).data;
+    return reads <= 4 && px[0] === 255 && px[1] === 255 ? true : { reads, px: [...px] };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

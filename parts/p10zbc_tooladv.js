@@ -82,7 +82,15 @@ function advSection(body, id, s) {
   hint(box, QUALITY.mode === 'best' ? 'Best: smoother edges, more dabs (slower on old tablets).' : QUALITY.mode === 'fast' ? 'Fast: fewer dabs, for slow devices.' : 'Normal: the usual balance of speed and smoothness.');
   btns(box, [['↺ Reset this tool', () => { if (advResetTool(id)) { renderSubTools(); refreshProps(); toast('Tool back to its first settings'); } else toast('This tool has no first settings to go back to'); }]]);
 }
+/* pen pressure on every built-in tool: blend tools blend harder when you press harder, thick paints cover more, the
+   snap eraser gets thinner with a light touch (the other tools already follow pressure) */
+const PRESSURE_FIX = { blend: { pAlpha: true, aMin: 0.15 }, finger: { pAlpha: true, aMin: 0.15 }, blurtool: { pAlpha: true, aMin: 0.2 },
+  gouache: { pAlpha: true, aMin: 0.35 }, acrylic: { pAlpha: true, aMin: 0.35 }, impasto: { pAlpha: true, aMin: 0.4 }, snapera: { pSize: true, pMin: 0.4 } };
+function applyPressureFix() {
+  for (const [id, fix] of Object.entries(PRESSURE_FIX)) { if (TOOLDEF[id] && TOOLDEF[id].preset) Object.assign(TOOLDEF[id].preset, fix); if (settings[id]) Object.assign(settings[id], fix); }
+}
 function installToolAdvanced() {
+  applyPressureFix();
   try { const q = localStorage.getItem('sketchforge.quality.v1'); if (QUALITY_STEP[q]) QUALITY.mode = q; } catch (e) { /* ignore */ }
   const s0 = stepAt;
   stepAt = function (st, pr) { return qualityStep(s0(st, pr), st.direct); };
