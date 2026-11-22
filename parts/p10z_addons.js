@@ -148,7 +148,7 @@ async function makeTip(src, density) {
 const GROUP_ICON = { pen: 'pen', pencil: 'pencil', brush: 'brush', airbrush: 'airbrush', decor: 'sparkle', eraser: 'eraser', blend: 'blend', shade: 'shade' };
 /* every engine setting a brush definition can carry (imported tools, the brush editor, .sfbrush files) */
 const BRUSH_KEYS = ['scatter', 'count', 'jitter', 'hueJit', 'wet', 'smudge', 'blurTool', 'nibRatio', 'nibAngle', 'speed', 'pMin', 'pCurve', 'aMin', 'aCurve', 'tipAngle', 'tipRotAmt', 'tipFollow',
-  'tipThick', 'sprayFix', 'sprayBias', 'blendOp', 'perfSpacing', 'perfCount', 'paint', 'paintDensity', 'texRot', 'tMin', 'tCurve', 'vMin', 'vCurve', 'sRand', 'aRand', 'rotP', 'taperOut',
+  'tipThick', 'sprayFix', 'sprayBias', 'blendOp', 'perfSpacing', 'perfCount', 'perfDefer', 'paint', 'paintDensity', 'texRot', 'tMin', 'tCurve', 'vMin', 'vCurve', 'sRand', 'aRand', 'rotP', 'taperOut',
   'taperOutRatio', 'fadeIn', 'fadeOut', 'min1', 'flowSp', 'satJit', 'valJit', 'atMin', 'atCurve', 'avMin', 'avCurve', 'grain', 'twoTone', 'twoEdge'];
 /* a brush definition → engine settings (tipIds: registered tip images; texId: registered texture image) */
 function brushPreset(def, tipIds = [], texId = null) {

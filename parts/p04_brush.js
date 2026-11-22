@@ -782,6 +782,7 @@ function endStroke(cancel) {
     afterMove(st);
   }
   if (st.tq) { flushTaper(st); afterMove(st); }
+  if (st.sFull && typeof replayFull === 'function') replayFull(st); // very heavy tools: the stroke again at full quality (p10zbd)
 
   const b = clampBox(st.box.x0, st.box.y0, st.box.x1, st.box.y1);
   if (!b) {

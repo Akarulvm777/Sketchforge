@@ -42,7 +42,7 @@ function tuneSpeed(s, cv) { let worst = 0; for (const z of TUNE.sizes) { const m
 /* study one tool: returns { before, after, changes, perf } (perf = engine settings to add) */
 function tuneTool(s) {
   if (s.smudge != null || s.paint != null) return { before: 0, after: 0, changes: ['colour mixing: paints on a fast copy in memory'], perf: {} };
-  const base = { ...s }; delete base.perfSpacing; delete base.perfCount;
+  const base = { ...s }; delete base.perfSpacing; delete base.perfCount; delete base.perfDefer;
   const cv = tuneCanvas(), ref = tuneCanvas(), before = tuneSpeed(base, cv);
   if (before <= TUNE.budget) return { before, after: before, changes: [], perf: {} };
   // how much the tool differs from itself (random spray, jitter): a change may differ a little more than that
@@ -62,14 +62,23 @@ function tuneTool(s) {
     const ms = tuneSpeed(cand, cv); if (ms < bestMs) { best = { ...best, perfCount: n }; bestMs = ms; }
     if (ms <= TUNE.budget) break;
   }
+  // still too slow for smooth drawing even with every change that keeps the look: a fast stand-in while drawing
+  // (perfDefer), and the stroke is drawn again at full quality, from the exact same path and pressure, when the pen
+  // lifts (replayFull) — so the pen never lags and the finished stroke looks exactly like the tool
+  if (bestMs > TUNE.budget) {
+    const pre = { ...base, ...best, perfSpacing: Math.min(0.5, Math.max(best.perfSpacing || sp0, sp0) * 3), perfCount: (base.count || 1) > 1 ? Math.max(1, Math.ceil((base.count || 1) / 3)) : undefined };
+    const ms = tuneSpeed(pre, cv);
+    if (ms < bestMs * 0.8) { best = { ...best, perfDefer: { spacing: pre.perfSpacing, count: pre.perfCount } }; bestMs = ms; }
+  }
   const changes = [];
+  if (best.perfDefer) changes.push('a light stand-in while you draw, the full-quality stroke as soon as you lift the pen');
   if (best.perfSpacing) changes.push(`dabs ${(best.perfSpacing / sp0).toFixed(1)}× further apart (same ink)`);
   if (best.perfCount) changes.push(`${best.perfCount} spray particles per step instead of ${base.count}`);
   return { before, after: bestMs, changes, perf: best };
 }
 function tuneApply(id, res) {
   const T = TOOLDEF[id]; if (!T) return;
-  for (const o of [T.preset, settings[id]]) { if (!o) continue; delete o.perfSpacing; delete o.perfCount; Object.assign(o, res.perf); }
+  for (const o of [T.preset, settings[id]]) { if (!o) continue; delete o.perfSpacing; delete o.perfCount; delete o.perfDefer; Object.assign(o, res.perf); }
   const x = res.before && res.after < res.before * 0.95 ? (res.before / res.after).toFixed(1) : null;
   const line = x ? `⚡ Tuned for smooth drawing: ${x}× faster (${res.changes.join(', ')}). The tool's own settings are unchanged.`
     : res.changes.length ? `⚡ ${res.changes[0]}` : '⚡ Checked: already smooth, nothing to change.';
@@ -86,23 +95,52 @@ async function tuneTools(ids, quiet) {
       const s = settings[id]; if (!s) continue;
       let res; try { res = tuneTool(s); } catch (e) { continue; }
       tuneApply(id, res);
-      if (res.perf.perfSpacing || res.perf.perfCount) faster++;
+      if (res.perf.perfSpacing || res.perf.perfCount || res.perf.perfDefer) faster++;
       const rec = (addons.brushes || []).find(b => b.id === id);
-      if (rec) { rec.perf = { ver: APP_VERSION, before: +res.before.toFixed(2), after: +res.after.toFixed(2), changes: res.changes, ...res.perf }; rec.perfSpacing = res.perf.perfSpacing; rec.perfCount = res.perf.perfCount; }
+      if (rec) { rec.perf = { ver: APP_VERSION, before: +res.before.toFixed(2), after: +res.after.toFixed(2), changes: res.changes, ...res.perf }; rec.perfSpacing = res.perf.perfSpacing; rec.perfCount = res.perf.perfCount; rec.perfDefer = res.perf.perfDefer; }
     }
     if (typeof saveAddons === 'function') saveAddons();
     if (!quiet || faster) toast(faster ? `⚡ ${faster} imported tool${faster > 1 ? 's were' : ' was'} tuned for smooth drawing (ⓘ shows what changed).` : `⚡ Imported tools checked: they draw smoothly.`, 4500);
     if (typeof renderSubTools === 'function') renderSubTools();
   } finally { TUNE.busy = false; }
 }
+/* very heavy tools: draw the stroke again with the full settings from the recorded path (called by endStroke) */
+function replayFull(st) {
+  const pts = st.rec; if (!pts || !pts.length || !st.rec0) return;
+  clearBuffers(st); st.box = newBox(); st.mbox = newBox();
+  st.s = st.sFull; st.sFull = null;
+  st.lx = st.rec0[0]; st.ly = st.rec0[1]; st.lp = st.rec0[2]; st.next = 0; st.travel = 0; st.outK = null; st.dlx = st.dly = null;
+  st.tq = st.s.taperOut ? [] : null;
+  st.replaying = true;
+  try {
+    stampAt(st, st.lx, st.ly, st.lp); st.next = stepAt(st, st.lp); // the first dab, where the pen came down
+    for (const p of pts) segment(st, p[0], p[1], p[2]);
+    if (st.tq) flushTaper(st);
+  } finally { st.replaying = false; }
+  afterMove(st);
+}
 function installToolTune() {
+  // a heavy tool draws with its light stand-in while the pen moves, and records the path for replayFull
+  const b0 = beginStroke; beginStroke = function () {
+    const out = b0.apply(this, arguments), st = stroke;
+    if (st && st.s && st.s.perfDefer && !st.direct && !st.erase && !st.isShape) {
+      const full = { ...st.s }; delete full.perfDefer;
+      st.sFull = full; st.s = { ...full, perfSpacing: st.s.perfDefer.spacing, ...(st.s.perfDefer.count ? { perfCount: st.s.perfDefer.count } : {}) };
+      st.rec = []; st.rec0 = null;
+    }
+    return out;
+  };
+  const sg0 = segment; segment = function (st, x, y, pr) {
+    if (st && st.rec && !st.replaying) { if (!st.rec0) st.rec0 = [st.lx, st.ly, st.lp]; st.rec.push([x, y, pr]); }
+    return sg0.apply(this, arguments);
+  };
   // a new import: study the new tools
   const i0 = importTools; importTools = async function () { const out = await i0.apply(this, arguments); if (out && out.length) setTimeout(() => tuneTools(out.map(t => t.id).filter(id => TOOLDEF[id] && kindOf(id) === 'brush'), true), 300); return out; };
   // after an update (or the first time): every imported tool whose study is older than this version
   const l0 = loadAddons; loadAddons = async function () {
     const out = await l0.apply(this, arguments);
     const old = (addons.brushes || []).filter(b => b.id && TOOLDEF[b.id] && kindOf(b.id) === 'brush' && (!b.perf || b.perf.ver !== APP_VERSION)).map(b => b.id);
-    for (const b of addons.brushes || []) if (b.perf && TOOLDEF[b.id]) tuneApply(b.id, { before: b.perf.before, after: b.perf.after, changes: b.perf.changes || [], perf: { ...(b.perf.perfSpacing ? { perfSpacing: b.perf.perfSpacing } : {}), ...(b.perf.perfCount ? { perfCount: b.perf.perfCount } : {}) } });
+    for (const b of addons.brushes || []) if (b.perf && TOOLDEF[b.id]) tuneApply(b.id, { before: b.perf.before, after: b.perf.after, changes: b.perf.changes || [], perf: { ...(b.perf.perfSpacing ? { perfSpacing: b.perf.perfSpacing } : {}), ...(b.perf.perfCount ? { perfCount: b.perf.perfCount } : {}), ...(b.perf.perfDefer ? { perfDefer: b.perf.perfDefer } : {}) } });
     if (old.length) setTimeout(() => tuneTools(old, true), 4000);
     return out;
   };
