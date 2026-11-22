@@ -207,6 +207,54 @@ const TESTS = {
     return reads <= 4 && px[0] === 255 && px[1] === 255 ? true : { reads, px: [...px] };
   },
 
+  'smart fill: a gap in a circle leaks without "close gaps" and is sealed with it; auto-flat finds each area': () => {
+    const w = 60, h = 60, data = new Uint8ClampedArray(w * h * 4), line = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) data[i * 4 + 3] = 0;
+    // a ring (radius 20, 2 px thick) with a 3 px gap on the right, and a line splitting the inside in two
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const d = Math.hypot(x - 30, y - 30), gapHere = x > 46 && Math.abs(y - 30) <= 1;
+      if ((d >= 19 && d <= 21 && !gapHere) || (x === 30 && d < 20)) { const i = y * w + x; line[i] = 1; data[i * 4 + 3] = 255; } }
+    const g0 = state.fillGap; state.fillGap = 0; const plain = floodMask(data, w, h, 40, 30, 10); state.fillGap = g0; const sealed = floodGapMask(data, w, h, 40, 30, 10, 4);
+    const leaked = plain.mask[2 * w + 2] === 1, inside = sealed && sealed.mask[30 * w + 40] === 1 && sealed.mask[2 * w + 2] === 0 && sealed.mask[30 * w + 22] === 0;
+    const flats = flatLabels(line, w, h, 4, 10, true, 1), L = flats.labels;
+    const two = L[30 * w + 22] > 0 && L[30 * w + 40] > 0 && L[30 * w + 22] !== L[30 * w + 40] && L[2 * w + 2] === 0;
+    return leaked && inside && two ? true : { leaked, inside, two, a: L[30 * w + 22], b: L[30 * w + 40], out: L[2 * w + 2] };
+  },
+
+  'vector lines: crossings, erase to the crossing, slice, soft bend': () => {
+    const h = { s: { size: 4 }, color: '#000', pts: [[0, 50, 1], [100, 50, 1]] }, v1 = { pts: [[30, 0, 1], [30, 100, 1]] }, v2 = { pts: [[70, 0, 1], [70, 100, 1]] };
+    const xs = polyCross(h.pts, v1.pts), mid = vecErasePieces(h, [v1, v2], 50, 'cross'), whole = vecErasePieces(h, [v1, v2], 50, 'whole');
+    const sl = polySlice(h.pts, 25, 75), bent = vecBend([[0, 0, 1], [50, 0, 1], [100, 0, 1]], 50, 0, 10, 40);
+    const ok = Math.abs(xs[0] - 30) < 1e-6 && mid.length === 2 && Math.abs(mid[0].pts[1][0] - 30) < 1e-6 && Math.abs(mid[1].pts[0][0] - 70) < 1e-6 && whole.length === 0
+      && Math.abs(sl[0][0] - 25) < 1e-6 && Math.abs(sl[sl.length - 1][0] - 75) < 1e-6 && bent[1][1] === 10 && bent[0][1] === 0;
+    return ok ? true : { xs, mid: mid.map(m => m.pts), sl, bent };
+  },
+
+  'lip-sync: loudness per frame, mouths held at least 2 frames': () => {
+    const peaks = Array.from({ length: 100 }, (_, i) => (i >= 40 && i < 60 ? 1 : i >= 20 && i < 40 ? 0.3 : 0.01));
+    const loud = frameLoudness(peaks, 1, 10, 10), lv = lipFrames(loud), flick = lipFrames([0, 1, 0, 0, 0], 0.12, 0.45, 2);
+    return lv[0] === 0 && lv[2] === 1 && lv[4] === 2 && lv[5] === 2 && lv[8] === 0 && flick.every(v => v === 0) ? true : { loud, lv, flick };
+  },
+
+  'comic text: vertical columns right to left, balloon bigger than the text': () => {
+    const v = textLayout(['ab', 'c'], 20, 'v', 1.25, 'left', s => s.length * 10), h = textLayout(['abc'], 20, 'h', 1.25, 'center', s => s.length * 10);
+    const b = balloonAround(h.box, 'ellipse', 20);
+    return v.items[1].y > v.items[0].y && v.items[2].x < v.items[0].x && v.box.w === 50 && h.box.x === -15 && b.w > h.box.w * 1.4 && b.h > h.box.h * 1.4 ? true : { v, h, b };
+  },
+
+  'more FX: hue shift, contrast, duotone, posterize, edges': () => {
+    const red = () => new Uint8ClampedArray([255, 0, 0, 255]);
+    const h = fx2Hsb(red(), 120, 0, 0, false), g = fx2Hsb(red(), 0, -100, 0, false), c = fx2Contrast(new Uint8ClampedArray([100, 150, 200, 255]), 0, 60);
+    const d = fx2Duotone(new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255]), '#102030', '#ffeedd', 100), p = fx2Posterize(new Uint8ClampedArray([100, 200, 30, 255]), 2);
+    const im = new Uint8ClampedArray(8 * 8 * 4); for (let i = 0; i < 64; i++) { const v = i % 8 < 4 ? 0 : 255; im.set([v, v, v, 255], i * 4); } const E = fx2Sobel(im, 8, 8);
+    const ok = h[1] > 250 && h[0] < 5 && Math.abs(g[0] - g[1]) < 2 && c[0] < 100 && c[2] > 200 && d[0] === 16 && d[2] === 48 && d[4] === 255 && d[6] === 221
+      && p[0] === 0 && p[1] === 255 && E[3 * 8 + 3] > 100 && E[3 * 8 + 1] === 0;
+    return ok ? true : { h: [...h], g: [...g], c: [...c], d: [...d], p: [...p], e: [E[27], E[25]] };
+  },
+
+  'studio look: slider fill percent': () => rangeFillPct(5, 0, 10) === 50 && rangeFillPct(-3, 0, 10) === 0 && rangeFillPct(50, '', '') === 50 && rangeFillPct(1, 2, 2) === 0,
+
+  'Ask button stays on screen when dragged': () => { const a = fabClamp(-50, 2000, 52, 390, 844), b = fabClamp(100, 200, 52, 390, 844); return a[0] === 6 && a[1] === 844 - 58 && b[0] === 100 && b[1] === 200 ? true : { a, b }; },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

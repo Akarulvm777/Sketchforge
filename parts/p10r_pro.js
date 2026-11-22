@@ -380,13 +380,13 @@ function proProps(body, id) {
   if (id.startsWith('rl_')) {
     grp(body, 'Snap strokes to');
     chk('Linear ruler' + (ruler.line ? '' : ' (not set)'), () => ruler.snap.line, v => ruler.snap.line = v);
-    chk('Perspective ruler' + (ruler.persp ? '' : ' (not set)'), () => ruler.snap.persp, v => ruler.snap.persp = v);
+    chk('Perspective ruler' + (ruler.vps && ruler.vps.length ? '' : ' (not set)'), () => ruler.snap.persp, v => ruler.snap.persp = v);
     chk('Figure ruler' + (ruler.ell ? '' : ' (not set)'), () => ruler.snap.ell, v => ruler.snap.ell = v);
     chk('Symmetry ruler' + (ruler.sym ? '' : ' (not set)'), () => ruler.snap.sym, v => ruler.snap.sym = v);
     sel2('Symmetry', SYM_MODES, () => ruler.symMode, v => { ruler.symMode = v; refreshProps(); symChanged(); });
     if (ruler.symMode === 'rot' || ruler.symMode === 'kaleido') slider(body, 'Segments', 2, 16, 1, ruler.symCount, v => v, v => ruler.symCount = v);
     const hint = document.createElement('p'); hint.className = 'muted small';
-    hint.textContent = id === 'rl_line' ? 'Drag to draw a straight guide. Strokes that start near it follow it.' : id === 'rl_persp' ? 'Click where the vanishing point should be. Strokes radiate from it.' : id === 'rl_sym' ? 'Drag an axis (click = vertical). Everything you draw is mirrored.' : 'Drag a box to set an ellipse / circle (Shift = circle). Strokes near it follow the curve.';
+    hint.textContent = id === 'rl_line' ? 'Drag to draw a straight guide. Strokes that start near it follow it.' : id === 'rl_persp' ? 'Click to place the vanishing points (1, 2 or 3, below).' : id === 'rl_sym' ? 'Drag an axis (click = vertical). Everything you draw is mirrored.' : 'Drag a box to set an ellipse / circle (Shift = circle). Strokes near it follow the curve.';
     body.appendChild(hint);
     const b = document.createElement('button'); b.textContent = 'Clear all rulers'; b.onclick = CMD.rulerClear; body.appendChild(b);
     return;

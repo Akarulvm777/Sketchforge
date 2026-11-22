@@ -44,6 +44,32 @@ const MORE_TUTORIALS = [
     { t: 'Mark the parts', x: 'Add an <b>eye</b>, <b>mouth</b>, <b>smile</b> or <b>brow</b> part and drag a box around it on the drawing.' },
     { t: 'Move the sliders', x: 'Each slider changes the drawing on this frame (a face key). Keys in between are smoothed for you. <b>👁 Blink here</b> adds a quick blink.' }
   ] },
+  { id: 'smartfill', cat: 'Tools & options', icon: '🪣', title: 'Smart colouring', desc: 'Fill with gaps in the lines, and flat colours in one click.', steps: [
+    { el: toolEl('fill'), pre: () => { tutGroup('fill')(); selectTool('fill'); }, t: 'Close gaps', x: 'Fill tool › Tool Property › <b>Close gaps</b>: the fill stops at small openings in your line art, then reaches right up to the real lines. Bigger number = bigger gaps closed.' },
+    { el: '#propBody', pre: () => { tutDock('left'); selectTool('fill'); }, t: 'Auto-flat colours', x: '<b>🎨 Auto-flat colours</b> (also Layer menu) puts one flat colour in every closed area of your line art, on a new <b>Flats</b> layer under it. Then recolour each area with the fill tool.' }
+  ] },
+  { id: 'persp', cat: 'Tools & options', icon: '📐', title: 'Perspective (1, 2, 3 points)', desc: 'Vanishing points, horizon, lines that follow them.', steps: [
+    { el: toolEl('ruler'), pre: () => { tutGroup('ruler')(); selectTool('rl_persp'); }, t: 'Perspective ruler', x: 'Ruler group › <b>Perspective ruler</b>. In Tool Property choose <b>1, 2 or 3 points</b>, then click on the page to place each vanishing point. Drag a point to move it.' },
+    { el: '#propBody', pre: () => { tutDock('left'); selectTool('rl_persp'); }, t: 'Draw', x: 'Pick a pen: each stroke follows the direction you start in — towards a vanishing point, or straight up. Two points draw the <b>horizon</b> line. “Clear the vanishing points” to start again.' }
+  ] },
+  { id: 'vector', cat: 'Tools & options', icon: '✒', title: 'Vector ink layers', desc: 'Erase to crossings, bend and thicken lines after drawing.', steps: [
+    { el: menuEl('Layer'), t: 'New vector layer', x: 'Layer › <b>New vector layer</b>. Ink on it with any pen: every stroke is kept as a line you can change later.', demo: ['Make one', () => CMD.newVectorLayer()] },
+    { el: toolEl('vector'), pre: tutGroup('vector'), t: 'Vector eraser', x: '<b>Vector eraser</b>: erase a line <b>up to where it crosses</b> another one (great for cleaning crossing strokes), or the whole line.' },
+    { el: toolEl('vector'), pre: tutGroup('vector'), t: 'Edit lines', x: '<b>Edit lines</b>: drag a line to bend it, change its thickness, smooth it or delete it. The line redraws with the same pen.' }
+  ] },
+  { id: 'lipsync', cat: 'Animation & rigging', icon: '👄', title: 'Lip-sync from sound', desc: 'Mouths that move with the voice, and sound in the video.', steps: [
+    { el: menuEl('Animation'), pre: anim, t: '1. Voice and mouths', x: 'Animation › <b>Import audio…</b> for the voice. On the mouth layer, draw a closed, a half-open and an open mouth as <b>swap drawings</b> (🔁 bar over the timeline).' },
+    { el: menuEl('Animation'), pre: anim, t: '2. Lip-sync', x: 'Animation › <b>👄 Lip-sync from sound…</b>: choose which drawing is closed / half / open, the sensitivity, and how long a mouth stays. Keyframes are made only where the mouth changes.' },
+    { el: '#btnPlay', pre: anim, t: '3. Play and export', x: 'Press <b>Enter</b> to play with the sound. File › Export animation: MP4 / WebM keep the sound (“Include the sound”).' }
+  ] },
+  { id: 'comictext', cat: 'Features', icon: '💬', title: 'Comic text & balloons', desc: 'Vertical text, comic fonts, balloons that fit by themselves.', steps: [
+    { el: toolEl('text'), pre: () => { tutGroup('text')(); selectTool('text'); }, t: 'Text tool', x: 'Text tool › Tool Property: comic font families (speech, handwritten, shout…), <b>Horizontal</b> or <b>Vertical</b> (manga style, columns right to left) and line spacing.' },
+    { el: '#propBody', pre: () => { tutDock('left'); selectTool('text'); }, t: 'Balloons', x: 'Choose a <b>Balloon</b> (oval, rounded box, cloud, thought, spiky shout) and the tail direction. Click the page and type: the balloon fits the text by itself.' }
+  ] },
+  { id: 'fx2', cat: 'Features', icon: '✨', title: 'Effects & filters', desc: 'Colour, light and style effects with a live preview.', steps: [
+    { el: menuEl('Filter'), t: 'The Filter menu', x: 'Every effect shows on the layer <b>live</b> while you move the sliders. OK = one undo step, Cancel puts the layer back. With a selection, only that part changes.' },
+    { el: menuEl('Filter'), t: 'New in 3.0', x: 'Hue / saturation / brightness, brightness & contrast, duotone, light leak, lens flare, neon edges, pixel art, cartoon (cel look), pencil sketch, old film and VHS.', demo: ['Try Neon edges', () => CMD.fxNeon()] }
+  ] },
   { id: 'pose3d', cat: 'Features', icon: '🧍', title: 'Pose the 3D model', desc: 'Highlight, select, rotation rings, views, floor grid and shadow.', steps: [
     { el: '#btn3d', t: 'Open the 3D model', x: 'A posable figure to draw from.', demo: ['Open the 3D model', () => CMD.show3d()] },
     { t: 'Pick a part', x: 'Point at a body part: it lights up <b>blue</b>. Click it: it turns <b>red</b> and red / green / blue <b>rotation rings</b> appear at its joint.' },

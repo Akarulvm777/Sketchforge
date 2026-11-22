@@ -221,3 +221,4 @@ h2 { color: #f2f7ff; }
 .pcard { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
 .pav { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(46, 168, 255, .6); box-shadow: 0 0 24px rgba(46, 168, 255, .35); }
 .pinfo { flex: 1; min-width: 220px; } .pinfo h1 { font-size: 2rem; margin-bottom: .2em; } #pEditBtn { align-self: flex-start; }
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

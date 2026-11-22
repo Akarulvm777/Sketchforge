@@ -13,7 +13,7 @@ const H = require('./harness.cjs');
   const hash = () => pg.evaluate(() => { const c = [...window.__sketchforge.activeLayer().cels.values()][0], d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < d.length; i += 7) h = (h * 31 + d[i]) | 0; return h; });
   const cmds = await pg.evaluate(() => window.__sketchforge.MENUS.find(m => m[0] === 'Filter')[1].filter(Array.isArray).map(x => [x[1], x[0]]));
   console.log('     Filter menu:', cmds.length, 'entries');
-  check('Filter menu has the new effects', ['fxGlow', 'fxShadow', 'fxOutline', 'fxLineArt', 'fxHalftone', 'fxOil', 'fxTwirl', 'fxWave', 'fxGray'].every(c => cmds.some(x => x[0] === c)));
+  check('Filter menu has the new effects', ['fxGlow', 'fxShadow', 'fxOutline', 'fxLineArt', 'fxHalftone', 'fxOil', 'fxTwirl', 'fxWave', 'fxGray', 'fxHsb', 'fxContrast', 'fxDuotone', 'fxLightLeak', 'fxFlare', 'fxNeon', 'fxPixel', 'fxCartoon', 'fxSketch', 'fxOldFilm', 'fxVhs'].every(c => cmds.some(x => x[0] === c)));
   for (const [cmd, label] of cmds) {
     await paint(); const h0 = await hash();
     await pg.evaluate(c => window.__sketchforge.CMD[c](), cmd); await pg.waitForTimeout(250);

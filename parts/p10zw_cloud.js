@@ -63,6 +63,7 @@ function renderAcctBtn() {
   const b = $('#acctBtn'); if (!b) return;
   const p = SB().profile();
   b.innerHTML = p ? (p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : `<span class="ini">${esc((p.name || '?')[0].toUpperCase())}</span>`) : 'Sign in';
+  b.classList.toggle('out', !p);
   b.title = p ? `${p.name} — account, cloud files, settings sync` : 'Sign in with Google or GitHub';
   b.classList.toggle('in', !!p);
 }

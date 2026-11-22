@@ -156,10 +156,10 @@ async function buildDocObject(src, opts = {}) {
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       faceParts: l.faceParts && l.faceParts.length ? l.faceParts : undefined,
-      phys: l.phys || undefined, mainPart: l.mainPart || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
+      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
       swaps: l.swaps && l.swaps.length ? l.swaps.map(s => ({ id: s.id, name: s.name, data: enc(s.cel) })) : undefined,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
-        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined,
+        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined,
         data: c._ink === false ? null : enc(c)
       }))
     }))
@@ -220,13 +220,14 @@ async function openDocumentFile(file) {
         if (cd.data) c.getContext('2d').drawImage(await loadImage(cd.data), 0, 0);
         if (cd.xf) c._xf = { ...IDENT, ...cd.xf };
         if (cd.swap) c._swap = cd.swap;
+        if (cd.vec) c._vec = cd.vec;
         if (cd.face && faceRests[cd.face.r]) { c._face = { rest: faceRests[cd.face.r], v: cd.face.v || {} }; if (cd.face.auto) c._face.auto = true; c._sv = 1; c._face.sv = 1; }
         if (cd.pup && pupRests[cd.pup.r]) c._pup = { rest: pupRests[cd.pup.r], pins: cd.pup.pins, cur: cd.pup.cur };
         l.cels.set(cd.k, c);
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
       if (ld.faceParts) l.faceParts = ld.faceParts;
-      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.chain) l.chain = ld.chain;
+      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
       Object.assign(l, { visible: ld.visible !== false, opacity: ld.opacity ?? 1, blend: ld.blend || 'normal', locked: !!ld.locked, paper: !!ld.paper, px: ld.px ?? null, py: ld.py ?? null, clip: !!ld.clip, alock: !!ld.alock, ref: !!ld.ref, draft: !!ld.draft });
       if (ld.mask) {
         const m = newMaskLayer(); m.cels = new Map();
@@ -429,21 +430,32 @@ async function runExport() {
       const w = Math.max(2, Math.round(state.w * scale)), h = Math.max(2, Math.round(state.h * scale));
       const cv = makeCanvas(w, h), g = cv.getContext('2d');
       const stream = cv.captureStream(0), track = stream.getVideoTracks()[0];
-      const mime = (fmt === 'mp4' ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4'] : []).concat(['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']).find(m => MediaRecorder.isTypeSupported(m));
+      // the sound track goes into the video too (Animation › Import audio…), from the first exported frame
+      let snd = null;
+      if (typeof aud !== 'undefined' && aud.file && (!$('#expSound') || $('#expSound').checked)) {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext, ac = new AC(), ab = await ac.decodeAudioData((await aud.file.arrayBuffer()).slice(0)), dest = ac.createMediaStreamDestination();
+          const src = ac.createBufferSource(); src.buffer = ab; src.connect(dest); stream.addTrack(dest.stream.getAudioTracks()[0]); snd = { ac, src, at: fr[0] / state.fps };
+        } catch (e) { console.warn('sound not added to the video', e); }
+      }
+      const vtypes = snd ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'] : ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      const mime = vtypes.filter(m => fmt === 'mp4' || !m.startsWith('video/mp4')).find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
       const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
       const chunks = [];
       rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       const done = new Promise(r => { rec.onstop = r; });
       rec.start();
+      if (snd) snd.src.start(0, Math.min(snd.at, snd.src.buffer.duration));
+      const t0 = performance.now(); // frames follow the clock (not "wait one frame after drawing"): picture and sound stay together
       for (let i = 0; i < n; i++) {
-        if (!exporting) { rec.stop(); throw new Error('cancelled'); }
+        if (!exporting) { rec.stop(); if (snd) snd.ac.close(); throw new Error('cancelled'); }
         g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
         g.drawImage(compositeFrame(fr[i]), 0, 0, w, h);
         track.requestFrame();
-        prog.textContent = `Recording ${i + 1} / ${n}`;
-        await sleep(1000 / state.fps);
+        prog.textContent = `Recording ${i + 1} / ${n}${snd ? ' (with sound)' : ''}`;
+        await sleep(Math.max(0, t0 + (i + 1) * 1000 / state.fps - performance.now()));
       }
-      rec.stop(); await done;
+      rec.stop(); await done; if (snd) { try { snd.src.stop(); snd.ac.close(); } catch (e) { /* ignore */ } }
       download(new Blob(chunks, { type: mime.split(';')[0] }), base + (mime.startsWith('video/mp4') ? '.mp4' : '.webm'));
     }
     prog.textContent = 'Done.';
