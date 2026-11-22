@@ -241,6 +241,16 @@ const TESTS = {
     return v.items[1].y > v.items[0].y && v.items[2].x < v.items[0].x && v.box.w === 50 && h.box.x === -15 && b.w > h.box.w * 1.4 && b.h > h.box.h * 1.4 ? true : { v, h, b };
   },
 
+  'more FX: hue shift, contrast, duotone, posterize, edges': () => {
+    const red = () => new Uint8ClampedArray([255, 0, 0, 255]);
+    const h = fx2Hsb(red(), 120, 0, 0, false), g = fx2Hsb(red(), 0, -100, 0, false), c = fx2Contrast(new Uint8ClampedArray([100, 150, 200, 255]), 0, 60);
+    const d = fx2Duotone(new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255]), '#102030', '#ffeedd', 100), p = fx2Posterize(new Uint8ClampedArray([100, 200, 30, 255]), 2);
+    const im = new Uint8ClampedArray(8 * 8 * 4); for (let i = 0; i < 64; i++) { const v = i % 8 < 4 ? 0 : 255; im.set([v, v, v, 255], i * 4); } const E = fx2Sobel(im, 8, 8);
+    const ok = h[1] > 250 && h[0] < 5 && Math.abs(g[0] - g[1]) < 2 && c[0] < 100 && c[2] > 200 && d[0] === 16 && d[2] === 48 && d[4] === 255 && d[6] === 221
+      && p[0] === 0 && p[1] === 255 && E[3 * 8 + 3] > 100 && E[3 * 8 + 1] === 0;
+    return ok ? true : { h: [...h], g: [...g], c: [...c], d: [...d], p: [...p], e: [E[27], E[25]] };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
