@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sketchforge — Free Drawing &amp; Animation App (Windows, Mac, Android, iPad, Web)</title>
 <meta name="description" content="Sketchforge is a free drawing, painting and animation app for Windows, Mac, Linux, Android, iPad and the browser. Pen pressure, manga and comic pages, frame-by-frame animation, lip-sync, bone rigging, a posable 3D model and Clip Studio brush import.">
-<meta name="theme-color" content="#1c1d20">
 <meta property="og:title" content="Sketchforge — Free Drawing &amp; Animation App">
 <meta property="og:description" content="A free drawing and animation studio for every device.">
 <meta property="og:image" content="https://akarulvm777.github.io/Sketchforge/assets/shots/drawing.png">
@@ -15,25 +14,59 @@
 <meta name="keywords" content="Sketchforge, free drawing app, animation app, digital painting, manga, comic, frame by frame animation, rigging, pen pressure, Windows, Mac, Android, iPad">
 <link rel="canonical" href="https://akarulvm777.github.io/Sketchforge/">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Sketchforge","applicationCategory":"DesignApplication","operatingSystem":"Windows, macOS, Linux, Android, iPadOS, Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://akarulvm777.github.io/Sketchforge/","image":"https://akarulvm777.github.io/Sketchforge/assets/shots/drawing.png","description":"A free drawing and animation studio: pens with pressure, frame-by-frame animation, manga pages, bone rigging, a posable 3D model."}</script>
+<meta name="theme-color" content="#0c0d11">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/home.css">
 </head>
-<body>
-<header class="nav">
+<body class="home">
+<div class="sf-bg" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<header class="nav sf-nav">
   <a class="brand" href="./"><img class="logo" src="icon-192.png" alt="">Sketchforge</a>
-  <nav><a href="#news">What's new</a><a href="#features">Features</a><a href="#brushes">Brushes</a><a href="#animation">Animation</a><a href="#rig">Rigging</a><a href="#model">3D</a><a href="#download">Download</a><a href="community.html">Community</a><a href="shared.html">Shared</a></nav>
+  <nav id="sfMenu">
+    <a href="#features">Features</a><a href="#animate">Animation</a><a href="#model">3D</a><a href="#learn">Learn</a><a href="#download">Download</a><a href="#community">Community</a><a href="shared.html">Shared</a>
+  </nav>
   <a class="btn ghost" id="navAccount" href="account.html">Sign in</a>
+  <a class="btn primary sf-studio-btn" href="studio.html">Open the studio <span aria-hidden="true">→</span></a>
+  <button class="sf-burger" id="sfBurger" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
 </header>
 
-<section class="hero">
-  <div class="hero-text">
-    <p class="kicker">Drawing · Animation · Every device</p>
-    <h1>Draw it. Animate it.<br><span>Bring it to life.</span><span class="sr-only"> Sketchforge, the free drawing and animation app</span></h1>
-    <p class="lead">Sketchforge is a free drawing and animation studio. Real pens with pressure, a whole animation on one layer, tweens and bone rigs, a posable 3D model, guided tutorials — on Windows, Mac, Android, iPad and in your browser.</p>
-    <div class="cta"><a class="btn primary big" id="heroDl" href="#download">Download</a><a class="btn big" href="app/">Open in your browser</a></div>
+<main>
+<!-- ============ HERO + LIVE APP ============ -->
+<section class="sf-hero">
+  <div class="sf-hero-text">
+    <p class="kicker">Free · Drawing · Animation · Every device</p>
+    <h1><span class="nw">Draw it.</span> <span class="nw">Animate it.</span><br><span class="sf-grad nw">Right here.</span><span class="sr-only"> Sketchforge, the free drawing and animation app</span></h1>
+    <p class="lead">A complete drawing and animation studio — pens with pressure, a whole animation on one layer, tweens, bone rigs and a posable 3D model. No sign-up, no install: it runs in this page.</p>
+    <div class="cta">
+      <a class="btn primary big" href="studio.html">✏️ Start drawing now</a>
+      <a class="btn big" id="heroDl" href="#download">Download</a>
+    </div>
     <p class="small muted" id="heroVer">Free · works offline · your files stay yours</p>
   </div>
-  <div class="hero-shot"><img src="assets/shots/drawing.png" alt="The Sketchforge drawing workspace" width="1440" height="900"></div>
+
+  <div class="sf-device" id="sfDevice">
+    <div class="sf-device-bar">
+      <span class="dots"><i></i><i></i><i></i></span>
+      <span class="sf-device-url">sketchforge · studio</span>
+      <a class="sf-device-act" href="studio.html" title="Open full screen">⤢</a>
+    </div>
+    <div class="sf-device-screen">
+      <img src="assets/shots/drawing.png" alt="The Sketchforge drawing workspace" width="1440" height="900" id="sfPoster">
+      <button class="sf-play" id="sfLaunch">
+        <span class="sf-play-ic">▶</span>
+        <span><b>Try it in this page</b><small>The real app loads here — draw with your mouse, finger or pen</small></span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="sf-strip reveal">
+  <div><b>120+</b><span>tools &amp; brushes</span></div>
+  <div><b>17</b><span>guided tutorials</span></div>
+  <div><b>5</b><span>platforms</span></div>
+  <div><b>0 €</b><span>no account needed</span></div>
 </section>
 
 <section class="news" id="news" hidden>
@@ -42,135 +75,159 @@
   <div class="newsgrid" id="newsGrid"></div>
 </section>
 
-<section class="strip">
-  <div><b>120+</b><span>tools & brushes</span></div><div><b>∞</b><span>your own brushes</span></div><div><b>17</b><span>guided tutorials</span></div><div><b>5</b><span>platforms</span></div>
-</section>
+<!-- ============ FEATURES (bento) ============ -->
+<section class="sf-sec" id="features">
+  <header class="sf-head reveal">
+    <p class="kicker">Everything in one studio</p>
+    <h2>Draw, paint, ink, animate.</h2>
+    <p class="muted">The layout will feel familiar if you know professional illustration software. All of the code is original.</p>
+  </header>
 
-<section class="feature" id="features">
-  <div class="ftext">
-    <h2>Drawing that feels right</h2>
-    <p>Pens, pencils, brushes, watercolour, airbrush and decoration brushes with pressure from any tablet — Wacom, XP-Pen, Huion, Apple Pencil — with a calibration that fits your pen.</p>
-    <ul><li>Hold at the end of a stroke to snap it into a perfect line, circle or rectangle (QuickShape); hold still to pick a colour</li><li>Paper textures, stabiliser, symmetry (mirror, radial, kaleidoscope)</li><li>Layer folders, tick boxes and colour labels; 16 effects with live preview (glow, shadow, outline, oil paint, glitch…)</li><li>Layers, masks, clipping, selections, filters, rulers, comic panels and balloons</li><li>Opens Photoshop .psd and Clip Studio .clip, saves .psd with layers</li><li>Imports your Clip Studio brushes (.sut)</li><li><b>Two-colour brushes</b>: main colour inside and the sub colour as an outline, or a neon glow</li><li><b>Advanced setup</b> for every tool: quick setups (crisp ink, soft sketch, painterly, airy), pressure curve, thin start / end, colour change, blending mode, and stroke quality Fast / Normal / Best</li><li>The paper layer starts locked, so you never paint on it by mistake</li></ul>
+  <div class="sf-bento">
+    <article class="sf-card sf-wide reveal">
+      <div class="sf-card-txt">
+        <h3>✒️ Drawing that feels right</h3>
+        <p>Pens, pencils, brushes, watercolour and airbrush with pressure from any tablet — Wacom, XP-Pen, Huion, Apple Pencil.</p>
+        <ul><li>QuickShape: hold to snap into a perfect line, circle or rectangle</li><li>Stabiliser, symmetry, paper textures, rulers</li><li>Layers, folders, masks, clipping, 28 blend modes, 16 live effects</li></ul>
+      </div>
+      <img src="assets/shots/drawing.png" alt="Drawing tools" loading="lazy">
+    </article>
+
+    <article class="sf-card reveal">
+      <div class="sf-card-txt">
+        <h3>🖌 Your Clip Studio brushes</h3>
+        <p>Import <code>.sut</code> tools — one, a zip or a whole folder. Each lands in the right place, with its tips, textures and pressure curves. Then tune it in the brush editor.</p>
+      </div>
+      <img src="assets/shots/brushes.png" alt="The brush editor" loading="lazy">
+    </article>
+
+    <article class="sf-card reveal">
+      <div class="sf-card-txt">
+        <h3>🎨 Make it yours</h3>
+        <p>Custom P changes everything: themes, colours of every part of the screen, icons, fonts, layout and cursor. Share your theme with everyone.</p>
+      </div>
+      <img src="assets/shots/custom.png" alt="Custom P themes" loading="lazy">
+    </article>
+
   </div>
-  <img src="assets/shots/drawing.png" alt="Drawing tools" loading="lazy">
-</section>
 
-<section class="feature rev" id="brushes">
-  <div class="ftext">
-    <h2>Your Clip Studio tools, your own brushes</h2>
-    <p>Bring the brushes you already love: import Clip Studio tools (.sut — several at once, a .zip or a whole folder). Each one lands in the right place by itself — pens, pencils, brushes, decoration, shading pens, gradients — with its tips, textures, pressure curves, spray, colour mixing and blending mode.</p>
-    <ul><li><b>ⓘ Tool report</b>: every setting of an imported tool and what became of it (✓ same · ≈ close · ✗ not yet)</li><li><b>⚙ Brush editor</b>: make a brush from scratch or change any brush — tip pictures (or the drawing on your layer), pressure, tilt and speed curves, thin start / end, spray, colour change, colour mixing, watercolour edge, texture — with a live preview. Tune an imported tool until it matches.</li><li>Share brushes as <b>.sfbrush</b> files</li><li><b>Colour sets</b>: as many named sets of favourite colours as you like, plus a colour history that remembers what you painted with</li><li><b>Paper texture</b> for new files — drawing paper, watercolour, rough, canvas, kraft… — and brushes pick up its grain</li></ul>
+  <h3 class="sf-more-title reveal">…and a lot more</h3>
+  <div class="sf-more">
+    <article class="sf-mini reveal"><h3>🪣 Smart colouring</h3><p>The fill closes small gaps in your lines, and Auto-flat colours every closed area on its own layer in one click.</p></article>
+    <article class="sf-mini reveal"><h3>📐 1, 2, 3-point perspective</h3><p>Place and drag vanishing points; strokes follow the direction you start in, with a horizon line.</p></article>
+    <article class="sf-mini reveal"><h3>✒ Vector ink</h3><p>Erase a line up to where it crosses another, bend it, change its thickness, smooth it — after drawing.</p></article>
+    <article class="sf-mini reveal"><h3>👄 Lip-sync &amp; sound</h3><p>Mouths that move with the voice from your swap drawings, and videos exported with their sound.</p></article>
+    <article class="sf-mini reveal"><h3>💬 Comic text</h3><p>Vertical manga text, comic fonts, and balloons that fit the text by themselves.</p></article>
+    <article class="sf-mini reveal"><h3>✨ 40+ effects</h3><p>Duotone, neon edges, lens flare, light leak, pixel art, cartoon, pencil sketch, old film, VHS… with a live preview.</p></article>
+    <article class="sf-mini reveal"><h3>📂 Your files</h3><p>Opens and saves Photoshop <code>.psd</code> with layers, opens Clip Studio <code>.clip</code>. Exports PNG, GIF, MP4/WebM, sprite sheets.</p></article>
+    <article class="sf-mini reveal"><h3>📖 Manga pages</h3><p>Print or web sizes, panel layouts, balloons, screen tones and a Pages panel for your whole book.</p></article>
+    <article class="sf-mini reveal"><h3>🙂 Face sliders</h3><p>Blink, open the mouth, smile, raise the brows with sliders, like Live2D. The in-betweens are made for you.</p></article>
+    <article class="sf-mini reveal"><h3>⏺ Time-lapse</h3><p>Records how you draw, per file, ready to share.</p></article>
+    <article class="sf-mini reveal"><h3>✈ Works offline</h3><p>Everything runs on your device. Close it any time — it reopens on the same frame and zoom.</p></article>
+    <article class="sf-mini reveal"><h3>☁ Optional cloud</h3><p>Sign in with Google or GitHub to keep drawings in the cloud and your settings on every device.</p></article>
   </div>
-  <img src="assets/shots/brushes.png" alt="The brush editor" loading="lazy">
 </section>
 
-<section class="feature rev" id="animation">
-  <div class="ftext">
-    <h2>Animation on one layer</h2>
-    <p>Draw your whole animation on a single layer: every frame gets a fresh page and onion skin shows the drawings before and after. Use more layers only for colour, backgrounds or effects.</p>
-    <ul><li>＋ New drawing on 1s, 2s or 3s · drag drawings on the timeline · hold longer / shorter</li><li>Motion tweens with easing, bone rig, puppet pins with automatic in-betweens</li><li><b>Main part</b>: the whole character follows one part · <b>gravity bones</b>: hair, cloth, tails and ears swing and settle by themselves</li><li><b>Hair & cloth bones</b> (like Spine): click along long hair, a cape or a skirt — the drawing bends and flows with the motion, with gravity and wind</li><li>Play range, ping-pong, light table, sound and video reference</li><li>Export GIF, MP4 / WebM, PNG frames or sprite sheets, with transparency</li></ul>
+<!-- ============ ANIMATION (tabs + video) ============ -->
+<section class="sf-sec sf-anim" id="animate">
+  <div class="sf-split">
+    <div class="sf-split-txt reveal">
+      <p class="kicker">Animation</p>
+      <h2>A whole animation<br>on one layer.</h2>
+      <p class="muted">Every frame gets a fresh page and onion skin shows the drawings before and after. Tweens with easing, bone rigs, puppet pins, gravity bones for hair and cloth — and export to GIF, video or sprite sheets.</p>
+      <div class="sf-tabs" role="tablist">
+        <button class="on" data-video="assets/rig-fox.mp4" data-cap="Put the parts together, link them with bones, pose and animate. In the app: Help › Tutorials › Rig the fox. Fox art by bluegi.">🦊 Rig a character</button>
+        <button data-video="assets/rig-spine.mp4" data-cap="One main part holds the character; hair and capes get bones that bend with inertia, gravity and wind. Help › Tutorials › Rig like Spine.">🦴 Hair &amp; cloth bones</button>
+        <button data-video="assets/swap-faces.mp4" data-cap="Keep several versions of a face, a hand or eyes and swap them on any frame in one tap. Help › Tutorials › Swap drawings.">🔁 Swap drawings</button>
+      </div>
+      <p class="small muted" id="sfCap">Put the parts together, link them with bones, pose and animate. In the app: Help › Tutorials › Rig the fox. Fox art by bluegi.</p>
+    </div>
+    <div class="sf-video reveal">
+      <video id="sfVideo" src="assets/rig-fox.mp4" muted loop playsinline preload="metadata" poster="assets/shots/animation.png"></video>
+      <button class="sf-sound" id="sfSound" aria-label="Sound">🔇</button>
+    </div>
   </div>
-  <img src="assets/shots/animation.png" alt="Animation timeline with onion skin" loading="lazy">
-</section>
-
-<section class="learnrig" id="rig">
-  <h2>🦊 Learn to rig a character</h2>
-  <p class="muted">One minute: put the parts together, link them with bones, place the joints, pose and animate. In the app: Help › Tutorials › Rig the fox, with a practice file and a “Show me” button at every step.</p>
-  <video src="assets/rig-fox.mp4" controls playsinline preload="metadata" poster="assets/shots/animation.png"></video>
-  <p class="small muted">Fox art by bluegi.</p>
-</section>
-
-<section class="learnrig" id="rigspine">
-  <h2>🦴 Rig like Spine: main part, hair &amp; cloth bones</h2>
-  <p class="muted">One main part holds the whole character, every part follows another, and long hair or a cape get bones that bend and flow with physics (inertia, strength, damping, mass, gravity, wind) — and you can still pose them. In the app: Help › Tutorials › Rig like Spine, or Animation › Hair &amp; cloth practice model.</p>
-  <video src="assets/rig-spine.mp4" controls playsinline preload="metadata" poster="assets/shots/animation.png"></video>
-</section>
-
-<section class="learnrig" id="swap">
-  <h2>🔁 Swap drawings</h2>
-  <p class="muted">Keep several versions of a face, a hand or eyes and change them on any frame in one tap. In the app: Help › Tutorials › Swap drawings (practice).</p>
-  <video src="assets/swap-faces.mp4" controls playsinline preload="metadata" poster="assets/shots/animation.png"></video>
-</section>
-
-<section class="feature" id="model">
-  <div class="ftext">
-    <h2>A 3D model to pose</h2>
-    <p>A posable man and woman (VRoid characters by bluegi) to draw from. Pose them right on your canvas: drag a hand and the arm follows, bend every finger, change the body shape, light it and trace it. Load your own VRoid character too.</p>
-    <ul><li>Hand poses: fist, point, peace, thumbs up, grip</li><li>Head, build, shoulders, hips, torso, arm and leg length</li><li>Point at a part: it lights up blue; click it: red, with red / green / blue rotation rings to turn it exactly</li><li>Front, side and back views, floor grid and ground shadow</li><li>Toon shading, light direction, zoom and size, place on a layer</li></ul>
+  <div class="sf-chips reveal">
+    <span>Onion skin</span><span>Motion tweens</span><span>Bone rig</span><span>Puppet pins</span><span>Gravity bones</span><span>Face sliders (Live2D-style)</span><span>Light table</span><span>Lip-sync sound</span><span>Ping-pong</span><span>GIF · MP4 · WebM</span>
   </div>
-  <img src="assets/shots/model3d.png" alt="Posable 3D model" loading="lazy">
 </section>
 
-<section class="feature rev">
-  <div class="ftext">
-    <h2>Make it yours</h2>
-    <p>🎨 Custom P changes everything: themes, the colour of every part of the screen, icons, fonts, layout, canvas background, cursor and effects. Share your theme with everyone.</p>
+<!-- ============ 3D ============ -->
+<section class="sf-sec" id="model">
+  <div class="sf-split rev">
+    <div class="sf-split-txt reveal">
+      <p class="kicker">References</p>
+      <h2>A 3D model<br>to pose.</h2>
+      <p class="muted">A posable man and woman (VRoid characters by bluegi) right on your canvas: drag a hand and the arm follows, bend every finger, change the body shape, light it and trace it. Load your own VRoid character too.</p>
+      <ul class="sf-list"><li>Hand poses: fist, point, peace, thumbs up, grip</li><li>Rotation rings to turn any part exactly</li><li>Toon shading, light direction, floor grid and shadow</li></ul>
+    </div>
+    <div class="sf-shot reveal"><img src="assets/shots/model3d.png" alt="Posable 3D model" loading="lazy"></div>
   </div>
-  <img src="assets/shots/custom.png" alt="Custom P" loading="lazy">
 </section>
 
-<section class="feature">
-  <div class="ftext">
-    <h2>Learn as you go</h2>
-    <p>Guided tutorials point at the real buttons: a welcome tour, a tutorial for <b>every tool</b> (with a “Try it” practice page), every menu, animation step by step, rigging, gravity bones, face sliders, posing the 3D model, manga pages, advanced tool setup, Custom P. Stuck? The free ✨ Ask helper tells you where things are and how they work — no account, no internet needed.</p>
-    <p class="small muted">The helper explains the app — it never draws for you. AI is not supposed to steal your job.</p>
+<!-- ============ LEARN ============ -->
+<section class="sf-sec" id="learn">
+  <div class="sf-split">
+    <div class="sf-split-txt reveal">
+      <p class="kicker">Learn as you go</p>
+      <h2>Tutorials that point<br>at the real buttons.</h2>
+      <p class="muted">A welcome tour, a tutorial for every tool with a “Try it” page, animation step by step, rigging, the 3D model, manga pages. Stuck? The free ✨ Ask helper tells you where things are — no account, no internet needed.</p>
+      <p class="small muted">The helper explains the app — it never draws for you. Your art is yours to make.</p>
+    </div>
+    <div class="sf-shot reveal"><img src="assets/shots/tutorials.png" alt="Tutorials" loading="lazy"></div>
   </div>
-  <img src="assets/shots/tutorials.png" alt="Tutorials" loading="lazy">
 </section>
 
-<section class="grid3" id="new3">
-  <div><h3>🪣 Smart colouring</h3><p>The fill closes small gaps in your lines, and Auto-flat colours fills every closed area on its own layer in one click.</p></div>
-  <div><h3>📐 1, 2, 3-point perspective</h3><p>Place and drag vanishing points; strokes follow the direction you start in, with a horizon line.</p></div>
-  <div><h3>✒ Vector ink</h3><p>Erase a line up to where it crosses another, bend it, change its thickness, smooth it — after drawing.</p></div>
-  <div><h3>👄 Lip-sync & sound</h3><p>Mouths that move with the voice from your swap drawings, and videos exported with their sound.</p></div>
-  <div><h3>💬 Comic text</h3><p>Vertical manga text, comic fonts, and balloons that fit the text by themselves.</p></div>
-  <div><h3>✨ 40+ effects</h3><p>Duotone, neon edges, lens flare, light leak, pixel art, cartoon, pencil sketch, old film, VHS… with a live preview.</p></div>
-  <div><h3>🔁 Swap drawings</h3><p>Open hand ↔ closed hand, eyes, mouths: keep drawings in the swap bar and change them on any frame in one tap. Practice tutorial included.</p></div>
-  <div><h3>🙂 Face sliders</h3><p>Blink, open the mouth, smile, raise the brows with sliders, like Live2D. The frames in between are made for you.</p></div>
-  <div><h3>📖 Manga pages</h3><p>File › New manga page: print or web sizes, panel layouts, print guides and ready layers for ink, tones, colour and text. The Pages panel holds every page of your book.</p></div>
-  <div><h3>🏠 Start screen</h3><p>Start a new file, continue a recent one, see what's new, learn with tutorials and videos, and the newest community shares.</p></div>
-  <div><h3>⚡ Fast blend modes</h3><p>Special layer modes (linear burn, add glow, divide…) only redo the area you draw on — no lag.</p></div>
-  <div><h3>☁ Cloud & sync</h3><p>Sign in with Google or GitHub to keep drawings in the cloud and your settings on every device.</p></div>
-  <div><h3>⟲ Remembers your work</h3><p>Close it any time: next start reopens your files on the same frame and zoom. Auto-save keeps your file saved every 5 minutes while you rest.</p></div>
-  <div><h3>⬆ Always up to date</h3><p>New features arrive by themselves on every device — no reinstalling.</p></div>
-  <div><h3>⏺ Time-lapse</h3><p>Records how you draw, per file, ready to share.</p></div>
-  <div><h3>🗂 Many files</h3><p>Tabs, a second live view, move a file to its own window.</p></div>
-  <div><h3>✈ Works offline</h3><p>Everything runs on your device. Online features are optional.</p></div>
-</section>
-
-<section class="download" id="download">
-  <h2>Download Sketchforge</h2>
-  <p class="muted" id="dlVer">Free for everyone.</p>
+<!-- ============ DOWNLOAD ============ -->
+<section class="download sf-sec" id="download">
+  <header class="sf-head reveal">
+    <p class="kicker">Get Sketchforge</p>
+    <h2>Use it here, or install it.</h2>
+    <p class="muted" id="dlVer">Free for everyone.</p>
+  </header>
   <div class="dlgrid">
-    <div class="dl" data-os="windows"><h3>Windows</h3><p>Windows 10 and 11, 64-bit.</p><a class="btn primary" data-dl="windows" href="#">Download .exe</a><p class="small muted">Windows may say "Windows protected your PC" or scan the file: click <b>More info → Run anyway</b>. The warning only means the app has no paid signature yet — Sketchforge is open source and safe (<a href="https://github.com/Akarulvm777/Sketchforge" target="_blank" rel="noopener">see the code</a>).</p></div>
-    <div class="dl" data-os="mac"><h3>Mac</h3><p>Download the app for your Mac (or open Sketchforge in Safari or Chrome). The first time: right-click the app → <b>Open</b> (it is not notarised by Apple).</p><p class="small muted">macOS 11 or later.</p><a class="btn primary" data-dl="macArm" href="#">Apple Silicon (M1–M4)</a><a class="btn" data-dl="macIntel" href="#">Intel Mac</a><p class="small muted">First time: right-click the app → <b>Open</b> → <b>Open</b>. (Or System Settings › Privacy &amp; Security → <b>Open anyway</b>.) It is safe: the warning only means the app is not paid-signed by Apple.</p></div>
-    <div class="dl" data-os="android"><h3>Android</h3><p>Phones and tablets, Android 7+.</p><a class="btn primary" data-dl="android" href="#">Download .apk</a><p class="small muted">Allow "install unknown apps" when asked.</p></div>
-    <div class="dl" data-os="ios"><h3>iPad & iPhone</h3><p>No App Store needed: 1. tap <b>Open in Safari</b> · 2. Share <b>⬆</b> → <b>Add to Home Screen</b> · 3. open Sketchforge from your Home Screen — full screen, Apple Pencil pressure, works offline, updates itself.</p><a class="btn primary" href="app/">Open in Safari</a><p class="small muted">iPadOS / iOS 14 or later, in Safari. Does not open? See “It does not open on my iPad” below.</p><p class="small muted"><b>Test app (.ipa)</b>: <a data-dl="ios" href="#">download</a>, then install it from your computer with AltStore or Sideloadly and your Apple ID. It works for 7 days, then install it again.</p></div>
-    <div class="dl" data-os="linux"><h3>Linux</h3><p>AppImage, 64-bit.</p><a class="btn primary" data-dl="linux" href="#">Download AppImage</a></div>
-    <div class="dl" data-os="web"><h3>Browser</h3><p>Chrome, Edge, Firefox, Safari. Nothing to install.</p><a class="btn primary" href="app/">Open Sketchforge</a></div>
+    <div class="dl sf-dl-web reveal" data-os="web"><h3>🌐 In your browser</h3><p>Chrome, Edge, Firefox, Safari. Nothing to install, always the newest version.</p><a class="btn primary" href="studio.html">Open the studio</a></div>
+    <div class="dl reveal" data-os="windows"><h3>Windows</h3><p>Windows 10 and 11, 64-bit.</p><a class="btn primary" data-dl="windows" href="#">Download .exe</a><p class="small muted">Windows may say "Windows protected your PC" or scan the file: click <b>More info → Run anyway</b>. The warning only means the app has no paid signature yet — Sketchforge is open source and safe (<a href="https://github.com/Akarulvm777/Sketchforge" target="_blank" rel="noopener">see the code</a>).</p></div>
+    <div class="dl reveal" data-os="mac"><h3>Mac</h3><p>macOS 11 or later.</p><a class="btn primary" data-dl="macArm" href="#">Apple Silicon</a><a class="btn" data-dl="macIntel" href="#">Intel Mac</a><p class="small muted">First time: right-click the app → Open.</p></div>
+    <div class="dl reveal" data-os="android"><h3>Android</h3><p>Phones and tablets, Android 7+.</p><a class="btn primary" data-dl="android" href="#">Download .apk</a><p class="small muted">Allow “install unknown apps” when asked.</p></div>
+    <div class="dl reveal" data-os="ios"><h3>iPad &amp; iPhone</h3><p>No App Store needed: open the app in <b>Safari</b>, then Share <b>⬆</b> → <b>Add to Home Screen</b>. Full screen, Apple Pencil pressure, offline.</p><a class="btn primary" href="app/">Open in Safari</a><p class="small muted">Test app (.ipa): <a data-dl="ios" href="#">download</a> and sideload with AltStore.</p></div>
+    <div class="dl reveal" data-os="linux"><h3>Linux</h3><p>AppImage, 64-bit.</p><a class="btn primary" data-dl="linux" href="#">Download AppImage</a></div>
   </div>
 </section>
 
-<section class="community" id="community">
-  <h2>Brushes & themes from the community</h2>
-  <p class="muted">Shared by Sketchforge users. Add them from the app: ☁ Account › Brushes & themes library. <a class="btn" href="shared.html">Shared art & tools</a> <a class="btn" href="community.html">Reviews & ideas</a></p>
+<!-- ============ COMMUNITY ============ -->
+<section class="community sf-sec" id="community">
+  <header class="sf-head reveal">
+    <p class="kicker">Community</p>
+    <h2>Brushes &amp; themes from other artists.</h2>
+    <p class="muted">Add them from the app: ☁ Account › Brushes &amp; themes library.</p>
+    <p><a class="btn" href="shared.html">Shared art &amp; tools</a> <a class="btn" href="community.html">Reviews &amp; ideas</a></p>
+  </header>
   <div class="cgrid" id="commGrid"><p class="muted small">Loading…</p></div>
 </section>
 
-<section class="faq">
+<!-- ============ FAQ ============ -->
+<section class="faq sf-sec" id="faq">
   <h2>Questions</h2>
-  <details><summary>Is it free?</summary><p>Yes. Download it, open it in the browser, use every tool.</p></details>
-  <details><summary>Do I need an account?</summary><p>No. An account (Google or GitHub) only adds cloud files, settings sync and sharing. The ✨ Ask helper is free for everyone, no account needed.</p></details>
-  <details><summary>Where are my drawings saved?</summary><p>On your device as .sketchforge files (and automatically, so your last work reopens). The cloud is optional.</p></details>
-  <details><summary>Does the helper draw for me?</summary><p>No. The free ✨ Ask helper finds tools and answers questions about the app. Your art is yours to make.</p></details>
-  <details id="ipadhelp"><summary>It does not open on my iPad / iPhone</summary><p>Open <a href="app/">the app link</a> in <b>Safari</b> (not inside another app's browser, like Instagram or Messenger). If you see the page “Sketchforge could not start”, tap <b>Repair &amp; reload</b>; if it still does not start, send a screenshot of that page — it shows the reason. An old Home Screen icon can be removed and added again. Your drawings are kept.</p></details>
-  <details><summary>Can I use my Clip Studio brushes?</summary><p>Yes: Sub Tool ＋ (or drop the files) imports Clip Studio tools of every kind (.sut, a .zip or a folder). ⓘ shows how each one was translated, and ⚙ lets you tune it until it matches.</p></details>
-  <details><summary>How do updates work?</summary><p>The app checks for new versions and updates itself; the browser version is always the newest.</p></details>
+  <details><summary>Is it free?</summary><p>Yes. Open it in the browser or download it, and use every tool.</p></details>
+  <details><summary>Do I need an account?</summary><p>No. An account (Google or GitHub) only adds cloud files, settings sync and sharing.</p></details>
+  <details><summary>Where are my drawings saved?</summary><p>On your device, as <code>.sketchforge</code> files, and automatically so your last work reopens. The cloud is optional.</p></details>
+  <details><summary>What's the difference between “the studio” and the downloads?</summary><p>It's the same app. The studio runs in your browser; the installed apps add a desktop window, file associations and work without a browser.</p></details>
+  <details id="ipadhelp"><summary>It does not open on my iPad / iPhone</summary><p>Open <a href="app/">the app link</a> in <b>Safari</b> (not inside Instagram or Messenger). If you see “Sketchforge could not start”, tap <b>Repair &amp; reload</b>. Your drawings are kept.</p></details>
+  <details><summary>Can I use my Clip Studio brushes?</summary><p>Yes: Sub Tool ＋ (or drop the files) imports Clip Studio tools (<code>.sut</code>, a <code>.zip</code> or a folder). ⓘ shows how each one was translated.</p></details>
 </section>
 
-<footer class="foot"><span><img class="logo sm" src="icon-192.png" alt=""> Sketchforge</span><span class="muted small" id="footVer"></span><a href="account.html">Account</a><a href="app/">Open the app</a></footer>
+<section class="sf-final reveal">
+  <h2>Your next drawing starts here.</h2>
+  <a class="btn primary big" href="studio.html">✏️ Open the studio</a>
+</section>
+</main>
+
+<footer class="foot"><span><img class="logo sm" src="icon-192.png" alt=""> Sketchforge</span><span class="muted small" id="footVer"></span><a href="studio.html">Studio</a><a href="#download">Download</a><a href="community.html">Community</a><a href="account.html">Account</a><a href="https://github.com/Akarulvm777/Sketchforge" target="_blank" rel="noopener">GitHub</a></footer>
+
 <script src="cloud-config.js"></script>
 <script src="cloud-lib.js"></script>
 <script src="assets/site.js"></script>
+<script src="assets/home.js"></script>
 </body>
 </html>
