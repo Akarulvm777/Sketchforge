@@ -1,0 +1,13 @@
+/* Sub-pages (account, profile, community, shared, link): same nav as the redesigned home */
+.nav { gap: 18px; }
+.nav nav { gap: 20px; }
+.sf-studio-btn { white-space: nowrap; }
+.page { padding-top: 48px; }
+@media (max-width: 860px) {
+  .nav { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  .nav nav { order: 5; flex-basis: 100%; margin: 0; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .nav nav::-webkit-scrollbar { display: none; }
+  .nav nav a { flex: none; padding: 6px 10px; border-radius: 8px; background: rgba(13, 18, 32, .85); border: 1px solid #1b2740; font-size: .88rem; }
+  .nav #navAccount { margin-left: auto; }
+}
+@media (max-width: 480px) { .sf-studio-btn { padding: .5em .8em; font-size: .88rem; } }
