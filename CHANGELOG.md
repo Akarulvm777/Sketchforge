@@ -4,6 +4,17 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.0: Sketchforge 3.0, a new look and big new tools
+- New clean "Studio" interface: calm dark colours, rounded buttons, quiet panel titles, sliders that show how full they are, a darker canvas area so the page stands out. Every tool and menu is where it was, and Custom P themes still repaint all of it.
+- Smart colouring: the Fill tool closes small gaps in your lines (Close gaps), and 🎨 Auto-flat colours puts a flat colour in every closed area on a "Flats" layer under the line art.
+- Perspective with 1, 2 or 3 vanishing points: place and drag the points, a horizon line, and strokes that follow the direction you start in.
+- Vector ink layers (Layer › New vector layer): erase a line up to where it crosses another one, bend lines, change their thickness, smooth or delete them after drawing.
+- Lip-sync from sound (Animation › 👄 Lip-sync from sound…): mouths that move with the voice, made from your swap drawings. Exported MP4 / WebM videos now include the sound.
+- Comic text: vertical manga text, comic font families, line spacing, and balloons (oval, rounded box, cloud, thought, spiky shout) that fit the text by themselves.
+- 11 new effects in the Filter menu: hue / saturation / brightness, brightness & contrast, duotone, light leak, lens flare, neon edges, pixel art, cartoon, pencil sketch, old film and VHS.
+- On phones and tablets the ✨ Ask button can be dragged anywhere, or hidden (View menu). "Sign in" becomes a small 👤 button on small screens.
+- New tutorials for all of these (Help › Tutorials).
+
 ## 2.13: checked and polished
 - A full check of the app: every menu command (278) was run, with and without pressing OK in its window, plus the complete test suite, the website pages and phone screens.
 - Fixed: on phones the floating ✨ helper button covered the start screen's Account button and the Pages panel's ＋ New page button.
