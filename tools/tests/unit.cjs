@@ -266,6 +266,8 @@ const TESTS = {
     return near(a, [224, 64, 64, 255]) && near(b, [32, 160, 64, 255]) && near(c, [224, 64, 64, 255]) && A[3] === 255 ? true : { a, b, c };
   },
 
+  'GPU mixing engine compiles where WebGL2 exists': () => { const gl = document.createElement('canvas').getContext('webgl2'); return !gl || gpuMixInit() === true; },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

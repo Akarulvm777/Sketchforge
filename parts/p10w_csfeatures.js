@@ -384,11 +384,13 @@ function smudgeStamp(st, x, y, pr) {
   const cv = st.t.ctx.canvas, ox = Math.floor(sx), oy = Math.floor(sy), D0 = Math.ceil(d) + 2;
   const x0 = Math.max(0, ox), y0 = Math.max(0, oy), x1 = Math.min(cv.width, ox + D0), y1 = Math.min(cv.height, oy + D0);
   if (x1 > x0 && y1 > y0) {
-    const im = mirGet(st, x0, y0, x1 - x0, y1 - y0); // the layer under the dab, from the in-memory copy
-    smudgeDab(st.sm, im.data, x1 - x0, y1 - y0, x0, y0, sx, sy, d, {
+    const o = {
       blur: !!s.blurTool, smudge: s.smudge ?? 0.5, strength, paint, P, D, rgb: paint ? hexToRgb(st.color) : [0, 0, 0],
-      tv: paint && s.tex ? texBaseFor(s.tex)._vals : null, tN: TEX_N, tk: s.texScale || 1, tA: clamp(s.texAmt ?? 0.6, 0, 1)
-    });
+      tv: paint && s.tex ? texBaseFor(s.tex)._vals : null, tN: TEX_N, tk: s.texScale || 1, tA: clamp(s.texAmt ?? 0.6, 0, 1), tex: paint && s.tex ? s.tex : null
+    };
+    if (typeof gpuDab === 'function' && gpuDab(st, sx, sy, d, o)) { growBox(st, x, y, d); return; } // on the graphics card (p10wa_gpumix)
+    const im = mirGet(st, x0, y0, x1 - x0, y1 - y0); // the layer under the dab, from the in-memory copy
+    smudgeDab(st.sm, im.data, x1 - x0, y1 - y0, x0, y0, sx, sy, d, o);
     mirCopy(st, im, x0, y0, true); // to the copy; the layer is updated once per frame (mirFlush)
   }
   growBox(st, x, y, d);

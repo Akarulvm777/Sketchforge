@@ -3,6 +3,8 @@
 const H = require('./harness.cjs');
 (async () => {
   const { pg, errors, done } = await H.open(process.argv[2], 8831, { width: 1600, height: 950 });
+  // measure the CPU engine (the fallback for devices without WebGL2, and the slower path); the GPU engine is checked by unit.cjs
+  await pg.evaluate(() => window.__sketchforge.scope('(() => { GPUMIX.ok = false; })')());
   const ok = []; const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
   const run = tool => pg.evaluate(t => window.__sketchforge.scope(`(t => {
     newDocument(2894, 4093, 1, 12, false, 'Speed'); selectTool(t); fit();
