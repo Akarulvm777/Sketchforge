@@ -235,6 +235,12 @@ const TESTS = {
     return lv[0] === 0 && lv[2] === 1 && lv[4] === 2 && lv[5] === 2 && lv[8] === 0 && flick.every(v => v === 0) ? true : { loud, lv, flick };
   },
 
+  'comic text: vertical columns right to left, balloon bigger than the text': () => {
+    const v = textLayout(['ab', 'c'], 20, 'v', 1.25, 'left', s => s.length * 10), h = textLayout(['abc'], 20, 'h', 1.25, 'center', s => s.length * 10);
+    const b = balloonAround(h.box, 'ellipse', 20);
+    return v.items[1].y > v.items[0].y && v.items[2].x < v.items[0].x && v.box.w === 50 && h.box.x === -15 && b.w > h.box.w * 1.4 && b.h > h.box.h * 1.4 ? true : { v, h, b };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
