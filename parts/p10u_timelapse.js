@@ -78,7 +78,7 @@ function tlCapture(force) {
   TL.chain = TL.chain.then(async () => {
     try {
       await idle(); // let drawing go first
-      for (let i = 0; i < 400 && (stroke || active || !inputQuiet(2000)); i++) await new Promise(r => setTimeout(r, 150)); // wait for a real pause (up to a minute): never while drawing, hovering or picking a colour
+      for (let i = 0; i < 400 && !TL.hurry && (stroke || active || !inputQuiet(2000)); i++) await new Promise(r => setTimeout(r, 150)); // wait for a real pause (up to a minute): never while drawing, hovering or picking a colour
       if (gen !== TL.gen) return; // a new / other file was opened meanwhile
       const c = TL.mode === 'screen' ? tlRenderScreen() : TL.mode === 'view' ? tlRenderView() : tlRenderCanvas();
       const b = await canvasToBlob(c, 'image/jpeg');
@@ -129,12 +129,14 @@ function tlUpdateBtn() {
 }
 function tlReset() { TL.gen++; TL.frames = []; clearTimeout(TL.vt); clearTimeout(TL.trail); tlUpdateBtn(); }
 /* resolves once pending snapshots are stored (used by save and tests) */
-async function tlIdle() { await new Promise(r => setTimeout(r, 450)); await TL.chain; }
+async function tlIdle() { await new Promise(r => setTimeout(r, 450)); await tlFlush(); }
+/* a pending snapshot is taken now instead of waiting for a pause (export / tests) */
+async function tlFlush() { TL.hurry = true; try { await TL.chain; } finally { TL.hurry = false; } }
 
 /* ---- per-document storage (inside the .sketchforge file) ---- */
 async function tlSerialize(frames) {
   if (!TL.keep) return null;
-  if (!frames) { await TL.chain; frames = TL.frames; }
+  if (!frames) frames = TL.frames.slice(); // saving never waits for a snapshot that is waiting for a pause (it joins the next save)
   if (!frames || !frames.length) return null;
   const toURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
   // each snapshot is encoded once (the session autosave serialises often)
@@ -155,7 +157,7 @@ async function tlRestore(data) {
 /* ---- export ---- */
 async function tlExport(seconds, prog) {
   if (!window.MediaRecorder) throw new Error('Video recording is not supported in this browser');
-  await TL.chain;
+  await tlFlush();
   const all = TL.frames;
   if (all.length < 2) throw new Error('Nothing recorded yet — draw something first');
   const fps = 30, want = Math.max(2, Math.round(seconds * fps));
