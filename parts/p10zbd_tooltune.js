@@ -100,7 +100,7 @@ async function tuneTools(ids, quiet) {
       if (rec) { rec.perf = { ver: APP_VERSION, before: +res.before.toFixed(2), after: +res.after.toFixed(2), changes: res.changes, ...res.perf }; rec.perfSpacing = res.perf.perfSpacing; rec.perfCount = res.perf.perfCount; rec.perfDefer = res.perf.perfDefer; }
     }
     if (typeof saveAddons === 'function') saveAddons();
-    if (!quiet || faster) toast(faster ? `⚡ ${faster} imported tool${faster > 1 ? 's were' : ' was'} tuned for smooth drawing (ⓘ shows what changed).` : `⚡ Imported tools checked: they draw smoothly.`, 4500);
+    if (!quiet) toast(faster ? `⚡ ${faster} imported tool${faster > 1 ? 's were' : ' was'} tuned for smooth drawing (ⓘ shows what changed).` : `⚡ Imported tools checked: they draw smoothly.`, 4500);
     if (typeof renderSubTools === 'function') renderSubTools();
   } finally { TUNE.busy = false; }
 }

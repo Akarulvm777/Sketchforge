@@ -4,6 +4,13 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 2.13: checked and polished
+- A full check of the app: every menu command (278) was run, with and without pressing OK in its window, plus the complete test suite, the website pages and phone screens.
+- Fixed: on phones the floating ✨ helper button covered the start screen's Account button and the Pages panel's ＋ New page button.
+- Fixed: on phones the Pages panel covered part of a manga page; Fit now leaves room for the panel.
+- Faster: in a long manga / comic book, a stroke now redraws only its own page's thumbnail in the Pages panel (it redrew every page).
+- Fixed: after importing tools, the tool tuner's message replaced the import summary; tuning after an import is now silent (ⓘ shows the result).
+
 ## 2.13: smooth imported tools, a tool tuner, 3D model on the canvas
 - Faster: colour-mixing and blending brushes (many imported Clip Studio tools such as "Sketch pen", and Blend, Finger tip, Blur) no longer read the layer back from the graphics card on every dab: they paint on a copy in memory and update the layer once per screen frame. No more lag or freezing with them, and they keep their own spacing, so they look like the original tool again.
 - Faster: watercolour brushes no longer freeze when you lift the pen (the wet edge is made by the graphics card on a small copy).
