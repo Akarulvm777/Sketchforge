@@ -78,7 +78,7 @@ function tlCapture(force) {
   TL.chain = TL.chain.then(async () => {
     try {
       await idle(); // let drawing go first
-      for (let i = 0; i < 60 && (stroke || active || !inputQuiet(700)); i++) await new Promise(r => setTimeout(r, 150)); // never between two quick strokes
+      for (let i = 0; i < 400 && (stroke || active || !inputQuiet(2000)); i++) await new Promise(r => setTimeout(r, 150)); // wait for a real pause (up to a minute): never while drawing, hovering or picking a colour
       if (gen !== TL.gen) return; // a new / other file was opened meanwhile
       const c = TL.mode === 'screen' ? tlRenderScreen() : TL.mode === 'view' ? tlRenderView() : tlRenderCanvas();
       const b = await canvasToBlob(c, 'image/jpeg');

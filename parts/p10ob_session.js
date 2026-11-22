@@ -17,7 +17,7 @@ function sessionSoon(ms = 2500) {
 }
 async function sessionSave() {
   if (!SESS.on || SESS.restoring || typeof DOCS === 'undefined' || !DOCS.list.length) return;
-  if (SESS.busy || stroke || active || exporting || !inputQuiet(1500)) { SESS.again = true; sessionSoon(1500); return; }
+  if (SESS.busy || stroke || active || exporting || !inputQuiet(3000)) { SESS.again = true; sessionSoon(1500); return; }
   SESS.busy = true;
   try {
     const docs = [];
