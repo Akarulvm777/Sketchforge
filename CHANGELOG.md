@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.0: Sketchforge 3.0.1, smooth mixing and blend tools on big pages
+- Fixed: colour-mixing pens (such as an imported "Sketch pen") and the Blend, Finger tip and Blur tools lagged behind the pen on big pages, especially zoomed out. Each dab of these tools is now plain number math instead of about ten small canvas operations: 3–6× faster, with the same look (smudging red into red no longer leaves dark streaks).
+- Big pages: while you paint with these tools, the changed area is shown in small tiles over the layer, and the layer itself is written once when you lift the pen (the browser no longer re-sends the whole page-size picture to the screen on every frame).
+- A new speed test runs before every release and fails if one dab of these tools gets slow again.
+
 ## 3.0: Sketchforge 3.0, a new look and big new tools
 - New clean "Studio" interface: calm dark colours, rounded buttons, quiet panel titles, sliders that show how full they are, a darker canvas area so the page stands out. Every tool and menu is where it was, and Custom P themes still repaint all of it.
 - Smart colouring: the Fill tool closes small gaps in your lines (Close gaps), and 🎨 Auto-flat colours puts a flat colour in every closed area on a "Flats" layer under the line art.

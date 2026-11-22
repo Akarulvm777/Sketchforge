@@ -4,6 +4,7 @@
 function rangeFillPct(v, min, max) { const a = +min || 0, b = max === '' || max == null ? 100 : +max; return b > a ? clamp((+v - a) / (b - a) * 100, 0, 100) : 0; }
 function rangeFill(el) { if (el && el.type === 'range') el.style.setProperty('--fill', rangeFillPct(el.value, el.min, el.max).toFixed(1) + '%'); }
 function installStudio() {
+  const rs0 = refreshStage; refreshStage = function () { const out = rs0.apply(this, arguments); if (MIR_OV && stroke === MIR_OV.st && MIR_OV.cv.parentNode === stage && MIR_OV.el.parentNode !== stage) MIR_OV.cv.after(MIR_OV.el); return out; };
   installAskFab();
   document.body.classList.add('studio');
   const all = root => (root.querySelectorAll ? root.querySelectorAll('input[type=range]') : []).forEach(rangeFill);
