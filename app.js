@@ -7634,13 +7634,13 @@ function proProps(body, id) {
   if (id.startsWith('rl_')) {
     grp(body, 'Snap strokes to');
     chk('Linear ruler' + (ruler.line ? '' : ' (not set)'), () => ruler.snap.line, v => ruler.snap.line = v);
-    chk('Perspective ruler' + (ruler.persp ? '' : ' (not set)'), () => ruler.snap.persp, v => ruler.snap.persp = v);
+    chk('Perspective ruler' + (ruler.vps && ruler.vps.length ? '' : ' (not set)'), () => ruler.snap.persp, v => ruler.snap.persp = v);
     chk('Figure ruler' + (ruler.ell ? '' : ' (not set)'), () => ruler.snap.ell, v => ruler.snap.ell = v);
     chk('Symmetry ruler' + (ruler.sym ? '' : ' (not set)'), () => ruler.snap.sym, v => ruler.snap.sym = v);
     sel2('Symmetry', SYM_MODES, () => ruler.symMode, v => { ruler.symMode = v; refreshProps(); symChanged(); });
     if (ruler.symMode === 'rot' || ruler.symMode === 'kaleido') slider(body, 'Segments', 2, 16, 1, ruler.symCount, v => v, v => ruler.symCount = v);
     const hint = document.createElement('p'); hint.className = 'muted small';
-    hint.textContent = id === 'rl_line' ? 'Drag to draw a straight guide. Strokes that start near it follow it.' : id === 'rl_persp' ? 'Click where the vanishing point should be. Strokes radiate from it.' : id === 'rl_sym' ? 'Drag an axis (click = vertical). Everything you draw is mirrored.' : 'Drag a box to set an ellipse / circle (Shift = circle). Strokes near it follow the curve.';
+    hint.textContent = id === 'rl_line' ? 'Drag to draw a straight guide. Strokes that start near it follow it.' : id === 'rl_persp' ? 'Click to place the vanishing points (1, 2 or 3, below).' : id === 'rl_sym' ? 'Drag an axis (click = vertical). Everything you draw is mirrored.' : 'Drag a box to set an ellipse / circle (Shift = circle). Strokes near it follow the curve.';
     body.appendChild(hint);
     const b = document.createElement('button'); b.textContent = 'Clear all rulers'; b.onclick = CMD.rulerClear; body.appendChild(b);
     return;
@@ -7656,6 +7656,87 @@ function proProps(body, id) {
     slider(body, 'Tail length', 10, 100, 1, pro.tailLen * 100, v => v + '%', v => pro.tailLen = v / 100);
     const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Drag a box on the canvas. Outline = main colour, inside = secondary colour. Use the Text tool for the lettering.'; body.appendChild(p);
   } else if (id === 'fr_cut') { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Drag a line across a panel to split it with a gutter.'; body.appendChild(p); }
+}
+
+/* ---------- Perspective rulers with 1, 2 or 3 vanishing points ----------
+   ruler.vps = [{ x, y }…] (document space), ruler.pcount = 1 | 2 | 3. Click with the Perspective ruler to place the
+   points (up to pcount; once full, a click moves the nearest one); drag a point to move it. Each point radiates its
+   own coloured guide lines, two or more points draw the horizon line. A stroke follows the direction it starts in:
+   the line towards the vanishing point that matches best (perspDirs / perspPick), or a vertical (2 points) /
+   horizontal + vertical (1 point) line. Replaces the old single-point ruler.persp (read once for old sessions). */
+const VP_COLS = ['#ffbe3c', '#3fd6ff', '#ff6fd8'];
+/* the directions (radians) a stroke starting at (x, y) may follow (pure) */
+function perspDirs(vps, x, y, vert = true) {
+  const out = vps.map(p => Math.atan2(y - p.y, x - p.x));
+  if (vps.length === 1) out.push(0, Math.PI / 2);
+  if (vps.length === 2 && vert) out.push(Math.PI / 2);
+  return out;
+}
+/* the direction closest to the movement (dx, dy), lines have no sign (pure) */
+function perspPick(dirs, dx, dy) {
+  const m = Math.atan2(dy, dx); let best = dirs[0], bd = 9;
+  for (const a of dirs) { let d = Math.abs(((m - a) % Math.PI + Math.PI) % Math.PI); d = Math.min(d, Math.PI - d); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+function installPersp() {
+  if (!ruler.vps) ruler.vps = ruler.persp ? [{ ...ruler.persp }] : [];
+  ruler.persp = null; if (ruler.pcount == null) ruler.pcount = 2; if (ruler.vert == null) ruler.vert = true;
+  const rs0 = rulerStart; rulerStart = function (d) {
+    const lock = rs0.apply(this, arguments);
+    if (lock || !ruler.vps.length || !ruler.snap.persp) return lock;
+    return { type: 'pmulti', x0: d.x, y0: d.y, dirs: perspDirs(ruler.vps, d.x, d.y, ruler.vert), a: null };
+  };
+  const ra0 = rulerApply; rulerApply = function (lock, d) {
+    if (!lock || lock.type !== 'pmulti') return ra0.apply(this, arguments);
+    if (lock.a == null) { const dx = d.x - lock.x0, dy = d.y - lock.y0; if (Math.hypot(dx, dy) < 6 / view.scale) return { x: lock.x0, y: lock.y0 }; lock.a = perspPick(lock.dirs, dx, dy); }
+    const ux = Math.cos(lock.a), uy = Math.sin(lock.a), t = (d.x - lock.x0) * ux + (d.y - lock.y0) * uy;
+    return { x: lock.x0 + ux * t, y: lock.y0 + uy * t };
+  };
+  const dr0 = drawRulers; drawRulers = function (g, S) {
+    dr0.apply(this, arguments);
+    if (!ruler.show || !ruler.vps.length) return;
+    g.save(); g.lineWidth = 1;
+    const line = (x0, y0, x1, y1, col) => { const a = S(x0, y0), b = S(x1, y1); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.strokeStyle = col; g.stroke(); };
+    const on = ruler.snap.persp;
+    if (ruler.vps.length >= 2) { const [a, b] = ruler.vps, dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, k = 30000 / L; g.setLineDash([10, 6]); g.lineWidth = 1.5; line(a.x - dx * k, a.y - dy * k, b.x + dx * k, b.y + dy * k, on ? 'rgba(255,255,255,.75)' : 'rgba(160,160,160,.4)'); g.setLineDash([]); g.lineWidth = 1; }
+    ruler.vps.forEach((p, i) => {
+      const col = VP_COLS[i] + (on ? '88' : '40');
+      for (let k = 0; k < 36; k++) { const a = k * Math.PI / 18; line(p.x, p.y, p.x + Math.cos(a) * 30000, p.y + Math.sin(a) * 30000, col); }
+      const s = S(p.x, p.y); g.fillStyle = VP_COLS[i]; g.strokeStyle = '#111'; g.beginPath(); g.arc(s[0], s[1], 7, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = '#111'; g.font = 'bold 10px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), s[0], s[1] + 0.5);
+    });
+    g.restore();
+  };
+  const hitVP = (x, y) => { const S = docToScreen(x, y); let best = -1, bd = 16; ruler.vps.forEach((p, i) => { const q = docToScreen(p.x, p.y), d = Math.hypot(q[0] - S[0], q[1] - S[1]); if (d < bd) { bd = d; best = i; } }); return best; };
+  Object.assign(TOOLDEF.rl_persp, {
+    name: 'Perspective ruler (1–3 points)',
+    ddDown(o) { o.vp = hitVP(o.x0, o.y0); },
+    ddMove(o) { if (o.vp >= 0) { ruler.vps[o.vp] = { x: o.x1, y: o.y1 }; drawOverlay(); } },
+    ddEnd(o) {
+      if (o.vp < 0) {
+        const p = { x: o.x1, y: o.y1 };
+        if (ruler.vps.length < ruler.pcount) ruler.vps.push(p);
+        else { let k = 0, bd = Infinity; ruler.vps.forEach((q, i) => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d < bd) { bd = d; k = i; } }); ruler.vps[k] = p; }
+      }
+      ruler.snap.persp = true; drawOverlay(); refreshProps();
+      const left = ruler.pcount - ruler.vps.length;
+      if (o.vp < 0 && left > 0) toast(`Vanishing point ${ruler.vps.length} placed — click to place ${left} more`, 2500);
+    }
+  });
+  const pc0 = CMD.rulerClear; CMD.rulerClear = () => { ruler.vps = []; pc0(); };
+  const pp0 = proProps; proProps = function (body, id) {
+    const out = pp0.apply(this, arguments);
+    if (id !== 'rl_persp') return out;
+    grp(body, 'Perspective');
+    seg(body, [[1, '1 point'], [2, '2 points'], [3, '3 points']], ruler.pcount, v => { ruler.pcount = v; if (ruler.vps.length > v) ruler.vps.length = v; drawOverlay(); refreshProps(); });
+    const st = document.createElement('div'); st.className = 'small muted'; st.style.margin = '4px 0';
+    st.textContent = `${ruler.vps.length} of ${ruler.pcount} vanishing point${ruler.pcount > 1 ? 's' : ''} placed. Click to place, drag a point to move it.`;
+    body.appendChild(st);
+    if (ruler.pcount === 2) { const l = document.createElement('label'); l.className = 'check'; const i = document.createElement('input'); i.type = 'checkbox'; i.checked = ruler.vert; i.onchange = () => { ruler.vert = i.checked; }; l.append(i, ' Vertical lines stay vertical'); body.appendChild(l); }
+    btns(body, [['Clear the vanishing points', () => { ruler.vps = []; drawOverlay(); refreshProps(); }]]);
+    hint(body, 'A stroke follows the direction you start drawing in: towards a vanishing point (or straight up / across).');
+    return out;
+  };
 }
 
 /* ---------- layer masks ----------
@@ -13633,6 +13714,7 @@ const HELP_TIPS = [
   { q: 'reset default settings factory restore remove imported tools start again clean', t: 'Reset Sketchforge to defaults', x: 'Edit › Reset Sketchforge to defaults… (also in Help) puts every setting back and removes every imported tool, custom brush, theme and colour set. Your drawings and your account stay. [[cmd:resetDefaults|Reset to defaults…]]' },
   { q: 'manga page comic setup panels layout new manga page frames yonkoma webtoon print b5 a4 guides', t: 'New manga page', x: 'File › 📖 New manga page… (also in the Manga menu): choose the page (phone, B5 / A4 print, square, webtoon), a panel layout (1–6 panels, classic manga, 4-panel strip), the space between panels and the border width. You get print guides and the layers Colour, Tone, Ink, Text & balloons and Panels, ready to draw. [[cmd:newManga|New manga page…]]' },
   { q: 'tutorial every tool each tool learn tools how does this tool work try it guide', t: 'Tutorials for every tool', x: 'Help › 📚 Tutorials › Every tool: one tutorial per tool group with a step for each tool (also the ones you import), and a Try it button that uses the tool on a practice page. [[cmd:tutorials|Open the tutorials]]' },
+  { q: 'perspective vanishing point 2 point 3 point two point three point horizon background building room street ruler grid', t: 'Perspective (1, 2 or 3 points)', x: 'Ruler group › Perspective ruler: choose 1, 2 or 3 points in Tool Property, then click to place the vanishing points (drag them to move). Strokes follow the direction you start in: towards a point, or straight up.', a: [['tool', 'rl_persp', 'Perspective ruler']] },
   { q: 'fill leak gap close gaps colouring flat flats auto flat colour areas bucket fill outside lines', t: 'Smart colouring (close gaps, auto-flat)', x: 'Fill tool › Close gaps: the fill stops at small gaps in your lines. 🎨 Auto-flat colours puts one flat colour in every closed area, on a "Flats" layer under your lines (from the reference layers, or the active layer). Then fill over them with your real colours.', a: [['tool', 'fill', 'Fill tool'], ['cmd', 'autoFlat', 'Auto-flat colours']] },
   { q: 'tool lag slow imported tool freeze tune tuner optimize smooth sut performance faster', t: 'Imported tool is slow?', x: 'Sketchforge studies every imported tool (and again after each update) and makes slow ones lighter for the engine without changing how they look — ⓘ under Sub Tool shows "⚡ Tuned…". Add-ons › ⚡ Tune imported tools runs it again. Colour-mixing tools paint on a fast copy in memory.', a: [['cmd', 'tuneTools', 'Tune imported tools']] },
   { q: '3d model canvas drag pose model on drawing disappear small window place model', t: '3D model on your drawing', x: 'Drag the model from the 3D panel onto your drawing (or tap the tile) and pose it right on the canvas. It stays while you draw; ✋ Pose 3D model poses it again, ✕ hides it.', a: [['cmd', 'show3d', '3D model']] },
@@ -15557,7 +15639,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installFilters(); installSmartFill(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installFilters(); installSmartFill(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
