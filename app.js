@@ -3939,21 +3939,32 @@ async function runExport() {
       const w = Math.max(2, Math.round(state.w * scale)), h = Math.max(2, Math.round(state.h * scale));
       const cv = makeCanvas(w, h), g = cv.getContext('2d');
       const stream = cv.captureStream(0), track = stream.getVideoTracks()[0];
-      const mime = (fmt === 'mp4' ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4'] : []).concat(['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']).find(m => MediaRecorder.isTypeSupported(m));
+      // the sound track goes into the video too (Animation › Import audio…), from the first exported frame
+      let snd = null;
+      if (typeof aud !== 'undefined' && aud.file && (!$('#expSound') || $('#expSound').checked)) {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext, ac = new AC(), ab = await ac.decodeAudioData((await aud.file.arrayBuffer()).slice(0)), dest = ac.createMediaStreamDestination();
+          const src = ac.createBufferSource(); src.buffer = ab; src.connect(dest); stream.addTrack(dest.stream.getAudioTracks()[0]); snd = { ac, src, at: fr[0] / state.fps };
+        } catch (e) { console.warn('sound not added to the video', e); }
+      }
+      const vtypes = snd ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'] : ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      const mime = vtypes.filter(m => fmt === 'mp4' || !m.startsWith('video/mp4')).find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
       const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
       const chunks = [];
       rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       const done = new Promise(r => { rec.onstop = r; });
       rec.start();
+      if (snd) snd.src.start(0, Math.min(snd.at, snd.src.buffer.duration));
+      const t0 = performance.now(); // frames follow the clock (not "wait one frame after drawing"): picture and sound stay together
       for (let i = 0; i < n; i++) {
-        if (!exporting) { rec.stop(); throw new Error('cancelled'); }
+        if (!exporting) { rec.stop(); if (snd) snd.ac.close(); throw new Error('cancelled'); }
         g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
         g.drawImage(compositeFrame(fr[i]), 0, 0, w, h);
         track.requestFrame();
-        prog.textContent = `Recording ${i + 1} / ${n}`;
-        await sleep(1000 / state.fps);
+        prog.textContent = `Recording ${i + 1} / ${n}${snd ? ' (with sound)' : ''}`;
+        await sleep(Math.max(0, t0 + (i + 1) * 1000 / state.fps - performance.now()));
       }
-      rec.stop(); await done;
+      rec.stop(); await done; if (snd) { try { snd.src.stop(); snd.ac.close(); } catch (e) { /* ignore */ } }
       download(new Blob(chunks, { type: mime.split(';')[0] }), base + (mime.startsWith('video/mp4') ? '.mp4' : '.webm'));
     }
     prog.textContent = 'Done.';
@@ -5475,6 +5486,70 @@ function installSwap() {
   setMode = function () { const r = sm.apply(this, arguments); try { renderSwapBar(true); } catch (er) { /* ignore */ } return r; };
   const rt = renderTimeline;
   renderTimeline = function () { const r = rt.apply(this, arguments); try { renderSwapBar(); } catch (er) { /* never break the timeline */ } return r; };
+}
+
+/* ---------- Lip-sync from the sound, and the sound in exported videos ----------
+   Animation › 👄 Lip-sync from sound…: on the active layer, its swap drawings (🔁 Swap bar) are used as mouths —
+   closed, half open, open (chosen in the dialog). The loudness of the sound track (aud.peaks) on every frame of the
+   play range picks the mouth (lipFrames: thresholds relative to the loudest moment, a mouth held at least minHold
+   frames so it does not flicker); a keyframe is made only where the mouth changes. One undo step.
+   Export: "Include the sound" (on by default when there is sound) mixes the sound track into MP4 / WebM. */
+/* the loudness (0..1, relative to the loudest moment) of each frame (pure) */
+function frameLoudness(peaks, dur, fps, n) {
+  const out = new Array(n).fill(0); if (!peaks || !peaks.length || !dur) return out;
+  let mx = 0; for (const p of peaks) mx = Math.max(mx, p); if (!mx) return out;
+  for (let f = 0; f < n; f++) { const a = Math.floor(f / fps / dur * peaks.length), b = Math.max(a + 1, Math.floor((f + 1) / fps / dur * peaks.length)); let m = 0; for (let i = a; i < b && i < peaks.length; i++) m = Math.max(m, peaks[i]); out[f] = m / mx; }
+  return out;
+}
+/* mouth per frame: 0 closed, 1 half, 2 open, from the loudness; a change must last minHold frames (pure) */
+function lipFrames(loud, half = 0.12, open = 0.45, minHold = 2) {
+  const raw = loud.map(v => v >= open ? 2 : v >= half ? 1 : 0), out = raw.slice();
+  let cur = raw[0];
+  for (let f = 0; f < raw.length; f++) {
+    if (raw[f] !== cur) { let k = f; while (k < raw.length && raw[k] === raw[f]) k++; if (k - f >= minHold || f === 0) cur = raw[f]; }
+    out[f] = cur;
+  }
+  return out;
+}
+function lipSync() {
+  const l = activeLayer();
+  if (typeof aud === 'undefined' || !aud.peaks) { toast('First add the voice: Animation › Import audio…'); return; }
+  const sw = typeof swapsOf === 'function' ? swapsOf(l) : [];
+  if (sw.length < 2) { toast('Make the mouths first: draw a closed mouth and an open mouth (and a half-open one) in the 🔁 Swap bar of this layer'); return; }
+  const opts = sw.map(s => [s.id, s.name]);
+  proDialog('👄 Lip-sync from sound', [
+    { k: 'closed', label: 'Closed mouth', type: 'select', val: sw[0].id, options: opts },
+    { k: 'half', label: 'Half-open mouth', type: 'select', val: (sw[2] || sw[1]).id, options: opts },
+    { k: 'open', label: 'Open mouth', type: 'select', val: sw[1].id, options: opts },
+    { k: 'sens', label: 'Sensitivity', type: 'range', min: 10, max: 90, val: 50 },
+    { k: 'hold', label: 'Hold each mouth at least (frames)', type: 'range', min: 1, max: 6, val: 2 }
+  ], p => {
+    const [a, b] = typeof playRange === 'function' ? playRange() : [0, state.frameCount - 1];
+    const n = state.frameCount, k = p.sens / 50, loud = frameLoudness(aud.peaks, aud.dur, state.fps, n);
+    const lv = lipFrames(loud, 0.12 / k, 0.45 / k, p.hold), ids = [p.closed, p.half, p.open];
+    let made = 0;
+    timelineOp(() => {
+      let prev = -1;
+      for (let f = a; f <= b; f++) {
+        if (lv[f] === prev) continue; prev = lv[f];
+        const s = sw.find(x => x.id === ids[lv[f]]); if (!s) continue;
+        const kf = keyAt(l, f), cur = kf !== null ? l.cels.get(kf) : null, c = swapCopy(s.cel);
+        if (cur) { const fp = frameParams(l, f); if (fp) c._xf = { ...IDENT, x: fp.p.x, y: fp.p.y, rot: fp.p.rot, sx: fp.p.sx, sy: fp.p.sy, alpha: fp.p.alpha }; }
+        c._swap = s.id; c._ink = true; c._sv = (c._sv || 0) + 1; l.cels.set(f, c); made++;
+      }
+    });
+    bindAll(state.frame); refreshAll(); markDirty(); if (typeof renderSwapBar === 'function') renderSwapBar(true);
+    toast(`Lip-sync: ${made} mouth changes from the sound. Press Play (the sound plays too). Fix any frame by tapping another mouth in the Swap bar.`, 6000);
+  }, 'Make lip-sync');
+}
+function installLipSync() {
+  CMD.lipSync = lipSync;
+  const A = MENUS.find(m => m[0] === 'Animation'); if (A) { const i = A[1].findIndex(x => Array.isArray(x) && x[1] === 'audioRemove'); A[1].splice(i < 0 ? A[1].length : i + 1, 0, ['👄 Lip-sync from sound…', 'lipSync']); }
+  // export dialog: include the sound
+  const go = $('#expGo'); if (go && !$('#expSound')) {
+    const lab = document.createElement('label'); lab.className = 'check'; lab.innerHTML = '<input type="checkbox" id="expSound" checked> Include the sound (MP4 / WebM)';
+    const loop = $('#expLoop'); (loop && loop.closest('label') ? loop.closest('label') : go).after(lab);
+  }
 }
 
 /* ---------- Face sliders (Live2D-style): blink, open the mouth, smile, raise the brows ----------
@@ -13915,6 +13990,7 @@ const HELP_TIPS = [
   { q: 'reset default settings factory restore remove imported tools start again clean', t: 'Reset Sketchforge to defaults', x: 'Edit › Reset Sketchforge to defaults… (also in Help) puts every setting back and removes every imported tool, custom brush, theme and colour set. Your drawings and your account stay. [[cmd:resetDefaults|Reset to defaults…]]' },
   { q: 'manga page comic setup panels layout new manga page frames yonkoma webtoon print b5 a4 guides', t: 'New manga page', x: 'File › 📖 New manga page… (also in the Manga menu): choose the page (phone, B5 / A4 print, square, webtoon), a panel layout (1–6 panels, classic manga, 4-panel strip), the space between panels and the border width. You get print guides and the layers Colour, Tone, Ink, Text & balloons and Panels, ready to draw. [[cmd:newManga|New manga page…]]' },
   { q: 'tutorial every tool each tool learn tools how does this tool work try it guide', t: 'Tutorials for every tool', x: 'Help › 📚 Tutorials › Every tool: one tutorial per tool group with a step for each tool (also the ones you import), and a Try it button that uses the tool on a practice page. [[cmd:tutorials|Open the tutorials]]' },
+  { q: 'lip sync lipsync mouth talk speak voice dialogue sound mouth shapes export video sound mp4 audio', t: 'Lip-sync and video with sound', x: 'Import the voice (Animation › Import audio…), draw a closed, a half-open and an open mouth in the 🔁 Swap bar, then Animation › 👄 Lip-sync from sound: the mouths are placed on the timeline from the loudness. Export MP4 / WebM with "Include the sound" ticked to keep the voice in the video.', a: [['cmd', 'lipSync', 'Lip-sync from sound'], ['cmd', 'audioImport', 'Import audio…']] },
   { q: 'vector layer vector line edit line thickness bend line vector eraser intersection inking clean lines editable', t: 'Vector layers (editable lines)', x: 'Layer › New vector layer: every pen line stays editable. Vector group › Vector edit: click a line, drag to bend it, change its thickness, smooth or delete it. Vector eraser: erases a line up to where it crosses other lines (or the whole line). Colour on a normal layer under it.', a: [['cmd', 'newVectorLayer', 'New vector layer'], ['tool', 'vecedit', 'Vector edit'], ['tool', 'vecerase', 'Vector eraser']] },
   { q: 'perspective vanishing point 2 point 3 point two point three point horizon background building room street ruler grid', t: 'Perspective (1, 2 or 3 points)', x: 'Ruler group › Perspective ruler: choose 1, 2 or 3 points in Tool Property, then click to place the vanishing points (drag them to move). Strokes follow the direction you start in: towards a point, or straight up.', a: [['tool', 'rl_persp', 'Perspective ruler']] },
   { q: 'fill leak gap close gaps colouring flat flats auto flat colour areas bucket fill outside lines', t: 'Smart colouring (close gaps, auto-flat)', x: 'Fill tool › Close gaps: the fill stops at small gaps in your lines. 🎨 Auto-flat colours puts one flat colour in every closed area, on a "Flats" layer under your lines (from the reference layers, or the active layer). Then fill over them with your real colours.', a: [['tool', 'fill', 'Fill tool'], ['cmd', 'autoFlat', 'Auto-flat colours']] },
@@ -15841,7 +15917,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

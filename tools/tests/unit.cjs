@@ -229,6 +229,12 @@ const TESTS = {
     return ok ? true : { xs, mid: mid.map(m => m.pts), sl, bent };
   },
 
+  'lip-sync: loudness per frame, mouths held at least 2 frames': () => {
+    const peaks = Array.from({ length: 100 }, (_, i) => (i >= 40 && i < 60 ? 1 : i >= 20 && i < 30 ? 0.3 : 0.01));
+    const loud = frameLoudness(peaks, 1, 10, 10), lv = lipFrames(loud), flick = lipFrames([0, 1, 0, 0, 0], 0.12, 0.45, 2);
+    return lv[0] === 0 && lv[2] === 1 && lv[4] === 2 && lv[5] === 2 && lv[8] === 0 && flick.every(v => v === 0) ? true : { loud, lv, flick };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 
