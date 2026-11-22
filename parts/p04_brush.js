@@ -127,11 +127,13 @@ function colourJitter(hex, s) {
 }
 function stepAt(st, pr) {
   const d = diameterAt(st, pr);
-  // colour mixing / blending brushes: every dab reads and rewrites pixels, so dabs closer than ~20% of the size,
-  // 1.5 px or half a screen pixel cost a lot (thousands per stroke on a zoomed-out page) and look the same
-  if (st.direct) return Math.max(1.5, 0.6 / (view.scale || 1), d * 0.2);
-  return Math.max(0.6, d * (st.s.tipId ? (st.s.spacing || 0.15) : st.s.hardness >= 0.97 ? 0.08 : 0.1));
+  // colour mixing / blending brushes: the tool's own spacing (they paint on a copy in memory, see mirCopy), never
+  // closer than about a third of a screen pixel (invisible, and thousands of dabs per stroke on a zoomed-out page)
+  // perfSpacing: set by the tool tuner (p10zbd) when a tool is too slow; never changes how the tool is described
+  if (st.direct) return Math.max(0.75, 0.35 / (view.scale || 1), d * Math.max(st.s.spacing ?? 0.1, st.s.perfSpacing || 0));
+  return Math.max(0.6, d * Math.max(baseSpacing(st.s), st.s.perfSpacing || 0));
 }
+const baseSpacing = s => s.tipId ? (s.spacing || 0.15) : s.hardness >= 0.97 ? 0.08 : 0.1;
 function growBox(st, x, y, d) {
   const r = d / 2 * (st.s.twoTone === 'glow' ? 1 + clamp(st.s.twoEdge ?? 0.8, 0.05, 0.9) * 1.6 : 1) + 2; // a glow (two-colour brush) reaches past the dab
   for (const b of [st.box, st.mbox]) {
@@ -396,9 +398,11 @@ function stampAt1(st, x, y, pr) {
   if (s.aRand != null) a *= lerp(s.aRand, 1, Math.random());
   if (s.atCurve && st.tilt != null) a *= lerp(s.atMin ?? 0, 1, prCurve(s.atCurve, st.tilt));
   if (s.avCurve && st.vel != null) a *= lerp(s.avMin ?? 0, 1, prCurve(s.avCurve, st.vel));
-  if (s.flowSp) a = 1 - Math.pow(1 - a, clamp((s.spacing || 0.1) / 0.1, 0.05, 1)); // dense spacing: less ink per dab, same look
+  if (s.flowSp) a = 1 - Math.pow(1 - a, clamp(Math.max(s.spacing || 0.1, s.perfSpacing || 0) / 0.1, 0.05, 1)); // dense spacing: less ink per dab, same look
+  else if (s.perfSpacing > baseSpacing(s)) a = 1 - Math.pow(1 - a, clamp(s.perfSpacing / baseSpacing(s), 1, 8)); // tuned (fewer dabs): same build-up of ink
   st.lastPr = pr;
-  const n = s.count || 1, sc = s.scatter || 0;
+  const n = Math.min(s.count || 1, s.perfCount || 99), sc = s.scatter || 0;
+  if (n < (s.count || 1)) a = 1 - Math.pow(1 - a, (s.count || 1) / n); // tuned (fewer particles): same coverage
   if (st.dlx != null) { const dx = x - st.dlx, dy = y - st.dly; if (dx * dx + dy * dy > 0.25) st.dir = Math.atan2(dy, dx); }
   st.dlx = x; st.dly = y;
   for (let i = 0; i < n; i++) {
@@ -415,23 +419,20 @@ function stampAt1(st, x, y, pr) {
 /* watercolour wet edge: pigment pools at the rim, centre goes lighter */
 function applyWet(st, b) {
   const level = st.s.wet;
-  const reg = makeCanvas(b.w, b.h);
-  reg.getContext('2d').drawImage(bufCanvas, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
   // the edge only needs a soft copy of the stroke: blur a smaller copy (blurring big strokes at full size froze iPads)
-  const sig = Math.max(1.5, st.s.size * 0.09), f = clamp(sig / 1.5, 1, 8);
-  const sw = Math.max(1, Math.round(b.w / f)), sh = Math.max(1, Math.round(b.h / f)), small = makeCanvas(sw, sh), sg = small.getContext('2d');
-  sg.imageSmoothingQuality = 'high'; sg.drawImage(reg, 0, 0, sw, sh);
-  gaussianBlur(small, sig / f);
-  const bl = makeCanvas(b.w, b.h), blg = bl.getContext('2d');
-  blg.imageSmoothingQuality = 'high'; blg.drawImage(small, 0, 0, b.w, b.h);
-  const rg = reg.getContext('2d'), im = rg.getImageData(0, 0, b.w, b.h), d = im.data;
-  const bd = bl.getContext('2d').getImageData(0, 0, b.w, b.h).data;
-  for (let i = 3; i < d.length; i += 4) {
-    d[i] = d[i] * (1 - level * 0.55 * Math.min(1, bd[i] / 255));
-  }
-  rg.putImageData(im, 0, 0);
-  bufCtx.clearRect(b.x, b.y, b.w, b.h);
-  bufCtx.drawImage(reg, b.x, b.y);
+  // (at most ~320 px wide: the blur is smooth anyway once scaled back up; the graphics chip blurs when it can)
+  const sig = Math.max(1.5, st.s.size * 0.09), f = Math.max(clamp(sig, 1, 16), Math.max(b.w, b.h) / 320);
+  const sw = Math.max(1, Math.round(b.w / f)), sh = Math.max(1, Math.round(b.h / f));
+  let small = makeCanvas(sw, sh); const sg = small.getContext('2d');
+  sg.imageSmoothingQuality = 'high'; sg.drawImage(bufCanvas, b.x, b.y, b.w, b.h, 0, 0, sw, sh);
+  if (typeof sg.filter === 'string') { const bl = makeCanvas(sw, sh), g2 = bl.getContext('2d'); g2.filter = `blur(${Math.max(0.5, sig / f).toFixed(2)}px)`; g2.drawImage(small, 0, 0); small = bl; }
+  else gaussianBlur(small, Math.max(0.5, sig / f));
+  // centre lighter, rim kept: alpha × (1 − 0.55 · level · blurred alpha) = "destination-out" of the blurred copy at that
+  // strength, done by the graphics chip (it was two full-size pixel read-backs and a loop: a freeze when lifting the pen)
+  bufCtx.save();
+  bufCtx.globalCompositeOperation = 'destination-out'; bufCtx.globalAlpha = clamp(level * 0.55, 0, 1); bufCtx.imageSmoothingQuality = 'high';
+  bufCtx.drawImage(small, 0, 0, sw, sh, b.x, b.y, b.w, b.h);
+  bufCtx.restore();
 }
 function segment(st, x, y, pr) {
   const x0 = st.lx, y0 = st.ly, p0 = st.lp;
@@ -756,6 +757,7 @@ function endStroke(cancel) {
   if (!st) return;
   stroke = null;
   const t = st.t;
+  if (st.mir && typeof mirFlush === 'function') { cancelAnimationFrame(st.mirRaf); st.mirRaf = 0; mirFlush(st); } // mixing brushes: the last dabs reach the layer
   if (typeof holdCancel === 'function') holdCancel(st);
 
   if (cancel) {

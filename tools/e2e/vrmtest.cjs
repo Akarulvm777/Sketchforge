@@ -17,7 +17,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
   check('arms hang down at rest (T-pose was lowered)', handBelow > 0.35);
   // Pose on canvas: drag the left hand on the big model
   await pg.evaluate(() => { document.querySelector('#m3dDrag [data-d=move]').click(); [...document.querySelectorAll('#m3dPoses button')].find(x => x.textContent === 'Stand').click(); });
-  await pg.click('#m3dPoseCanvas'); await pg.waitForTimeout(400);
+  await pg.evaluate(() => window.__sketchforge.scope('setPoseOnCanvas(true)')); await pg.waitForTimeout(400); // the model is posed on the canvas (no small window)
   check('Pose on canvas shows the pose bar', await pg.isVisible('#m3dPoseBar'));
   const handScreen = await pg.evaluate(() => { const SF = window.__sketchforge, M3 = SF.M3, T = M3.T, v = new T.Vector3(); M3.root.updateMatrixWorld(true);
     M3.joints.handL.getWorldPosition(v); v.y -= 0.05; v.project(M3.camera); const dx = (v.x + 1) / 2 * SF.state.w, dy = (1 - v.y) / 2 * SF.state.h;

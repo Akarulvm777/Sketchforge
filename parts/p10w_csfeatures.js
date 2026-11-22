@@ -294,6 +294,39 @@ function modifySelection(mode, r) {
 
 
 /* ---------- Blend tools: smudge / finger / blur (work directly on the cel) ---------- */
+/* colour-mixing / blend brushes keep the painted area in ordinary memory while the stroke lasts (tiles of MIR_T px):
+   each tile is read from the layer once (the first time the brush touches it), the dabs read and write the copy, and
+   the layer is updated once per screen frame (mirFlush). Reading the layer back from the graphics chip on every dab
+   (twice: read + write) is what made imported mixing pens lag and freeze on PCs with a graphics card. */
+const MIR_T = 256;
+function mirTile(st, tx, ty) {
+  if (!st.mir) st.mir = new Map();
+  const k = tx + ',' + ty; let t = st.mir.get(k);
+  if (!t) { const cv = st.t.ctx.canvas, x = tx * MIR_T, y = ty * MIR_T, w = Math.min(MIR_T, cv.width - x), h = Math.min(MIR_T, cv.height - y); t = { x, y, w, h, im: st.t.ctx.getImageData(x, y, w, h), d0: null }; st.mir.set(k, t); }
+  return t;
+}
+/* copy the rectangle (x0, y0, w, h) between the tiles and an ImageData (put = false: tiles → image; true: image → tiles) */
+function mirCopy(st, im, x0, y0, put) {
+  const w = im.width, h = im.height, D = im.data;
+  for (let ty = Math.floor(y0 / MIR_T); ty * MIR_T < y0 + h; ty++) for (let tx = Math.floor(x0 / MIR_T); tx * MIR_T < x0 + w; tx++) {
+    if (tx < 0 || ty < 0 || tx * MIR_T >= st.t.ctx.canvas.width || ty * MIR_T >= st.t.ctx.canvas.height) continue;
+    const t = mirTile(st, tx, ty), ax = Math.max(x0, t.x), ay = Math.max(y0, t.y), bx = Math.min(x0 + w, t.x + t.w), by = Math.min(y0 + h, t.y + t.h);
+    if (bx <= ax || by <= ay) continue;
+    const T = t.im.data, n = (bx - ax) * 4;
+    for (let yy = ay; yy < by; yy++) {
+      const ti = ((yy - t.y) * t.w + (ax - t.x)) * 4, ii = ((yy - y0) * w + (ax - x0)) * 4;
+      if (put) T.set(D.subarray(ii, ii + n), ti); else D.set(T.subarray(ti, ti + n), ii);
+    }
+    if (put) { const r = t.d0; t.d0 = r ? [Math.min(r[0], ax), Math.min(r[1], ay), Math.max(r[2], bx), Math.max(r[3], by)] : [ax, ay, bx, by]; }
+  }
+  if (put && !st.mirRaf) st.mirRaf = requestAnimationFrame(() => { st.mirRaf = 0; mirFlush(st); });
+}
+function mirGet(st, x0, y0, w, h) { const im = new ImageData(w, h); mirCopy(st, im, x0, y0, false); return im; }
+function mirFlush(st) {
+  if (!st || !st.mir) return;
+  for (const t of st.mir.values()) if (t.d0) { const [ax, ay, bx, by] = t.d0; st.t.ctx.putImageData(t.im, t.x, t.y, ax - t.x, ay - t.y, bx - ax, by - ay); t.d0 = null; }
+  if (st.t.cel) st.t.cel._sv = (st.t.cel._sv || 0) + 1;
+}
 function smudgeStamp(st, x, y, pr) {
   const s = st.s, g = st.t.ctx, C = 128;
   const d = Math.max(3, diameterAt(st, pr));
@@ -319,7 +352,7 @@ function smudgeStamp(st, x, y, pr) {
   if (!st.grab || st.grab.width < D0) st.grab = cpu(D0, D0);
   const gg = st.grab.getContext('2d'); gg.clearRect(0, 0, D0, D0);
   { const x0 = Math.max(0, ox), y0 = Math.max(0, oy), w0 = Math.min(state.w, ox + D0) - x0, h0 = Math.min(state.h, oy + D0) - y0; // one read of the layer for this dab
-    if (w0 > 0 && h0 > 0) gg.putImageData(g.getImageData(x0, y0, w0, h0), x0 - ox, y0 - oy); }
+    if (w0 > 0 && h0 > 0) gg.putImageData(mirGet(st, x0, y0, w0, h0), x0 - ox, y0 - oy); }
   const gx = sx - ox, gy = sy - oy, src = st.grab;
   if (s.blurTool) {
     const n = clamp(Math.round(d / 7), 3, 64);
@@ -369,7 +402,7 @@ function smudgeStamp(st, x, y, pr) {
         od[i + 2] = (od[i + 2] * wo + cb * wc) / na;
       }
     }
-    g.putImageData(im, rx, ry);
+    mirCopy(st, im, rx, ry, true); // to the copy; the layer is updated once per frame (mirFlush)
   }
   growBox(st, x, y, d);
 }
