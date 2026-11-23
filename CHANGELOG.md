@@ -4,6 +4,16 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.3: Languages, Home tab, drafts, import window, pressure curve
+- Sketchforge speaks your language: it follows the language of your computer or phone, and asks once at the first start and after each update (Help › 🌐 Language… any time). English, ไทย, Français, Español, Português, Deutsch, 日本語, 中文, 한국어 (menus, panels and main windows).
+- 🏠 Home tab next to your file tabs: the start page stays one click away while you draw.
+- Real files and drafts: auto-save only writes files you saved yourself; new unsaved work is kept as a draft on the Home page. Closing a file always asks if you want to save it as a real file. Drafts are removed when you reset Sketchforge or install it fresh.
+- Import window: when you import Clip Studio tools, a window shows each tool being studied with a percentage — reading, images, settings, where it goes, a test stroke and its preview. Nothing is downloaded.
+- Pen pressure curve you drag to shape (View › Pen pressure & touch): click to add a point, double-click to remove one.
+- Tools without a picture now show a sample in the Sub Tool list: balloons, panels, rulers, shapes, fills, selections, text, manga tones…
+- 3D model: the coloured rotation rings are back on for everyone, thicker and easier to grab ("◎ Rings" button). Deleting the 3D model layer removes the model (undo brings it back).
+- Under the hood: cleaner architecture so future updates break less (modules start on their own, shared hooks).
+
 ## 3.2: 3D model layer, new website, no more freezes when you pause
 - Fixed: short freezes just before the pen touched the canvas, or right after changing the colour, the brush size or the tool. Background jobs (saving your work in the browser, time-lapse pictures, checking imported tools) started as soon as the pen left the canvas; they now wait until you really stop — hovering the pen and using the panels count as working.
 - The 3D model gets its own layer, "🧍 3D model": move the layer to put the model in front of or behind your drawing, hide it with the eye, fade it with the layer opacity. Delete the layer to remove the model.
