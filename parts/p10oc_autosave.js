@@ -28,8 +28,8 @@ async function autoSaveNow() {
     const doc = await buildDocObject(undefined, { cache: true, quiet: true });
     const blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
     if (r && r.handle) { await writeHandle(r.handle, blob); dirty = false; syncTab(); autoSaveStatus(`Auto-saved ${hh}`); }
-    else if (typeof isNativeApp === 'function' && isNativeApp()) { await nativeSave(blob, name); dirty = false; syncTab(); autoSaveStatus(`Auto-saved ${hh}`); }
-    else { if (typeof sessionSave === 'function') await sessionSave(); autoSaveStatus(`Auto-saved in the app ${hh} (Save to keep a file)`); }
+    else if (r && r.realFile && typeof isNativeApp === 'function' && isNativeApp()) { await nativeSave(blob, name); dirty = false; syncTab(); autoSaveStatus(`Auto-saved ${hh}`); }
+    else { if (typeof sessionSave === 'function') await sessionSave(); autoSaveStatus(r && r.realFile ? `Auto-saved in the app ${hh} (Save to update your file)` : `Draft kept in the app ${hh} (File › Save makes a real file)`); }
   } catch (e) { autoSaveStatus('Auto-save failed: ' + (e.message || e)); }
   AUTO.last = Date.now();
 }

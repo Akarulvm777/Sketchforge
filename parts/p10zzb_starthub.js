@@ -25,12 +25,13 @@ const recentList = async () => (await recentKV('readonly', s => s.get('list'))) 
 /* the recent list after adding / replacing one file (pure): newest first, one entry per name, at most max */
 function recentMerge(list, entry, max = RECENT_MAX) { return [entry, ...list.filter(e => e.name !== entry.name)].slice(0, max); }
 async function recentRecord() {
+  if (typeof RECENT_SKIP !== 'undefined' && RECENT_SKIP) return;
   try {
     if (!state.layers || !state.layers.some(l => !l.paper)) return;
     // everything about this document is read now (a closed tab is gone after the first await)
     const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d');
     g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H);
-    const entry = { name: state.name || 'Untitled', time: Date.now(), thumb: tc.toDataURL('image/jpeg', 0.8), w: state.w, h: state.h, type: state.projectType || 'illust', frames: state.frameCount };
+    const entry = { name: state.name || 'Untitled', draft: !(DOCS.cur && DOCS.cur.realFile), time: Date.now(), thumb: tc.toDataURL('image/jpeg', 0.8), w: state.w, h: state.h, type: state.projectType || 'illust', frames: state.frameCount };
     const doc = await buildDocObject(undefined, { cache: true, quiet: true }), text = JSON.stringify(doc);
     if (text.length > 40e6) return;
     const list = recentMerge(await recentList(), entry), keep = new Set(list.map(e => 'doc:' + e.name));
@@ -43,7 +44,9 @@ async function recentOpen(name) {
   const open = DOCS.list.find(r => docName(r) === name); if (open) { docSwitch(open); hubClose(); return; }
   const text = await recentKV('readonly', s => s.get('doc:' + name));
   if (!text) { toast('This file is no longer in the recent list'); return; }
+  const e = (await recentList()).find(x => x.name === name);
   hubClose(); await openDocumentFile(new File([text], name + '.sketchforge', { type: 'application/json' }));
+  if (DOCS.cur) { DOCS.cur.realFile = !(e && e.draft); syncTab(); }
 }
 const hubEsc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const hubAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
@@ -78,11 +81,12 @@ async function hubRender() {
   H.querySelectorAll('.hub-rail [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   const all = await recentList();
   const liveThumb = () => { try { const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H); return tc.toDataURL('image/jpeg', 0.8); } catch (e) { return ''; } };
-  const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
+  const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, draft: !r.realFile, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
   const recent = all.filter(e => !open.some(o => o.name === e.name));
   const fileCard = e => `<button class="hub-file" data-name="${hubEsc(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${hubEsc(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
-  const files = [...open, ...recent];
-  const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your files will show here after you save (auto-save counts too).</p>';
+  const files = [...open, ...recent].filter(e => !e.draft), drafts = [...open, ...recent].filter(e => e.draft);
+  const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your saved files show here (File › Save makes a real file on your device).</p>';
+  const draftsHtml = drafts.length ? drafts.map(fileCard).join('') : '';
   const newCards = `<div class="hub-new">
     <button data-new="illust"><span>🖼</span><b>Illustration</b><small>A new picture</small></button>
     <button data-new="manga"><span>📖</span><b>Manga / comic</b><small>Pages, panels, tones</small></button>
@@ -98,6 +102,7 @@ async function hubRender() {
   if (v === 'home') {
     html = sec('Start something new', '', newCards)
       + sec('Continue drawing', files.length > 5 ? '<a href="#" data-v="projects">See all</a>' : '', `<div class="hub-files">${filesHtml}</div>`)
+      + (drafts.length ? sec('📝 Drafts — not saved as files', '<span class="muted small">Kept inside Sketchforge only: deleted if you reinstall or reset it. Open one and use File › Save to keep it.</span>', `<div class="hub-files">${draftsHtml}</div>`) : '')
       + `<div class="hub-two">${sec(`What's new in ${APP_VERSION}`, '<a href="#" data-cmd="whatsNew">All changes</a>', news)}${sec('Tips', '<a href="#" data-cmd="askAI">✨ Ask</a>', tips)}</div>`
       + sec('Learn', '<a href="#" data-v="learn">All tutorials</a>', `<div class="hub-learns">${hubCards(HUB_LEARN.slice(0, 8))}</div>`)
       + sec('From the community', `<a href="${hubSiteLink('shared.html')}" target="_blank" rel="noopener">See more</a>`, '<div class="hub-comm muted">Loading…</div>');

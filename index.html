@@ -57,7 +57,7 @@
   });
 })();</script>
 <script>/* A new install (Windows / Mac / Linux installer, or a new Android APK) starts with default settings; your work
-   (the files reopened at start, the drawing library, imported tools) is kept. Automatic updates keep the settings:
+   (saved files, the drawing library, imported tools) is kept; drafts (drawings never saved as a file) are deleted. Automatic updates keep the settings:
    they do not change the installed app's own version (the "shell"), only an installer does. */
 (function () { try {
   var C = window.Capacitor, native = C && C.isNativePlatform && C.isNativePlatform(), shell = new URLSearchParams(location.search).get('shell');
@@ -68,6 +68,7 @@
     var keep = /^sketchforge\.(install|live|shell|lastver|addons|auth|cloud|session|sess)/;
     for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && k.indexOf('sketchforge.') === 0 && !keep.test(k)) localStorage.removeItem(k); }
     localStorage.setItem('sketchforge.freshinstall', ver);
+    try { indexedDB.deleteDatabase('sketchforge-session'); localStorage.setItem('sketchforge.dropdrafts', '1'); } catch (e) { /* drafts are kept */ }
   }
   localStorage.setItem(K, ver);
 } catch (e) { /* ignore */ } })();</script>

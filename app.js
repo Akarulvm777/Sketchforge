@@ -4311,7 +4311,7 @@ async function sessionSave() {
       const doc = await buildDocObject(src, { cache: true, quiet: true });
       const info = cur ? { frame: state.frame, view: { ...view }, dirty, blank: !!r.blank && !dirty && !history.undo.length }
         : { frame: r.saved.state.frame, view: r.saved.view, dirty: r.saved.dirty, blank: false };
-      docs.push({ json: JSON.stringify(doc), ...info });
+      docs.push({ json: JSON.stringify(doc), ...info, real: !!r.realFile });
     }
     await sessKV('readwrite', s => s.put({ t: Date.now(), active: DOCS.list.indexOf(DOCS.cur), docs, tool: state.tool, color: state.color, color2: state.color2 }, 'last'));
   } catch (e) { console.warn('session save failed', e); }
@@ -4331,7 +4331,7 @@ async function sessionRestore() {
       await openDocumentFile(new File([d.json], 'last work.sketchforge'));
       if (d.frame) gotoFrame(d.frame);
       if (d.view) { Object.assign(view, d.view); applyView(); }
-      dirty = !!d.dirty; syncTab();
+      dirty = !!d.dirty; if (DOCS.cur) DOCS.cur.realFile = !!d.real; syncTab();
       opened.push({ rec: DOCS.cur, i });
     }
     const act = opened.find(o => o.i === rec.active) || opened[opened.length - 1];
@@ -4389,8 +4389,8 @@ async function autoSaveNow() {
     const doc = await buildDocObject(undefined, { cache: true, quiet: true });
     const blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
     if (r && r.handle) { await writeHandle(r.handle, blob); dirty = false; syncTab(); autoSaveStatus(`Auto-saved ${hh}`); }
-    else if (typeof isNativeApp === 'function' && isNativeApp()) { await nativeSave(blob, name); dirty = false; syncTab(); autoSaveStatus(`Auto-saved ${hh}`); }
-    else { if (typeof sessionSave === 'function') await sessionSave(); autoSaveStatus(`Auto-saved in the app ${hh} (Save to keep a file)`); }
+    else if (r && r.realFile && typeof isNativeApp === 'function' && isNativeApp()) { await nativeSave(blob, name); dirty = false; syncTab(); autoSaveStatus(`Auto-saved ${hh}`); }
+    else { if (typeof sessionSave === 'function') await sessionSave(); autoSaveStatus(r && r.realFile ? `Auto-saved in the app ${hh} (Save to update your file)` : `Draft kept in the app ${hh} (File › Save makes a real file)`); }
   } catch (e) { autoSaveStatus('Auto-save failed: ' + (e.message || e)); }
   AUTO.last = Date.now();
 }
@@ -4426,6 +4426,96 @@ function installAutoSave() {
   const F = MENUS.find(m => m[0] === 'File');
   if (F) { const i = F[1].findIndex(x => Array.isArray(x) && x[1] === 'save'); F[1].splice(i + 1, 0, ['⏱ Auto-save (on / off)', 'autoSave'], ['⏱ Auto-save settings…', 'autoSaveMin']); }
   AUTO.timer = setInterval(autoSaveTick, 10000);
+}
+
+/* ---------- Real files and drafts ----------
+   A drawing is a REAL FILE once you saved it (File › Save) or opened it from your device (r.realFile, kept by the
+   session). Auto-save writes real files only. A new drawing you never saved is a DRAFT: auto-save keeps it inside
+   Sketchforge (the reopened tabs + Home page › Drafts) to save space on the device, and drafts are deleted when the app
+   is reset to defaults or installed again (dropDrafts, p10zza_reset, the install check in index.html).
+   • Every new file shows a short notice saying so (sketchforge.draftnote.v1 = 'off': don't show again).
+   • Closing a file always asks: a draft → Save as a file / Keep as a draft / Delete it / Cancel; a real file with
+     changes → Save / Don't save / Cancel (draftCloseAsk, docClose wrapped). */
+let RECENT_SKIP = false, DRAFT_OPENING = 0;
+async function dropDrafts() {
+  if (typeof recentList !== 'function') return;
+  const list = await recentList(), drafts = list.filter(e => e.draft);
+  if (!drafts.length) return;
+  await recentKV('readwrite', s => { s.put(list.filter(e => !e.draft), 'list'); drafts.forEach(e => s.delete('doc:' + e.name)); });
+}
+async function draftForget(name) { // a draft the user deleted: out of the Home page too
+  if (typeof recentList !== 'function') return;
+  const list = await recentList(); if (!list.some(e => e.name === name && e.draft)) return;
+  await recentKV('readwrite', s => { s.put(list.filter(e => !(e.name === name && e.draft)), 'list'); s.delete('doc:' + name); });
+}
+function draftNotice() {
+  try { if (localStorage.getItem('sketchforge.draftnote.v1') === 'off') return; } catch (e) { /* show it */ }
+  let n = $('#draftNote'); if (n) n.remove();
+  n = document.createElement('div'); n.id = 'draftNote'; n.setAttribute('role', 'status');
+  n.innerHTML = `<b>📝 New drawing = a draft</b><p>Auto-save keeps it inside Sketchforge (Home page › Drafts) to save space on your device. It becomes a real file when you use <b>File › Save</b> (Ctrl+S); after that, auto-save updates that file. Drafts are deleted if you reinstall or reset Sketchforge.</p>
+    <div class="dn-row"><label><input type="checkbox" id="draftNoteOff"> Don't show this again</label><button class="primary" type="button">Got it</button></div>`;
+  n.addEventListener('pointerdown', e => e.stopPropagation());
+  n.querySelector('button').onclick = () => { if (n.querySelector('#draftNoteOff').checked) { try { localStorage.setItem('sketchforge.draftnote.v1', 'off'); } catch (e) { /* ignore */ } } n.remove(); };
+  (typeof viewport !== 'undefined' ? viewport : document.body).appendChild(n);
+}
+/* the obligatory question when a file is closed; resolves true when it was closed */
+function draftCloseAsk(r) {
+  return new Promise(res => {
+    const draft = !r.realFile, name = docName(r);
+    const d = document.createElement('dialog'); d.className = 'csdlg'; d.id = 'closeAskDlg';
+    d.innerHTML = draft
+      ? `<h3>Close “${hubEscD(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Sketchforge (Home page) and are deleted if you reinstall or reset the app.</p>
+         <div class="btnrow"><button class="primary" data-a="save">💾 Save as a file…</button><button data-a="keep">Keep as a draft</button><button data-a="delete">Delete it</button><button data-a="cancel">Cancel</button></div>`
+      : `<h3>Save the changes to “${hubEscD(name)}”?</h3><p>Your file on the device does not have the latest changes yet.</p>
+         <div class="btnrow"><button class="primary" data-a="save">💾 Save</button><button data-a="nosave">Don't save</button><button data-a="cancel">Cancel</button></div>`;
+    document.body.appendChild(d);
+    const done = v => { d.close(); d.remove(); res(v); };
+    d.addEventListener('cancel', e => { e.preventDefault(); done(false); });
+    d.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+      const a = b.dataset.a;
+      if (a === 'cancel') return done(false);
+      d.close(); d.remove();
+      if (a === 'save') {
+        if (r !== DOCS.cur) docSwitch(r);
+        await saveDocument();
+        if (dirty) return res(false); // the save was cancelled: the file stays open
+        DRAFT_CLOSE(r); return res(true);
+      }
+      if (a === 'delete') { RECENT_SKIP = true; try { DRAFT_CLOSE(r); } finally { RECENT_SKIP = false; } draftForget(name); return res(true); }
+      if (a === 'keep' && r !== DOCS.cur) docSwitch(r); // closing the current tab records its latest state on the Home page
+      DRAFT_CLOSE(r); res(true); // keep (as a draft) / don't save
+    });
+    d.showModal();
+  });
+}
+const hubEscD = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+let DRAFT_CLOSE = r => r;
+function installDrafts() {
+  // saving makes a real file; opening a .sketchforge from the device too
+  const s0 = saveDocument; saveDocument = async function () { const r = DOCS.cur; const out = await s0.apply(this, arguments); if (r && !dirty && !r.realFile) { r.realFile = true; syncTab(); if (typeof recentRecord === 'function') recentRecord(); } return out; };
+  CMD.save = () => saveDocument();
+  if (typeof openAnyDocument === 'function') {
+    const o0 = openAnyDocument; openAnyDocument = async function (f) { DRAFT_OPENING++; try { const out = await o0.apply(this, arguments); if (f && /\.sketchforge$/i.test(f.name || '') && DOCS.cur) { DOCS.cur.realFile = true; syncTab(); } return out; } finally { DRAFT_OPENING--; } };
+  }
+  const of0 = openDocumentFile; openDocumentFile = async function () { DRAFT_OPENING++; try { return await of0.apply(this, arguments); } finally { DRAFT_OPENING--; } };
+  // every new drawing: the notice (not for the blank start page, reopened work or opened files)
+  const n0 = newDocument; newDocument = function () {
+    const out = n0.apply(this, arguments);
+    setTimeout(() => { if (!DRAFT_OPENING && !(typeof SESS !== 'undefined' && SESS.restoring) && DOCS.cur && !DOCS.cur.blank && !DOCS.cur.realFile && document.body.classList.contains('hub-open') === false) draftNotice(); }, 0);
+    return out;
+  };
+  // closing always asks
+  const c0 = docClose; DRAFT_CLOSE = r => c0(r, true);
+  docClose = function (r, force) {
+    r = r || DOCS.cur;
+    if (force || !r) return c0.apply(this, arguments);
+    const pristine = typeof docPristine === 'function' && docPristine(r);
+    if (pristine || (r.realFile && !docDirty(r))) return c0(r, true);
+    draftCloseAsk(r);
+    return false;
+  };
+  docCloseOthers = async function (keep) { for (const r of DOCS.list.slice()) if (r !== keep) { if (docClose(r) === false && !(await new Promise(res => { const t = setInterval(() => { if (!$('#closeAskDlg')) { clearInterval(t); res(!DOCS.list.includes(r)); } }, 100); }))) return; } };
+  try { if (localStorage.getItem('sketchforge.dropdrafts')) { localStorage.removeItem('sketchforge.dropdrafts'); dropDrafts(); } } catch (e) { /* ignore */ }
 }
 
 /* ---------- animation extras: light table, frame tools, audio, page manager, PSD export ---------- */
@@ -14602,6 +14692,7 @@ const HELP_TIPS = [
   { q: 'ask button move drag hide sparkle round button blocks covers in the way phone corner', t: 'Move or hide the ✨ Ask button', x: 'On phones and tablets, drag the round ✨ button anywhere — it stays there. View › Show / hide the ✨ Ask button hides it (Help › Ask the helper still works).', a: [['cmd', 'toggleAskFab', 'Show / hide it'], ['cmd', 'resetAskFab', 'Back to the corner']] },
   { q: 'graphics card gpu blend smudge mixing brush lag slow big page smooth', t: 'Blend and mixing brushes on the graphics card', x: 'Blend, Finger tip, Blur and colour-mixing pens (many imported tools) paint on the graphics card when the device can, so even big brushes on big pages stay smooth. If a device has trouble, turn it off: View › Graphics card for blend / mixing brushes.', a: [['cmd', 'toggleGpuMix', 'Turn it on / off']] },
   { q: '3d model layer rotate turn view zoom mouse wheel right click move model own layer', t: '3D model: its layer, turning and zooming', x: 'The 3D model gets its own layer "🧍 3D model": move that layer up or down to put the model in front of or behind your drawing, hide it with the eye. While posing: left-drag = pose, right-drag (or Alt+drag) = turn the view, mouse wheel = zoom, middle-drag (or Shift+drag) = move the model.', a: [['cmd', 'show3d', '3D model']] },
+  { q: 'draft drafts real file save auto save autosave lost deleted reinstall reset close ask keep where is my drawing', t: 'Real files and drafts', x: 'A new drawing is a draft: auto-save keeps it inside Sketchforge (Home page › Drafts) but it is not a file on your device. File › Save (Ctrl+S) makes a real file; after that, auto-save updates that file. Drafts are deleted if you reinstall or reset Sketchforge. Closing a file always asks: save as a file, keep as a draft, or delete it.', a: [['cmd', 'save', 'Save as a file'], ['cmd', 'startHub', 'Home page']] },
   { q: 'theme colours interface dark light customise look icons font', t: 'Change how Sketchforge looks', x: '🎨 Custom P: themes, colours of every part, icons, fonts, layout, canvas and effects.', a: [['cmd', 'cpOpen', 'Open Custom P'], ['tut', 'custom', 'Custom P tutorial']] },
   { q: 'brush import sut clip studio brushes add brush gradient decoration tool zip folder download tools', t: 'Add Clip Studio tools', x: 'Add-ons › Import Clip Studio tools (several .sut, a .zip or a folder), or drop them on the Sub tool panel. Pens, pencils, brushes, airbrushes, decoration brushes, erasers, blend tools and gradients each go to their own group by themselves.', a: [['cmd', 'addSut', 'Import tools…'], ['cmd', 'addSutFolder', 'Import a folder…']] },
   { q: 'psd photoshop clip studio open file layers', t: 'Photoshop & Clip Studio files', x: 'File › Open reads .psd with layers and .clip as one picture; File › Save as Photoshop PSD keeps your layers.', a: [['cmd', 'open', 'Open…']] },
@@ -16013,15 +16104,16 @@ function installCustomP() {
 /* ---------- Reset Sketchforge to defaults (Edit / Help menu) ----------
    Puts every setting back as on a new install and removes every imported tool (.sut / .sfbrush, kept in IndexedDB
    'sketchforge-addons'), custom brushes, Custom P themes and pictures ('sketchforge-customp'), colour sets, layouts.
-   Kept: open drawings (session), the drawing library, the account sign-in, and the markers that stop the welcome /
+   Deleted too: drafts (drawings never saved as a file: the open tabs kept by the app and the Home page drafts). Kept: files you saved, the drawing library, the account sign-in, and the markers that stop the welcome /
    What's new / "fresh install" messages from showing again. Then the app reloads. */
 const RESET_KEEP = /^sketchforge\.(auth|session|install|shell|live|lastver|welcome|tutorials|animintro)/;
 function deleteDB(name) { return new Promise(res => { try { const rq = indexedDB.deleteDatabase(name); rq.onsuccess = rq.onerror = rq.onblocked = () => res(); } catch (e) { res(); } }); }
 async function resetToDefaults(skipConfirm) {
-  if (!skipConfirm && !confirm('Reset Sketchforge to its default settings?\n\nThis removes every imported tool (Clip Studio .sut, .sfbrush), your custom brushes, themes, colour sets, layouts and all settings.\n\nYour drawings and your account stay.')) return false;
+  if (!skipConfirm && !confirm('Reset Sketchforge to its default settings?\n\nThis removes every imported tool (Clip Studio .sut, .sfbrush), your custom brushes, themes, colour sets, layouts and all settings.\n\nDrafts (drawings you never saved as a file) are deleted too. Files you saved and your account stay.')) return false;
   try { for (const k of Object.keys(localStorage)) if (k.startsWith('sketchforge.') && !RESET_KEEP.test(k)) localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
-  if (typeof sessionSave === 'function') { try { await sessionSave(); } catch (e) { /* keep going */ } }
-  await Promise.all(['sketchforge-addons', 'sketchforge-customp'].map(deleteDB));
+  // drafts (drawings never saved as a file) are deleted, as the notice on every new file says
+  if (typeof dropDrafts === 'function') { try { await dropDrafts(); } catch (e) { /* keep going */ } }
+  await Promise.all(['sketchforge-addons', 'sketchforge-customp', 'sketchforge-session'].map(deleteDB));
   try { localStorage.setItem('sketchforge.resetdone', '1'); } catch (e) { /* ignore */ }
   location.reload();
   return true;
@@ -16062,12 +16154,13 @@ const recentList = async () => (await recentKV('readonly', s => s.get('list'))) 
 /* the recent list after adding / replacing one file (pure): newest first, one entry per name, at most max */
 function recentMerge(list, entry, max = RECENT_MAX) { return [entry, ...list.filter(e => e.name !== entry.name)].slice(0, max); }
 async function recentRecord() {
+  if (typeof RECENT_SKIP !== 'undefined' && RECENT_SKIP) return;
   try {
     if (!state.layers || !state.layers.some(l => !l.paper)) return;
     // everything about this document is read now (a closed tab is gone after the first await)
     const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d');
     g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H);
-    const entry = { name: state.name || 'Untitled', time: Date.now(), thumb: tc.toDataURL('image/jpeg', 0.8), w: state.w, h: state.h, type: state.projectType || 'illust', frames: state.frameCount };
+    const entry = { name: state.name || 'Untitled', draft: !(DOCS.cur && DOCS.cur.realFile), time: Date.now(), thumb: tc.toDataURL('image/jpeg', 0.8), w: state.w, h: state.h, type: state.projectType || 'illust', frames: state.frameCount };
     const doc = await buildDocObject(undefined, { cache: true, quiet: true }), text = JSON.stringify(doc);
     if (text.length > 40e6) return;
     const list = recentMerge(await recentList(), entry), keep = new Set(list.map(e => 'doc:' + e.name));
@@ -16080,7 +16173,9 @@ async function recentOpen(name) {
   const open = DOCS.list.find(r => docName(r) === name); if (open) { docSwitch(open); hubClose(); return; }
   const text = await recentKV('readonly', s => s.get('doc:' + name));
   if (!text) { toast('This file is no longer in the recent list'); return; }
+  const e = (await recentList()).find(x => x.name === name);
   hubClose(); await openDocumentFile(new File([text], name + '.sketchforge', { type: 'application/json' }));
+  if (DOCS.cur) { DOCS.cur.realFile = !(e && e.draft); syncTab(); }
 }
 const hubEsc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const hubAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
@@ -16115,11 +16210,12 @@ async function hubRender() {
   H.querySelectorAll('.hub-rail [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   const all = await recentList();
   const liveThumb = () => { try { const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H); return tc.toDataURL('image/jpeg', 0.8); } catch (e) { return ''; } };
-  const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
+  const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, draft: !r.realFile, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
   const recent = all.filter(e => !open.some(o => o.name === e.name));
   const fileCard = e => `<button class="hub-file" data-name="${hubEsc(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${hubEsc(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
-  const files = [...open, ...recent];
-  const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your files will show here after you save (auto-save counts too).</p>';
+  const files = [...open, ...recent].filter(e => !e.draft), drafts = [...open, ...recent].filter(e => e.draft);
+  const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your saved files show here (File › Save makes a real file on your device).</p>';
+  const draftsHtml = drafts.length ? drafts.map(fileCard).join('') : '';
   const newCards = `<div class="hub-new">
     <button data-new="illust"><span>🖼</span><b>Illustration</b><small>A new picture</small></button>
     <button data-new="manga"><span>📖</span><b>Manga / comic</b><small>Pages, panels, tones</small></button>
@@ -16135,6 +16231,7 @@ async function hubRender() {
   if (v === 'home') {
     html = sec('Start something new', '', newCards)
       + sec('Continue drawing', files.length > 5 ? '<a href="#" data-v="projects">See all</a>' : '', `<div class="hub-files">${filesHtml}</div>`)
+      + (drafts.length ? sec('📝 Drafts — not saved as files', '<span class="muted small">Kept inside Sketchforge only: deleted if you reinstall or reset it. Open one and use File › Save to keep it.</span>', `<div class="hub-files">${draftsHtml}</div>`) : '')
       + `<div class="hub-two">${sec(`What's new in ${APP_VERSION}`, '<a href="#" data-cmd="whatsNew">All changes</a>', news)}${sec('Tips', '<a href="#" data-cmd="askAI">✨ Ask</a>', tips)}</div>`
       + sec('Learn', '<a href="#" data-v="learn">All tutorials</a>', `<div class="hub-learns">${hubCards(HUB_LEARN.slice(0, 8))}</div>`)
       + sec('From the community', `<a href="${hubSiteLink('shared.html')}" target="_blank" rel="noopener">See more</a>`, '<div class="hub-comm muted">Loading…</div>');
@@ -16590,7 +16687,7 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installGpuMix(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installText(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installFx2(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); install3DLayer(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); installStudio(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installGpuMix(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installText(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installFx2(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); install3DLayer(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); installStudio(); installDrafts(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

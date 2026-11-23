@@ -14,7 +14,7 @@ const H = require('./harness.cjs');
   await pg.keyboard.press('+'); await pg.keyboard.press('+');
   const before = await E(() => ({ tabs: [...document.querySelectorAll('#tabbar .tab .nm')].map(t => t.textContent), frame: window.__sketchforge.state.frame, scale: window.__sketchforge.view.scale, name: window.__sketchforge.state.name }));
   console.log('     before: ' + JSON.stringify(before));
-  await pg.waitForTimeout(4500);                                                   // autosave runs a few seconds after the last change
+  await pg.waitForTimeout(7000);                                                   // the session is saved after 3 s of real quiet
   await pg.reload(); await pg.waitForTimeout(4000);
   const after = await E(() => ({ tabs: [...document.querySelectorAll('#tabbar .tab .nm')].map(t => t.textContent), frame: window.__sketchforge.state.frame, scale: window.__sketchforge.view.scale, name: window.__sketchforge.state.name, dirtyDots: document.querySelectorAll('#tabbar .tab .dot.on').length }));
   console.log('     after:  ' + JSON.stringify(after));

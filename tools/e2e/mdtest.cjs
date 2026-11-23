@@ -42,10 +42,15 @@ const fs = require('fs');
   // close with unsaved changes: dismiss keeps it
   await pg.click('#tabbar .tab:nth-child(1)'); await pg.waitForTimeout(200);
   await pg.strokeDoc([[50, 50], [90, 60]]);
-  dlgAnswer = false; await pg.click('#tabbar .tab:nth-child(1) .x'); await pg.waitForTimeout(200);
+  // closing always asks (3.3): a draft → Save as a file / Keep as a draft / Delete it / Cancel
+  await pg.click('#tabbar .tab:nth-child(1) .x'); await pg.waitForTimeout(200);
+  check('closing a draft asks: save as a file, keep as a draft, delete or cancel', (await pg.$$eval('#closeAskDlg [data-a]', b => b.map(x => x.dataset.a).join(','))) === 'save,keep,delete,cancel');
+  await pg.click('#closeAskDlg [data-a=cancel]'); await pg.waitForTimeout(200);
   check('close of an unsaved tab can be cancelled', (await tabs()).length === 3);
-  dlgAnswer = true; await pg.click('#tabbar .tab:nth-child(1) .x'); await pg.waitForTimeout(400);
+  await pg.click('#tabbar .tab:nth-child(1) .x'); await pg.waitForTimeout(200);
+  await pg.click('#closeAskDlg [data-a=delete]'); await pg.waitForTimeout(400);
   check('confirmed close removes it: ' + (await tabs()).join(' | '), (await tabs()).length === 2);
+  check('a file saved with File › Save is a real file (no draft question when unchanged)', await pg.evaluate(() => { const D = window.__sketchforge.scope('DOCS'); return D.list.some(r => r.realFile); }));
   // reorder by drag
   const before = await tabs();
   await pg.dragAndDrop('#tabbar .tab:nth-child(2)', '#tabbar .tab:nth-child(1)', { targetPosition: { x: 3, y: 10 } });
