@@ -1259,3 +1259,29 @@ body.hub-open #menubar { z-index: 9002; }
 .pencurve #penCurveHost { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; flex: none; }
 .pencurve .becurve { width: 180px; height: 180px; }
 .pencurve p { margin: 0; }
+/* import window: the study of each imported tool (p10zbf) */
+.impw { position: fixed; right: 16px; bottom: 16px; z-index: 9500; width: min(440px, calc(100vw - 32px)); max-height: min(70vh, 560px); display: flex; flex-direction: column;
+  background: var(--panel, #2b2b2b); color: var(--text, #ddd); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.45); padding: 10px 12px; }
+.impw[hidden] { display: none; }
+.impw-head { display: flex; align-items: center; gap: 8px; }
+.impw-head b { flex: 1; }
+.impw-all { font-variant-numeric: tabular-nums; font-weight: 600; }
+.impw-note { margin: 4px 0 6px; }
+.impw-bar { height: 6px; border-radius: 3px; background: rgba(128,128,128,.25); overflow: hidden; }
+.impw-bar i { display: block; height: 100%; width: 0; background: var(--accent, #e0a06a); transition: width .25s; }
+.impw-bar.sm { height: 4px; margin: 3px 0; }
+.impw-list { overflow: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.impw-src { font-size: 12px; opacity: .85; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.impw-file.bad .impw-src em { color: #e07a6a; }
+.impw-tool { display: flex; gap: 8px; align-items: center; padding: 4px 0 4px 8px; border-left: 2px solid rgba(128,128,128,.3); }
+.impw-tool.ok { border-left-color: var(--accent, #e0a06a); }
+.impw-prev { flex: none; width: 90px; height: 18px; display: flex; align-items: center; justify-content: center; background: #1e1e1e; border-radius: 4px; overflow: hidden; }
+.impw-prev canvas { width: 90px; height: 18px; }
+.impw-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); border-top-color: var(--accent, #e0a06a); animation: impwspin .8s linear infinite; }
+@keyframes impwspin { to { transform: rotate(360deg); } }
+.impw-main { flex: 1; min-width: 0; }
+.impw-name { display: flex; gap: 4px; font-size: 12.5px; white-space: nowrap; }
+.impw-name b { overflow: hidden; text-overflow: ellipsis; }
+.impw-grp { flex: 1; }
+.impw-pct { font-variant-numeric: tabular-nums; }
+.impw-step { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -12885,13 +12885,29 @@ function sutToDefs(buf) {
   }
   return defs;
 }
-async function importSut(file) {
-  const defs = sutToDefs(await file.arrayBuffer());
+async function importSut(file, F) {
+  F = F || IMPW_NONE; // the import window's row for this file (p10zbf), or nothing
+  F.status('reading the file…'); await impwTick();
+  const buf = await file.arrayBuffer();
+  F.status('reading settings and materials…'); await impwTick();
+  const defs = sutToDefs(buf);
   const use = defs.filter(d => !d.skip);
   sutLearn(use.flatMap(d => d.unknown || []));
   if (!use.length) throw new Error(defs.length ? 'this tool is not a drawing tool (fill, text, selection…)' : 'No tools found in that file');
+  F.parsed(use.length > 1 ? use.length + ' tools in this file' : '');
   const out = [];
-  for (const def of use) { const { unknown, ...keep } = def; out.push({ id: await registerBrush(keep, true), group: def.kind === 'gradient' ? 'gradient' : def.group || 'brush', name: def.name, report: def.report }); }
+  for (const def of use) {
+    const T = F.tool(def), { unknown, ...keep } = def;
+    T.step('read', Math.round(buf.byteLength / 1024) + ' KB');
+    const nImg = (def.tips && def.tips.length ? def.tips.length : def.tip ? 1 : 0) + (def.texImg ? 1 : 0);
+    T.step('mat', nImg ? nImg + ' image' + (nImg > 1 ? 's' : '') + (def.texImg ? ' (with a paper texture)' : '') : def.kind === 'gradient' ? 'colours of the gradient' : 'none needed'); await impwTick();
+    const rep = def.report || [], n = { ok: 0, approx: 0, no: 0 }; rep.forEach(r => n[r[0]]++);
+    T.step('set', rep.length ? `${n.ok} same${n.approx ? ', ' + n.approx + ' close' : ''}${n.no ? ', ' + n.no + ' not in Sketchforge yet' : ''}` : 'read'); await impwTick();
+    const group = def.kind === 'gradient' ? 'gradient' : def.group || 'brush';
+    const id = await registerBrush(keep, true);
+    T.step('place', '', GROUP_LABEL[group] || group);
+    out.push({ id, group, name: def.name, report: def.report, row: T });
+  }
   if (out.length) selectTool(out[out.length - 1].id);
   out.skipped = defs.length - use.length;
   return out;
@@ -12921,14 +12937,28 @@ async function importTools(files) {
   }
   if (!list.length) { toast('No Clip Studio tools (.sut) found'); return []; }
   const per = {}, failed = []; let skipped = 0, all = [];
+  const W = impwOpen(list.length); // the import window: every step for every tool (p10zbf)
   for (const f of list) {
-    try { const r = await importSut(f); skipped += r.skipped || 0; for (const t of r) { per[t.group] = (per[t.group] || 0) + 1; all.push(t); } }
-    catch (e) { if (/not a drawing tool/.test(e.message)) skipped++; else failed.push(f.name); }
+    const F = W.file(f.name);
+    try { const r = await importSut(f, F); skipped += r.skipped || 0; for (const t of r) { per[t.group] = (per[t.group] || 0) + 1; all.push(t); } }
+    catch (e) { if (/not a drawing tool/.test(e.message)) { skipped++; F.fail('skipped: not a drawing tool (fill, text, selection…)'); } else { failed.push(f.name); F.fail('could not be read'); } }
+  }
+  // test stroke (the tuner makes heavy tools draw smoothly, p10zbd), then the preview
+  const brushes = all.filter(t => TOOLDEF[t.id] && kindOf(t.id) === 'brush');
+  if (brushes.length) await tuneTools(brushes.map(t => t.id), true, { now: true, onTool: (id, res) => { const t = all.find(x => x.id === id); if (t) t.row.step('test', res ? impwTestNote(res) : 'drawn'); } });
+  for (const t of all) {
+    if (!TOOLDEF[t.id]) continue;
+    if (kindOf(t.id) !== 'brush') t.row.step('test', 'not needed for a gradient');
+    else if (t.row.pct < impwPct('test')) t.row.step('test', 'drawn');
+    await impwTick();
+    t.row.done(toolPreview(t.id) || (kindOf(t.id) === 'brush' ? strokePreview(t.id) : TOOLDEF[t.id].stops ? gradPreview(t.id) : null));
   }
   const parts = Object.entries(per).map(([g, k]) => `${k} → ${GROUP_LABEL[g] || g}`);
   const close = all.filter(t => (t.report || []).some(r => r[0] !== 'ok')).length;
   toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}` +
     (all.length ? ` · ⓘ under Sub Tool shows how each tool was translated${close ? ` (${close} with settings Sketchforge does differently)` : ''}` : ''), 8000);
+  W.finish(`${all.length} tool${all.length === 1 ? '' : 's'} added${parts.length ? ': ' + parts.join(', ') : ''}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}. ⓘ under Sub Tool shows how each tool was translated.`);
+  all.forEach(t => { delete t.row; });
   lastImport = all;
   if (all.length) { const last = all[all.length - 1]; const grp = GROUPS.find(g => g.subs && g.subs.includes(last.id)); if (grp) selectGroup(grp.id); selectTool(last.id); }
   return all;
@@ -13662,15 +13692,28 @@ function tuneApply(id, res) {
   T.report = [[x ? 'ok' : 'ok', line], ...(T.report || []).filter(r => !String(r[1]).startsWith('⚡'))];
 }
 /* tune imported tools (ids), one per idle moment; record the result in the saved definition */
-async function tuneTools(ids, quiet) {
-  if (TUNE.busy || !ids.length) return; TUNE.busy = true;
+/* opts.now: the import window is showing the study, so do not wait for the user to be idle (still never during a
+   stroke); opts.onTool(id, result) reports each tool to the window */
+/* short text for the import window */
+function impwTestNote(res) {
+  const p = res.perf || {};
+  if (p.perfDefer) return 'heavy tool: a light stand-in draws while you move, the full stroke appears when you lift the pen';
+  if (p.perfSpacing || p.perfCount) return `tuned for smooth drawing (${res.before.toFixed(1)} → ${res.after.toFixed(1)} ms per 100 px, same look)`;
+  return 'draws smoothly';
+}
+async function tuneTools(ids, quiet, opts = {}) {
+  if (!ids.length) return;
+  const own = !opts.now; // the import window's study runs even while a background study waits for the user to be idle
+  if (own) { if (TUNE.busy) return; TUNE.busy = true; }
   let faster = 0;
   try {
     for (const id of ids) {
-      await new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 30)));
-      while ((typeof stroke !== 'undefined' && stroke) || (typeof inputQuiet === 'function' && !inputQuiet(4000))) await new Promise(r => setTimeout(r, 400)); // never while drawing
+      if (opts.now) await impwTick();
+      else await new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 30)));
+      while ((typeof stroke !== 'undefined' && stroke) || (!opts.now && !inputQuiet(4000))) await new Promise(r => setTimeout(r, 400)); // never while drawing
       const s = settings[id]; if (!s) continue;
-      let res; try { res = tuneTool(s); } catch (e) { continue; }
+      let res; try { res = tuneTool(s); } catch (e) { if (opts.onTool) opts.onTool(id, null); continue; }
+      if (opts.onTool) opts.onTool(id, res);
       tuneApply(id, res);
       if (res.perf.perfSpacing || res.perf.perfCount || res.perf.perfDefer) faster++;
       const rec = (addons.brushes || []).find(b => b.id === id);
@@ -13679,7 +13722,7 @@ async function tuneTools(ids, quiet) {
     if (typeof saveAddons === 'function') saveAddons();
     if (!quiet) toast(faster ? `⚡ ${faster} imported tool${faster > 1 ? 's were' : ' was'} tuned for smooth drawing (ⓘ shows what changed).` : `⚡ Imported tools checked: they draw smoothly.`, 4500);
     if (typeof renderSubTools === 'function') renderSubTools();
-  } finally { TUNE.busy = false; }
+  } finally { if (own) TUNE.busy = false; }
 }
 /* very heavy tools: draw the stroke again with the full settings from the recorded path (called by endStroke) */
 function replayFull(st) {
@@ -13711,8 +13754,7 @@ function installToolTune() {
     if (st && st.rec && !st.replaying) { if (!st.rec0) st.rec0 = [st.lx, st.ly, st.lp]; st.rec.push([x, y, pr]); }
     return sg0.apply(this, arguments);
   };
-  // a new import: study the new tools
-  const i0 = importTools; importTools = async function () { const out = await i0.apply(this, arguments); if (out && out.length) setTimeout(() => tuneTools(out.map(t => t.id).filter(id => TOOLDEF[id] && kindOf(id) === 'brush'), true), 300); return out; };
+  // a new import is studied by importTools itself (test stroke step of the import window, p10zbf)
   // after an update (or the first time): every imported tool whose study is older than this version
   const l0 = loadAddons; loadAddons = async function () {
     const out = await l0.apply(this, arguments);
@@ -13823,6 +13865,93 @@ function toolPreview(id) {
   try { f(c.getContext('2d')); } catch (e) { return null; }
   return c;
 }
+
+/* ---------- import window: what Sketchforge does with each imported tool (3.3) ----------
+   Importing .sut tools is not a download: the app studies each tool. importTools (p10z) opens this window and
+   reports every step per tool: reading the file, its materials (pattern / texture images), its settings, where it
+   goes (group), a test stroke (the tuner, p10zbd) and the preview. Each tool row shows a percentage, the current
+   step, the source file and the destination group. The window does not block the app (Hide keeps it working). */
+const IMPW_STEPS = [
+  ['read', 'Reading the tool', 15], ['mat', 'Materials (images, textures)', 15], ['set', 'Settings', 15],
+  ['place', 'Choosing where it goes', 10], ['test', 'Test stroke', 35], ['prev', 'Preview', 10]
+];
+/* pure: percentage once the steps up to `key` are done (key = null: nothing done) */
+function impwPct(key) {
+  const i = IMPW_STEPS.findIndex(s => s[0] === key);
+  return i < 0 ? 0 : IMPW_STEPS.slice(0, i + 1).reduce((n, s) => n + s[2], 0);
+}
+const IMPW_NONE = { status() {}, fail() {}, tool() { return { step() {}, done() {} }; }, parsed() {} };
+let IMPW = null;
+function impwOpen(nFiles) {
+  let d = $('#importWin');
+  if (!d) {
+    d = document.createElement('div'); d.id = 'importWin'; d.className = 'impw';
+    d.innerHTML = `<div class="impw-head"><b>Studying your tools</b><span class="impw-all"></span><button type="button" class="impw-x" title="Hide (the study keeps going)">Hide</button></div>
+      <p class="muted small impw-note">Nothing is downloaded: Sketchforge reads each tool, its images and settings, tries a stroke and makes a preview.</p>
+      <div class="impw-bar"><i></i></div><div class="impw-list"></div>`;
+    document.body.appendChild(d);
+    d.querySelector('.impw-x').onclick = () => { d.hidden = true; };
+  }
+  d.hidden = false; d.classList.remove('done');
+  const list = d.querySelector('.impw-list'); list.innerHTML = '';
+  d.querySelector('.impw-x').textContent = 'Hide';
+  const files = [];
+  const W = IMPW = { el: d, files };
+  const overall = () => {
+    const n = Math.max(nFiles, files.length) || 1;
+    const sum = files.reduce((a, f) => a + (f.failed ? 100 : f.tools.length ? f.tools.reduce((x, t) => x + t.pct, 0) / f.tools.length : f.pct), 0);
+    const p = Math.round(sum / n);
+    d.querySelector('.impw-bar i').style.width = p + '%';
+    d.querySelector('.impw-all').textContent = p + '%';
+    return p;
+  };
+  W.file = name => {
+    const box = document.createElement('div'); box.className = 'impw-file';
+    box.innerHTML = `<div class="impw-src">📄 <span></span> <em class="muted"></em></div>`;
+    box.querySelector('span').textContent = name;
+    list.appendChild(box);
+    const F = { tools: [], pct: 0, failed: false };
+    F.status = t => { box.querySelector('em').textContent = t; F.pct = 5; overall(); };
+    F.fail = t => { F.failed = true; box.classList.add('bad'); box.querySelector('em').textContent = '✗ ' + t; overall(); };
+    F.parsed = t => { box.querySelector('em').textContent = t || ''; };
+    F.tool = def => {
+      const row = document.createElement('div'); row.className = 'impw-tool';
+      row.innerHTML = `<span class="impw-prev"><i class="impw-spin"></i></span><div class="impw-main"><div class="impw-name"><b></b><span class="impw-grp muted"></span><span class="impw-pct">0%</span></div>
+        <div class="impw-bar sm"><i></i></div><div class="impw-step muted small"></div></div>`;
+      row.querySelector('b').textContent = def.name || 'Tool';
+      box.appendChild(row);
+      const T = { pct: 0 };
+      T.step = (key, detail, group) => {
+        T.pct = impwPct(key); if (key === 'test') T.test = detail;
+        const next = IMPW_STEPS[IMPW_STEPS.findIndex(s => s[0] === key) + 1];
+        row.querySelector('.impw-pct').textContent = T.pct + '%';
+        row.querySelector('.impw-bar i').style.width = T.pct + '%';
+        row.querySelector('.impw-step').textContent = '✓ ' + IMPW_STEPS.find(s => s[0] === key)[1] + (detail ? ': ' + detail : '') + (next ? '  ·  next: ' + next[1].toLowerCase() + '…' : '');
+        if (group) row.querySelector('.impw-grp').textContent = ' → ' + group;
+        overall();
+      };
+      T.done = (prev, note) => {
+        T.step('prev', note);
+        row.querySelector('.impw-step').textContent = '✓ Studied' + (T.test ? ' · test stroke: ' + T.test : '');
+        const p = row.querySelector('.impw-prev'); p.innerHTML = ''; if (prev) p.appendChild(prev);
+        row.classList.add('ok');
+      };
+      F.tools.push(T);
+      return T;
+    };
+    files.push(F);
+    return F;
+  };
+  W.finish = text => {
+    overall(); d.classList.add('done');
+    d.querySelector('.impw-head b').textContent = 'Your tools are ready';
+    d.querySelector('.impw-note').textContent = text;
+    d.querySelector('.impw-x').textContent = 'Close';
+  };
+  return W;
+}
+/* let the window repaint between steps */
+const impwTick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
 
 /* ---------- Colour sets (favourite colours) and colour history ----------
    As many named sets as you like (Basic, Skin, Hair…): add the main colour, tap to use, right-click / long-press or
@@ -14808,6 +14937,7 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'import tools window progress percent studying sut what is it doing importer outils', t: 'The import window', x: 'When you import Clip Studio tools (.sut), a window shows each tool being studied, with a percentage: reading the file, its images, its settings, where it goes, a test stroke and the preview. Nothing is downloaded. Hide keeps it working in the background.', a: [['cmd', 'addSut', 'Import tools']] },
   { q: 'pen pressure curve drag shape custom feel courbe pression stylet', t: 'Shape your pen pressure curve', x: 'View › Pen pressure & touch: drag the points of the curve as you like (left = how hard you press, up = how thick the line gets). Click to add a point, double-click to remove one; Reset brings back the normal curve.', a: [['cmd', 'penSettings', 'Pen settings']] },
   { q: 'pen pressure not working tablet wacom xp-pen huion thickness pressure', t: 'Pen pressure', x: 'Turn on Windows Ink in your tablet driver, then View › Pen pressure & touch: test pad, Soft / Normal / Firm, Calibrate my pen.', a: [['cmd', 'penSettings', 'Pen settings'], ['tut', 'pen', 'Pen tutorial']] },
   { q: 'save file where saved keep work sketchforge file', t: 'Saving your work', x: 'File › Save (Ctrl+S) saves a .sketchforge file with all layers and frames. Your last work also reopens by itself next time.', a: [['cmd', 'save', 'Save now']] },

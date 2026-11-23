@@ -43,6 +43,7 @@ const TESTS = {
     for (const g of GROUPS) for (const id of (g.subs || [])) if (!skip.has(id) && !(toolPreview(id) || kindOf(id) === 'brush' || TOOLDEF[id].stops)) miss.push(id);
     return miss.length ? 'no preview: ' + miss.join(', ') : true;
   },
+  'import window percentages (impwPct)': () => impwPct(null) === 0 && impwPct('read') === 15 && impwPct('place') === 55 && impwPct('prev') === 100,
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

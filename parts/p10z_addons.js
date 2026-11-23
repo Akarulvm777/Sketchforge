@@ -578,13 +578,29 @@ function sutToDefs(buf) {
   }
   return defs;
 }
-async function importSut(file) {
-  const defs = sutToDefs(await file.arrayBuffer());
+async function importSut(file, F) {
+  F = F || IMPW_NONE; // the import window's row for this file (p10zbf), or nothing
+  F.status('reading the file…'); await impwTick();
+  const buf = await file.arrayBuffer();
+  F.status('reading settings and materials…'); await impwTick();
+  const defs = sutToDefs(buf);
   const use = defs.filter(d => !d.skip);
   sutLearn(use.flatMap(d => d.unknown || []));
   if (!use.length) throw new Error(defs.length ? 'this tool is not a drawing tool (fill, text, selection…)' : 'No tools found in that file');
+  F.parsed(use.length > 1 ? use.length + ' tools in this file' : '');
   const out = [];
-  for (const def of use) { const { unknown, ...keep } = def; out.push({ id: await registerBrush(keep, true), group: def.kind === 'gradient' ? 'gradient' : def.group || 'brush', name: def.name, report: def.report }); }
+  for (const def of use) {
+    const T = F.tool(def), { unknown, ...keep } = def;
+    T.step('read', Math.round(buf.byteLength / 1024) + ' KB');
+    const nImg = (def.tips && def.tips.length ? def.tips.length : def.tip ? 1 : 0) + (def.texImg ? 1 : 0);
+    T.step('mat', nImg ? nImg + ' image' + (nImg > 1 ? 's' : '') + (def.texImg ? ' (with a paper texture)' : '') : def.kind === 'gradient' ? 'colours of the gradient' : 'none needed'); await impwTick();
+    const rep = def.report || [], n = { ok: 0, approx: 0, no: 0 }; rep.forEach(r => n[r[0]]++);
+    T.step('set', rep.length ? `${n.ok} same${n.approx ? ', ' + n.approx + ' close' : ''}${n.no ? ', ' + n.no + ' not in Sketchforge yet' : ''}` : 'read'); await impwTick();
+    const group = def.kind === 'gradient' ? 'gradient' : def.group || 'brush';
+    const id = await registerBrush(keep, true);
+    T.step('place', '', GROUP_LABEL[group] || group);
+    out.push({ id, group, name: def.name, report: def.report, row: T });
+  }
   if (out.length) selectTool(out[out.length - 1].id);
   out.skipped = defs.length - use.length;
   return out;
@@ -614,14 +630,28 @@ async function importTools(files) {
   }
   if (!list.length) { toast('No Clip Studio tools (.sut) found'); return []; }
   const per = {}, failed = []; let skipped = 0, all = [];
+  const W = impwOpen(list.length); // the import window: every step for every tool (p10zbf)
   for (const f of list) {
-    try { const r = await importSut(f); skipped += r.skipped || 0; for (const t of r) { per[t.group] = (per[t.group] || 0) + 1; all.push(t); } }
-    catch (e) { if (/not a drawing tool/.test(e.message)) skipped++; else failed.push(f.name); }
+    const F = W.file(f.name);
+    try { const r = await importSut(f, F); skipped += r.skipped || 0; for (const t of r) { per[t.group] = (per[t.group] || 0) + 1; all.push(t); } }
+    catch (e) { if (/not a drawing tool/.test(e.message)) { skipped++; F.fail('skipped: not a drawing tool (fill, text, selection…)'); } else { failed.push(f.name); F.fail('could not be read'); } }
+  }
+  // test stroke (the tuner makes heavy tools draw smoothly, p10zbd), then the preview
+  const brushes = all.filter(t => TOOLDEF[t.id] && kindOf(t.id) === 'brush');
+  if (brushes.length) await tuneTools(brushes.map(t => t.id), true, { now: true, onTool: (id, res) => { const t = all.find(x => x.id === id); if (t) t.row.step('test', res ? impwTestNote(res) : 'drawn'); } });
+  for (const t of all) {
+    if (!TOOLDEF[t.id]) continue;
+    if (kindOf(t.id) !== 'brush') t.row.step('test', 'not needed for a gradient');
+    else if (t.row.pct < impwPct('test')) t.row.step('test', 'drawn');
+    await impwTick();
+    t.row.done(toolPreview(t.id) || (kindOf(t.id) === 'brush' ? strokePreview(t.id) : TOOLDEF[t.id].stops ? gradPreview(t.id) : null));
   }
   const parts = Object.entries(per).map(([g, k]) => `${k} → ${GROUP_LABEL[g] || g}`);
   const close = all.filter(t => (t.report || []).some(r => r[0] !== 'ok')).length;
   toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}` +
     (all.length ? ` · ⓘ under Sub Tool shows how each tool was translated${close ? ` (${close} with settings Sketchforge does differently)` : ''}` : ''), 8000);
+  W.finish(`${all.length} tool${all.length === 1 ? '' : 's'} added${parts.length ? ': ' + parts.join(', ') : ''}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}. ⓘ under Sub Tool shows how each tool was translated.`);
+  all.forEach(t => { delete t.row; });
   lastImport = all;
   if (all.length) { const last = all[all.length - 1]; const grp = GROUPS.find(g => g.subs && g.subs.includes(last.id)); if (grp) selectGroup(grp.id); selectTool(last.id); }
   return all;
