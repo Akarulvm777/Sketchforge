@@ -65,7 +65,13 @@ function m3ViewControls(cv) {
   }, { passive: false });
   cv.addEventListener('contextmenu', e => e.preventDefault());
 }
+function m3PanelPlaceholder() {
+  const b = $('#m3dBody'); if (!b || b.children.length) return;
+  b.innerHTML = '<div class="m3d-empty"><p>The posable 3D model is not loaded yet.</p><button class="primary" type="button">🧍 Load the 3D model</button><p class="small muted">Then drag it onto your drawing and pose it: click a body part, drag the coloured rings to turn it.</p></div>';
+  b.querySelector('button').onclick = () => CMD.show3d();
+}
 function install3DLayer() {
+  m3PanelPlaceholder();
   const md0 = m3Drop; m3Drop = async function () {
     if (M3.deleted) { m3RestoreModel(); if (typeof applyPose === 'function') applyPose('Stand'); if (typeof fitModel === 'function') fitModel(); }
     const out = await md0.apply(this, arguments);

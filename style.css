@@ -1253,3 +1253,4 @@ body.hub-open #menubar { z-index: 9002; }
 #draftNote p { margin: 6px 0 10px; color: #c9cacf; }
 #draftNote .dn-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 #draftNote label { display: flex; gap: 6px; align-items: center; color: #9a9ca3; }
+.m3d-empty { padding: 10px 4px; text-align: center; } .m3d-empty p { margin: 6px 0; } .m3d-empty button { width: 100%; }
