@@ -1254,3 +1254,8 @@ body.hub-open #menubar { z-index: 9002; }
 #draftNote .dn-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 #draftNote label { display: flex; gap: 6px; align-items: center; color: #9a9ca3; }
 .m3d-empty { padding: 10px 4px; text-align: center; } .m3d-empty p { margin: 6px 0; } .m3d-empty button { width: 100%; }
+/* pen settings: draggable pressure curve */
+.pencurve { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
+.pencurve #penCurveHost { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; flex: none; }
+.pencurve .becurve { width: 180px; height: 180px; }
+.pencurve p { margin: 0; }

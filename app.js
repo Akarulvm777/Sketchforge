@@ -993,10 +993,12 @@ const newBox = () => ({ x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
 /* pen pressure with a user-adjustable response curve (Edit -> Pen pressure & touch) */
 const penCfg = { gamma: 0.8, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false, side: 'pick' };
 try { Object.assign(penCfg, JSON.parse(localStorage.getItem('sketchforge.pen') || '{}'), { penSeen: false }); } catch (e) { /* ignore */ }
-function shapePressure(p) {
-  const lo = penCfg.min, hi = Math.max(lo + 0.05, penCfg.max);
-  return clamp(Math.pow(clamp((p - lo) / (hi - lo), 0, 1), penCfg.gamma), 0.01, 1);
+/* pure: raw pen pressure -> used pressure. cfg.curve (points dragged by the user in the pen settings) wins over cfg.gamma */
+function pressureShape(p, cfg) {
+  const lo = cfg.min, hi = Math.max(lo + 0.05, cfg.max), t = clamp((p - lo) / (hi - lo), 0, 1);
+  return clamp(cfg.curve && cfg.curve.length >= 2 ? prCurve(cfg.curve, t) : Math.pow(t, cfg.gamma), 0.01, 1);
 }
+function shapePressure(p) { return pressureShape(p, penCfg); }
 /* Pressure works automatically for every pen that reaches the browser as a pointer: Wacom, XP-Pen, Huion, Gaomon,
    Apple Pencil, Surface/Android styluses. Some drivers (XP-Pen without Windows Ink) report the pen as a 'mouse'
    with real pressure values - those are honoured too once a value other than 0/0.5 has been seen. */
@@ -13058,6 +13060,7 @@ function openPenDialog() {
         <button type="button" data-preset="soft">Soft</button><button type="button" data-preset="normal">Normal</button><button type="button" data-preset="firm">Firm</button>
         <span style="flex:1"></span><button type="button" id="penCal" title="Measures how light and how hard your pen really goes">Calibrate my pen…</button></div>
       <p class="small" id="penCalMsg" hidden></p>
+      <div class="pencurve"><div id="penCurveHost"></div><p class="muted small">Your pressure curve: <b>drag the points</b> to shape it as you like. Left = how hard you press, up = how thick / dark the line gets. Click to add a point, double-click to remove one.</p></div>
       <label class="slider"><span>Sensitivity</span><input type="range" id="penGamma" min="30" max="300" step="5"><output id="penGammaV"></output></label>
       <p class="muted small" style="margin:0 0 6px">Left = soft (light pressure already gives thick lines), right = firm (you must press harder).</p>
       <label class="slider"><span>Min. pressure</span><input type="range" id="penMin" min="0" max="50" step="1"><output id="penMinV"></output></label>
@@ -13096,7 +13099,11 @@ function openPenDialog() {
       const det = $('#penDetect');
       det.innerHTML = penCfg.penSeen ? (realPressureSeen ? '✅ Pen detected, pressure is working.' : (penSamples > 20 && penFlat ? '⚠️ Pen detected but it sends <b>no pressure</b> — see "No pressure?" below.' : '✏️ Pen detected — draw on the pad to check pressure.')) : 'No pen used yet in this session — draw on the pad with your pen.';
       drawCurve();
+      if (curveEd) curveEd.set(penCfg.curve || gammaPts(penCfg.gamma));
     };
+    // points that follow the Sensitivity curve, so dragging starts from what the user has now
+    const gammaPts = gm => [0, 0.25, 0.5, 0.75, 1].map(x => [x, +Math.pow(x, gm).toFixed(3)]);
+    const curveEd = typeof beCurve === 'function' ? beCurve($('#penCurveHost'), penCfg.curve || gammaPts(penCfg.gamma), pts => { penCfg.curve = pts || [[0, 0], [1, 1]]; drawCurve(); save(); }) : null;
     const save = () => { try { const { penSeen, announced, eraserPrev, ...keep } = penCfg; localStorage.setItem('sketchforge.pen', JSON.stringify(keep)); } catch (e) { /* ignore */ } };
     const drawCurve = () => {
       g.clearRect(0, 0, pad.width, pad.height);
@@ -13107,14 +13114,14 @@ function openPenDialog() {
       g.fillStyle = '#888'; g.font = '10px sans-serif'; g.fillText('pressure curve', 140, 14);
     };
     const PRESETS = { soft: 0.55, normal: 0.8, firm: 1.4 };
-    d.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { penCfg.gamma = PRESETS[b.dataset.preset]; sync(); save(); });
-    $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; sync(); save(); };
+    d.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { penCfg.gamma = PRESETS[b.dataset.preset]; penCfg.curve = null; sync(); save(); });
+    $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; penCfg.curve = null; sync(); save(); };
     $('#penMin').oninput = e => { penCfg.min = e.target.value / 100; sync(); save(); };
     $('#penMax').oninput = e => { penCfg.max = e.target.value / 100; sync(); save(); };
     $('#penSide').onchange = e => { penCfg.side = e.target.value; save(); };
     $('#penPalm').onchange = e => { penCfg.palm = e.target.checked; save(); };
     $('#penUndo').onchange = e => { penCfg.twoTapUndo = e.target.checked; save(); };
-    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 0.8, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
+    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 0.8, curve: null, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
     $('#penClose').onclick = () => d.close();
     /* calibration: collect raw pen pressures, then use the light / hard ends the pen really reaches */
     let cal = null;
@@ -14413,7 +14420,7 @@ const TUTORIALS = [
   ] },
   { id: 'pen', cat: 'Tools & options', icon: '🖊', title: 'Pen tablet & pressure', desc: 'Wacom, XP-Pen, Huion, Apple Pencil…', steps: [
     { t: 'Pressure', x: 'With a pen tablet or stylus, pressing harder makes lines thicker or darker (set per brush in Tool property: "Affects size / density").' },
-    { el: menuEl('View'), t: 'Pen settings', x: 'View › <b>Pen pressure & touch</b>: test pad, Soft / Normal / Firm, <b>Calibrate my pen</b>, side button (eyedropper), palm rejection.', demo: ['Open pen settings', () => CMD.penSettings()] },
+    { el: menuEl('View'), t: 'Pen settings', x: 'View › <b>Pen pressure & touch</b>: test pad, a pressure curve you <b>drag</b> to shape, Soft / Normal / Firm, <b>Calibrate my pen</b>, side button (eyedropper), palm rejection.', demo: ['Open pen settings', () => CMD.penSettings()] },
     { t: 'No pressure?', x: 'Turn on <b>Windows Ink</b> in your tablet driver (Wacom, XP-Pen, Huion, Gaomon…). The steps for each brand are in the pen settings under "No pressure?".' }
   ] },
   { id: 'brushes', cat: 'Tools & options', icon: '🖌', title: 'Clip Studio tools & your own brushes', desc: 'Import tools, see how they were translated, tune them to match, make new brushes.', steps: [
@@ -14703,6 +14710,7 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'pen pressure curve drag shape custom feel courbe pression stylet', t: 'Shape your pen pressure curve', x: 'View › Pen pressure & touch: drag the points of the curve as you like (left = how hard you press, up = how thick the line gets). Click to add a point, double-click to remove one; Reset brings back the normal curve.', a: [['cmd', 'penSettings', 'Pen settings']] },
   { q: 'pen pressure not working tablet wacom xp-pen huion thickness pressure', t: 'Pen pressure', x: 'Turn on Windows Ink in your tablet driver, then View › Pen pressure & touch: test pad, Soft / Normal / Firm, Calibrate my pen.', a: [['cmd', 'penSettings', 'Pen settings'], ['tut', 'pen', 'Pen tutorial']] },
   { q: 'save file where saved keep work sketchforge file', t: 'Saving your work', x: 'File › Save (Ctrl+S) saves a .sketchforge file with all layers and frames. Your last work also reopens by itself next time.', a: [['cmd', 'save', 'Save now']] },
   { q: 'export gif video mp4 png movie share animation', t: 'Export an animation', x: 'File › Export animation (Ctrl+E): GIF, video, PNG frames or a sprite sheet, with a transparent background if you like.', a: [['cmd', 'exportAnim', 'Export…']] },

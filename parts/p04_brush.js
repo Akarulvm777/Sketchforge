@@ -45,10 +45,12 @@ const newBox = () => ({ x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 });
 /* pen pressure with a user-adjustable response curve (Edit -> Pen pressure & touch) */
 const penCfg = { gamma: 0.8, min: 0, max: 1, palm: true, twoTapUndo: true, penSeen: false, side: 'pick' };
 try { Object.assign(penCfg, JSON.parse(localStorage.getItem('sketchforge.pen') || '{}'), { penSeen: false }); } catch (e) { /* ignore */ }
-function shapePressure(p) {
-  const lo = penCfg.min, hi = Math.max(lo + 0.05, penCfg.max);
-  return clamp(Math.pow(clamp((p - lo) / (hi - lo), 0, 1), penCfg.gamma), 0.01, 1);
+/* pure: raw pen pressure -> used pressure. cfg.curve (points dragged by the user in the pen settings) wins over cfg.gamma */
+function pressureShape(p, cfg) {
+  const lo = cfg.min, hi = Math.max(lo + 0.05, cfg.max), t = clamp((p - lo) / (hi - lo), 0, 1);
+  return clamp(cfg.curve && cfg.curve.length >= 2 ? prCurve(cfg.curve, t) : Math.pow(t, cfg.gamma), 0.01, 1);
 }
+function shapePressure(p) { return pressureShape(p, penCfg); }
 /* Pressure works automatically for every pen that reaches the browser as a pointer: Wacom, XP-Pen, Huion, Gaomon,
    Apple Pencil, Surface/Android styluses. Some drivers (XP-Pen without Windows Ink) report the pen as a 'mouse'
    with real pressure values - those are honoured too once a value other than 0/0.5 has been seen. */

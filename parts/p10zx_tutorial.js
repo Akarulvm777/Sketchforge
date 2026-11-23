@@ -105,7 +105,7 @@ const TUTORIALS = [
   ] },
   { id: 'pen', cat: 'Tools & options', icon: '🖊', title: 'Pen tablet & pressure', desc: 'Wacom, XP-Pen, Huion, Apple Pencil…', steps: [
     { t: 'Pressure', x: 'With a pen tablet or stylus, pressing harder makes lines thicker or darker (set per brush in Tool property: "Affects size / density").' },
-    { el: menuEl('View'), t: 'Pen settings', x: 'View › <b>Pen pressure & touch</b>: test pad, Soft / Normal / Firm, <b>Calibrate my pen</b>, side button (eyedropper), palm rejection.', demo: ['Open pen settings', () => CMD.penSettings()] },
+    { el: menuEl('View'), t: 'Pen settings', x: 'View › <b>Pen pressure & touch</b>: test pad, a pressure curve you <b>drag</b> to shape, Soft / Normal / Firm, <b>Calibrate my pen</b>, side button (eyedropper), palm rejection.', demo: ['Open pen settings', () => CMD.penSettings()] },
     { t: 'No pressure?', x: 'Turn on <b>Windows Ink</b> in your tablet driver (Wacom, XP-Pen, Huion, Gaomon…). The steps for each brand are in the pen settings under "No pressure?".' }
   ] },
   { id: 'brushes', cat: 'Tools & options', icon: '🖌', title: 'Clip Studio tools & your own brushes', desc: 'Import tools, see how they were translated, tune them to match, make new brushes.', steps: [

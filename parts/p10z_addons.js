@@ -752,6 +752,7 @@ function openPenDialog() {
         <button type="button" data-preset="soft">Soft</button><button type="button" data-preset="normal">Normal</button><button type="button" data-preset="firm">Firm</button>
         <span style="flex:1"></span><button type="button" id="penCal" title="Measures how light and how hard your pen really goes">Calibrate my pen…</button></div>
       <p class="small" id="penCalMsg" hidden></p>
+      <div class="pencurve"><div id="penCurveHost"></div><p class="muted small">Your pressure curve: <b>drag the points</b> to shape it as you like. Left = how hard you press, up = how thick / dark the line gets. Click to add a point, double-click to remove one.</p></div>
       <label class="slider"><span>Sensitivity</span><input type="range" id="penGamma" min="30" max="300" step="5"><output id="penGammaV"></output></label>
       <p class="muted small" style="margin:0 0 6px">Left = soft (light pressure already gives thick lines), right = firm (you must press harder).</p>
       <label class="slider"><span>Min. pressure</span><input type="range" id="penMin" min="0" max="50" step="1"><output id="penMinV"></output></label>
@@ -790,7 +791,11 @@ function openPenDialog() {
       const det = $('#penDetect');
       det.innerHTML = penCfg.penSeen ? (realPressureSeen ? '✅ Pen detected, pressure is working.' : (penSamples > 20 && penFlat ? '⚠️ Pen detected but it sends <b>no pressure</b> — see "No pressure?" below.' : '✏️ Pen detected — draw on the pad to check pressure.')) : 'No pen used yet in this session — draw on the pad with your pen.';
       drawCurve();
+      if (curveEd) curveEd.set(penCfg.curve || gammaPts(penCfg.gamma));
     };
+    // points that follow the Sensitivity curve, so dragging starts from what the user has now
+    const gammaPts = gm => [0, 0.25, 0.5, 0.75, 1].map(x => [x, +Math.pow(x, gm).toFixed(3)]);
+    const curveEd = typeof beCurve === 'function' ? beCurve($('#penCurveHost'), penCfg.curve || gammaPts(penCfg.gamma), pts => { penCfg.curve = pts || [[0, 0], [1, 1]]; drawCurve(); save(); }) : null;
     const save = () => { try { const { penSeen, announced, eraserPrev, ...keep } = penCfg; localStorage.setItem('sketchforge.pen', JSON.stringify(keep)); } catch (e) { /* ignore */ } };
     const drawCurve = () => {
       g.clearRect(0, 0, pad.width, pad.height);
@@ -801,14 +806,14 @@ function openPenDialog() {
       g.fillStyle = '#888'; g.font = '10px sans-serif'; g.fillText('pressure curve', 140, 14);
     };
     const PRESETS = { soft: 0.55, normal: 0.8, firm: 1.4 };
-    d.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { penCfg.gamma = PRESETS[b.dataset.preset]; sync(); save(); });
-    $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; sync(); save(); };
+    d.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { penCfg.gamma = PRESETS[b.dataset.preset]; penCfg.curve = null; sync(); save(); });
+    $('#penGamma').oninput = e => { penCfg.gamma = e.target.value / 100; penCfg.curve = null; sync(); save(); };
     $('#penMin').oninput = e => { penCfg.min = e.target.value / 100; sync(); save(); };
     $('#penMax').oninput = e => { penCfg.max = e.target.value / 100; sync(); save(); };
     $('#penSide').onchange = e => { penCfg.side = e.target.value; save(); };
     $('#penPalm').onchange = e => { penCfg.palm = e.target.checked; save(); };
     $('#penUndo').onchange = e => { penCfg.twoTapUndo = e.target.checked; save(); };
-    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 0.8, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
+    $('#penReset').onclick = () => { Object.assign(penCfg, { gamma: 0.8, curve: null, min: 0, max: 1, palm: true, twoTapUndo: true, side: 'pick' }); sync(); save(); };
     $('#penClose').onclick = () => d.close();
     /* calibration: collect raw pen pressures, then use the light / hard ends the pen really reaches */
     let cal = null;

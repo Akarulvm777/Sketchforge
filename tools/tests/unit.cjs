@@ -34,6 +34,10 @@ const TESTS = {
     return d[0] >= 254 && d[3] === 255 ? true : [...d];
   },
 
+  'pen pressure: dragged curve wins over sensitivity (pressureShape)': () => {
+    const g = { min: 0, max: 1, gamma: 2 }, c = { min: 0, max: 1, gamma: 2, curve: [[0, 0], [0.5, 0.9], [1, 1]] };
+    return Math.abs(pressureShape(0.5, g) - 0.25) < 1e-9 && Math.abs(pressureShape(0.5, c) - 0.9) < 1e-9 && pressureShape(0, c) === 0.01 && pressureShape(2, c) === 1;
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
