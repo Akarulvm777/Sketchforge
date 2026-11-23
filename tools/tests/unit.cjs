@@ -53,6 +53,22 @@ const TESTS = {
     return langDetect(['th-TH', 'en']) === 'th' && langDetect(['xx', 'pt-BR']) === 'pt' && langDetect(['nl']) === 'en' &&
       sp[0] === '🏠 ' && sp[1] === 'Start screen' && sp[2] === '…' && th.get('File') === 'ไฟล์' && i18nTable(I18N_ROWS, 'en').size === 0;
   },
+  'Clip Studio .clip: timing, tiles, layer colour (clipKeys, clipTileRGBA, clipLayerColor, clipAttr, clipBlocks)': () => {
+    // two clips: the second's own timing starts at 5; a clip squeezed into half its length keeps all its drawings
+    const k = clipKeys([{ ts: 0, te: 12, ls: 0, le: 12, frames: [0, 6], tags: ['A', 'B'] }, { ts: 20, te: 30, ls: 5, le: 15, frames: [5], tags: ['C'] }]);
+    if (JSON.stringify(k) !== JSON.stringify([[0, 'A'], [6, 'B'], [12, null], [20, 'C'], [30, null]])) return 'keys ' + JSON.stringify(k);
+    const k2 = clipKeys([{ ts: 0, te: 10, ls: 0, le: 20, frames: [0, 10, 18], tags: ['x', 'y', 'z'] }]);
+    if (JSON.stringify(k2) !== JSON.stringify([[0, 'x'], [5, 'y'], [9, 'z'], [10, null]])) return 'squeezed ' + JSON.stringify(k2);
+    const raw = new Uint8Array(65536 * 5); raw[0] = 200; raw.set([10, 20, 30, 255], 65536); // alpha, then B G R A
+    const t = clipTileRGBA(raw); if (t[0] !== 30 || t[1] !== 20 || t[2] !== 10 || t[3] !== 200) return 'tile ' + [...t.slice(0, 4)];
+    const c = clipLayerColor(new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 128]), [40, 120, 230], [255, 255, 255]);
+    if (c.join() !== '40,120,230,255,255,255,255,128') return 'layer colour ' + c.join();
+    const name = [...'Parameter'].flatMap(ch => [0, ch.charCodeAt(0)]), attr = new Uint8Array([1, 2, ...name, 0, 0, 2, 88, 0, 0, 1, 144, 0, 0, 0, 3, 0, 0, 0, 2]);
+    const a = clipAttr(attr); if (a.W !== 600 || a.H !== 400 || a.bx !== 3 || a.by !== 2) return 'attr ' + JSON.stringify(a);
+    const nm = [...'BlockDataBeginChunk'].flatMap(ch => [0, ch.charCodeAt(0)]), body = [0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 6, 2, 0, 0, 0, 9, 9];
+    const rec = [0, 0, 0, 19, ...nm, ...body], blk = new Uint8Array([0, 0, 0, rec.length + 4, ...rec, 0, 0, 0, 11]);
+    const b = clipBlocks(blk); return b.length === 1 && b[0].idx === 7 && b[0].z.length === 2 && b[0].z[0] === 9 || 'blocks ' + JSON.stringify(b);
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

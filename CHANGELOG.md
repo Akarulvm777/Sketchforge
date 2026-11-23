@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.5: Open your Clip Studio files with their layers
+- Clip Studio files (.clip) now open with all their layers: names, order, folders, hidden layers, opacity, blend modes (Multiply, Overlay…), clipping, masks and "Layer color". Before, they opened as one flat picture.
+- Animations too: every animation folder becomes an animated layer with each drawing on its frame, at the same frame rate, and the background sound comes with it.
+- Vector and text layers come in as pictures you can paint on. If a file can't be read, it still opens as a flat picture.
+
 ## 3.4: Sketchforge is now Nexilune
 - New name: Sketchforge is now **Nexilune**, with a new logo (the glowing N) in the app, on the website and on your home screen.
 - Nothing to do: your drawings, drafts, settings and imported tools are kept, and installed apps update themselves as before. Files you saved (.sketchforge) still open.

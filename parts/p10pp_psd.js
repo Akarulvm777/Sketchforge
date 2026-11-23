@@ -3,7 +3,7 @@
    fill, visibility, blend mode, clipping; layer masks are baked into the pixels; groups are flattened
    (their visibility / opacity are applied to their layers, their name is prefixed). No layers → merged image.
    .clip: the format is undocumented. It embeds an SQLite database; we read it with a tiny read-only SQLite
-   reader and open the full-canvas preview picture it stores (a flattened image, no separate layers). */
+   reader; the layers are read by p10ppb_clip, and the full-canvas preview picture it stores is the fallback. */
 
 class SFReader {
   constructor(buf) { this.buf = buf; this.d = new DataView(buf); this.u = new Uint8Array(buf); this.p = 0; }
@@ -273,7 +273,7 @@ function sqliteOpen(u8) {
   return { tables, rows: t => rows(tables[t].root), columns };
 }
 const isPNG = b => b && b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
-async function openClipFile(file) {
+async function openClipPreview(file) { // the flat preview picture (when the layers cannot be read: p10ppb_clip)
   try {
     const u8 = new Uint8Array(await file.arrayBuffer());
     const head = String.fromCharCode(...u8.subarray(0, 8));
