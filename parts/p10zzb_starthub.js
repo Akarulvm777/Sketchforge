@@ -153,11 +153,35 @@ function hubOpen(view) {
   H.querySelector('#hubShowAtStart').checked = hubShouldShow(hubPref(), hubInstalled());
   HUB.view = view || 'home'; H.hidden = false; document.body.classList.add('hub-open');
   H.tabIndex = -1; H.focus();
-  hubRender();
+  hubRender(); if (typeof renderTabs === 'function') renderTabs(); hubPlace();
 }
-function hubClose() { const H = $('#startHub'); if (H) H.hidden = true; document.body.classList.remove('hub-open'); }
+function hubClose() { const H = $('#startHub'); if (H) H.hidden = true; document.body.classList.remove('hub-open'); if (typeof renderTabs === 'function') renderTabs(); }
+/* the Home page sits under the menu and tab bars, like a tab next to the drawing (the 🏠 Home tab) */
+function hubPlace() {
+  const H = $('#startHub'), bar = $('#tabrow') || $('#tabbar'); if (!H || H.hidden) return;
+  const r = bar && bar.offsetParent ? bar.getBoundingClientRect() : null;
+  H.style.top = (r && r.bottom > 0 ? Math.round(r.bottom) : 0) + 'px';
+}
 function installStartHub() {
   CMD.startHub = () => hubOpen('home');
+  // 🏠 Home tab, just before the file tabs (its own element, so file tabs keep their places); a file tab closes the Home page
+  const bar0 = $('#tabbar');
+  if (bar0 && !$('#hometab')) {
+    const row = document.createElement('div'); row.id = 'tabrow'; bar0.parentNode.insertBefore(row, bar0); row.appendChild(bar0);
+    const h = document.createElement('button'); h.id = 'hometab'; h.type = 'button'; h.title = 'Home page: new files, your drafts and recent files, learn, community';
+    h.textContent = '🏠 Home'; h.onclick = () => hubOpen('home'); row.insertBefore(h, bar0);
+  }
+  const rt0 = renderTabs; renderTabs = function () {
+    const out = rt0.apply(this, arguments), bar = $('#tabbar'), open = document.body.classList.contains('hub-open');
+    const h = $('#hometab'); if (h) h.classList.toggle('on', open);
+    if (bar) {
+      if (open) bar.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+      bar.querySelectorAll('.tab').forEach(t => t.addEventListener('click', e => { if (!e.target.classList.contains('x') && document.body.classList.contains('hub-open')) hubClose(); }));
+    }
+    return out;
+  };
+  addEventListener('resize', hubPlace);
+  renderTabs();
   const F = MENUS.find(m => m[0] === 'File'); if (F) F[1].unshift(['🏠 Start screen', 'startHub'], '-');
   // recent files: on save, on auto-save, when a tab is closed
   const s0 = saveDocument; saveDocument = async function () { const out = await s0.apply(this, arguments); recentRecord(); return out; };

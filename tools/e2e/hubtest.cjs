@@ -52,6 +52,14 @@ const H = require('./harness.cjs');
   await pg.evaluate(() => window.__sketchforge.CMD.pagesPanel()); await pg.waitForTimeout(200);
   check('Window › Pages panel turns it off', await pg.evaluate(() => document.querySelector('#pagesPanel').hidden && localStorage.getItem('sketchforge.pagespanel.v1') === 'off'));
   await pg.evaluate(() => window.__sketchforge.CMD.pagesPanel());
-  console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
+    // 3.3: the Home page is a tab next to the drawing
+  await pg.evaluate(() => window.__sketchforge.scope('hubOpen')('home')); await pg.waitForTimeout(300);
+  const ht = await pg.evaluate(() => ({ on: !!document.querySelector('#hometab.on'), below: parseInt(document.querySelector('#startHub').style.top) > 20 }));
+  await pg.click('#tabbar .tab'); await pg.waitForTimeout(250);
+  const closed = await pg.evaluate(() => !document.body.classList.contains('hub-open'));
+  await pg.click('#hometab'); await pg.waitForTimeout(250);
+  check('the Home page is a tab next to the file tabs (opens under the tab bar, a file tab goes back to drawing)', ht.on && ht.below && closed && await pg.evaluate(() => document.body.classList.contains('hub-open')));
+  await pg.evaluate(() => window.__sketchforge.scope('hubClose')());
+console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done(); process.exit(ok.every(Boolean) && !errors.length ? 0 : 1);
 })();
