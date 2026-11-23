@@ -13,12 +13,11 @@ function csLoad() {
 function csSave() { try { localStorage.setItem(CS_KEY, JSON.stringify(CSETS)); } catch (e) { /* full */ } }
 function chSave() { try { localStorage.setItem(CH_KEY, JSON.stringify((state.recent || []).slice(0, CH_MAX))); } catch (e) { /* full */ } }
 const csSet = () => CSETS.sets[CSETS.cur];
-const csEsc = t => String(t).replace(/[<&"]/g, c => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' })[c]);
 /* draws the current set and the history (called by renderSwatches in p07) */
 function renderColorSets() {
   if (!CSETS) csLoad();
   const sel = $('#csSel');
-  if (sel) { sel.innerHTML = CSETS.sets.map((s, i) => `<option value="${i}">${csEsc(s.name)} (${s.colors.length})</option>`).join(''); sel.value = String(CSETS.cur); }
+  if (sel) { sel.innerHTML = CSETS.sets.map((s, i) => `<option value="${i}">${escHtml(s.name)} (${s.colors.length})</option>`).join(''); sel.value = String(CSETS.cur); }
   const mk = (box, arr, inSet) => {
     if (!box) return;
     box.innerHTML = '';

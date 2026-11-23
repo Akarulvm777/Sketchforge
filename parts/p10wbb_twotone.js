@@ -30,17 +30,14 @@ function installTwoTone() {
   for (const k of ['outlinemarker', 'neonpen']) settings[k] = { ...TOOLDEF[k].preset };
   const g = GROUPS.find(x => x.id === 'pen'); if (g) g.subs.push('outlinemarker', 'neonpen');
   // Tool Property: Two colours (any round brush)
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
+  hookAfter('refreshProps', () => {
     const body = $('#propBody'), id = state.tool, s = settings[id];
-    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].erase || s.smudge != null || s.shape) return out;
+    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].erase || s.smudge != null || s.shape) return;
     grp(body, 'Two colours');
     const row = document.createElement('label'); row.className = 'select'; row.innerHTML = '<span>Colours</span><select><option value="">One colour</option><option value="edge">Main inside, sub colour outside</option><option value="glow">Main colour + sub colour glow</option></select>';
     const sel = row.querySelector('select'); sel.value = s.twoTone || ''; body.appendChild(row);
     sel.onchange = () => { s.twoTone = sel.value || undefined; if (s.twoTone && s.twoEdge == null) s.twoEdge = s.twoTone === 'glow' ? 0.8 : 0.35; refreshProps(); };
     if (s.twoTone) slider(body, s.twoTone === 'glow' ? 'Glow size' : 'Outline width', 5, 90, 1, (s.twoEdge ?? 0.35) * 100, v => v + '%', v => s.twoEdge = v / 100);
     if (s.twoTone) { const t = document.createElement('div'); t.className = 'hint'; t.textContent = 'The outside uses the sub colour (the second colour square; X swaps them).'; body.appendChild(t); }
-    return out;
-  };
+  });
 }

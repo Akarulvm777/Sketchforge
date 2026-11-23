@@ -34,6 +34,25 @@ const TESTS = {
     return d[0] >= 254 && d[3] === 255 ? true : [...d];
   },
 
+  'pen pressure: dragged curve wins over sensitivity (pressureShape)': () => {
+    const g = { min: 0, max: 1, gamma: 2 }, c = { min: 0, max: 1, gamma: 2, curve: [[0, 0], [0.5, 0.9], [1, 1]] };
+    return Math.abs(pressureShape(0.5, g) - 0.25) < 1e-9 && Math.abs(pressureShape(0.5, c) - 0.9) < 1e-9 && pressureShape(0, c) === 0.01 && pressureShape(2, c) === 1;
+  },
+  'every drawing tool shows a sample preview (toolPreview)': () => {
+    const skip = new Set(['hand', 'rotate', 'zoom']), miss = [];
+    for (const g of GROUPS) for (const id of (g.subs || [])) if (!skip.has(id) && !(toolPreview(id) || kindOf(id) === 'brush' || TOOLDEF[id].stops)) miss.push(id);
+    return miss.length ? 'no preview: ' + miss.join(', ') : true;
+  },
+  'import window percentages (impwPct)': () => impwPct(null) === 0 && impwPct('read') === 15 && impwPct('place') === 55 && impwPct('prev') === 100,
+  'languages: detection, split, table rows (langDetect, i18nSplit, i18nTable)': () => {
+    const bad = I18N_ROWS.split('\n').filter(r => r.split('|').length !== I18N_LANGS.length);
+    if (bad.length) return 'rows without 9 columns: ' + bad.slice(0, 3).join(' / ');
+    const keys = I18N_ROWS.split('\n').map(r => r.split('|')[0]), dup = keys.filter((k, i) => keys.indexOf(k) !== i);
+    if (dup.length) return 'same English text twice: ' + dup.join(', ');
+    const sp = i18nSplit('🏠 Start screen…'), th = i18nTable(I18N_ROWS, 'th');
+    return langDetect(['th-TH', 'en']) === 'th' && langDetect(['xx', 'pt-BR']) === 'pt' && langDetect(['nl']) === 'en' &&
+      sp[0] === '🏠 ' && sp[1] === 'Start screen' && sp[2] === '…' && th.get('File') === 'ไฟล์' && i18nTable(I18N_ROWS, 'en').size === 0;
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
@@ -267,6 +286,18 @@ const TESTS = {
   },
 
   'GPU mixing engine compiles where WebGL2 exists': () => { const gl = document.createElement('canvas').getContext('webgl2'); return !gl || gpuMixInit() === true; },
+
+  'hooks: run in order after the function, a failing hook does not stop the others, async waits; prefs never throw': async () => {
+    const seen = [];
+    hookAfter('markDirty', () => seen.push('b'), 5); hookAfter('markDirty', () => { throw new Error('broken'); }, 1); hookAfter('markDirty', () => seen.push('a'), -5);
+    const ce = console.error; console.error = () => {}; markDirty(); console.error = ce;
+    let after = null; hookAfter('saveDocument', () => { after = after || 'hook'; }, 99);
+    const sd = HOOKABLE.saveDocument[0]();
+    prefs.set('unit.x', 'y'); const pv = prefs.get('unit.x'); prefs.set('unit.x', null);
+    return seen.join('') === 'ab' && typeof sd === 'function' && pv === 'y' && prefs.get('unit.x', 'd') === 'd' && escHtml('<a href="x">') === '&lt;a href=&quot;x&quot;&gt;' ? true : { seen, pv };
+  },
+
+  'every module started (no failure in the start-up list)': () => !window.__sfStartErrors || { failed: window.__sfStartErrors },
 
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };

@@ -8,8 +8,8 @@
    the capture phase, before the normal drag), markSel (colours), setPoseOnCanvas (bar buttons), build3DPanel (options),
    placeOnLayer (helpers hidden). */
 const GIZ = { on: true, gridOn: true, shadow: true, hover: null, ring: null, hot: null, grid: null };
-try { const o = JSON.parse(localStorage.getItem('sketchforge.m3dgiz.v1') || '{}'); if ('on' in o) GIZ.on = !!o.on; if ('grid' in o) GIZ.gridOn = !!o.grid; if ('shadow' in o) GIZ.shadow = !!o.shadow; } catch (e) { /* defaults */ }
-const gizSave = () => { try { localStorage.setItem('sketchforge.m3dgiz.v1', JSON.stringify({ on: GIZ.on, grid: GIZ.gridOn, shadow: GIZ.shadow })); } catch (e) { /* ignore */ } };
+try { const o1 = JSON.parse(localStorage.getItem('sketchforge.m3dgiz.v1') || '{}'), o = JSON.parse(localStorage.getItem('sketchforge.m3dgiz.v2') || 'null') || { grid: o1.grid, shadow: o1.shadow }; if ('on' in o) GIZ.on = !!o.on; if (o.grid != null) GIZ.gridOn = !!o.grid; if (o.shadow != null) GIZ.shadow = !!o.shadow; } catch (e) { /* defaults */ }
+const gizSave = () => { try { localStorage.setItem('sketchforge.m3dgiz.v2', JSON.stringify({ on: GIZ.on, grid: GIZ.gridOn, shadow: GIZ.shadow })); } catch (e) { /* ignore */ } };
 const GIZ_FINGER = /thumb|index|middle|ring|pinky|little/i;
 function gizBuild() {
   const T = M3.T; if (GIZ.group || !T) return;
@@ -17,7 +17,7 @@ function gizBuild() {
   GIZ.group = new T.Group(); GIZ.group.renderOrder = 999;
   // solid thin rings (WebGL lines are 1 px: too thin to see and to grab); a torus lies around its Z axis
   GIZ.rings = [['x', 0xff4a4a], ['y', 0x4cff6a], ['z', 0x4a8cff]].map(([ax, col]) => {
-    const ring = new T.Mesh(new T.TorusGeometry(1, 0.045, 8, 72), new T.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.85 }));
+    const ring = new T.Mesh(new T.TorusGeometry(1, 0.07, 8, 72), new T.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.85 }));
     if (ax === 'x') ring.rotation.y = Math.PI / 2; else if (ax === 'y') ring.rotation.x = Math.PI / 2;
     ring.userData.axis = ax; ring.userData.color = col; ring.renderOrder = 999; GIZ.group.add(ring); return ring;
   });
@@ -70,7 +70,7 @@ function gizBind(cv, big) {
   const ringAt = e => {
     if (!GIZ.group || !GIZ.group.visible) return null;
     GIZ.group.updateMatrixWorld(true);
-    const v = m3Ndc(e, cv), asp = M3.camera.aspect, pt = new T.Vector3(); let best = null, bd = 0.032;
+    const v = m3Ndc(e, cv), asp = M3.camera.aspect, pt = new T.Vector3(); let best = null, bd = 0.05;
     for (const r of GIZ.rings) {
       for (let i = 0; i < 48; i++) {
         const a = i / 48 * Math.PI * 2; pt.set(Math.cos(a), Math.sin(a), 0).applyMatrix4(r.matrixWorld).project(M3.camera);
@@ -126,13 +126,13 @@ function gizMarkSel() {
 function gizBarButtons() {
   const bar = $('#m3dPoseBar'); if (!bar || bar._giz) return; bar._giz = true;
   const cam = document.createElement('span'); cam.className = 'm3dcam';
-  cam.innerHTML = '<button data-v="0" title="Front view">Front</button><button data-v="90" title="Side view">Side</button><button data-v="180" title="Back view">Back</button><button data-z="-1" title="Zoom in">＋</button><button data-z="1" title="Zoom out">−</button><button data-c="1" title="Reset camera">⟲</button><button data-r="1" title="Show / hide the rotation rings">◎</button>';
+  cam.innerHTML = '<button data-v="0" title="Front view">Front</button><button data-v="90" title="Side view">Side</button><button data-v="180" title="Back view">Back</button><button data-z="-1" title="Zoom in">＋</button><button data-z="1" title="Zoom out">−</button><button data-c="1" title="Reset camera">⟲</button><button data-r="1" title="Rotation rings: click a body part, then drag a red / green / blue ring to turn it. Click here to show / hide them.">◎ Rings</button>';
   bar.insertBefore(cam, bar.querySelector('[data-x=done]'));
   cam.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { M3.cam.az = +b.dataset.v * DEG; M3.cam.el = 0.1; render3D(); });
   cam.querySelectorAll('[data-z]').forEach(b => b.onclick = () => { M3.cam.dist = clamp(M3.cam.dist * (b.dataset.z > 0 ? 1.15 : 1 / 1.15), 1, 20); render3D(); });
   cam.querySelector('[data-c]').onclick = () => fitModel();
   const rb = cam.querySelector('[data-r]'); rb.classList.toggle('on', GIZ.on);
-  rb.onclick = () => { GIZ.on = !GIZ.on; rb.classList.toggle('on', GIZ.on); gizSave(); const c = $('#m3dGiz'); if (c) c.checked = GIZ.on; render3D(); };
+  rb.onclick = () => { GIZ.on = !GIZ.on; rb.classList.toggle('on', GIZ.on); gizSave(); const c = $('#m3dGiz'); if (c) c.checked = GIZ.on; render3D(); toast(GIZ.on ? 'Rotation rings on: click a body part, then drag a coloured ring' : 'Rotation rings hidden (◎ Rings brings them back)', 3500); };
 }
 function gizPanelOptions() {
   const anchor = $('#m3dToon'); if (!anchor || $('#m3dGiz')) return;
@@ -149,7 +149,7 @@ function install3DGizmo() {
   const i0 = initThree; initThree = function () { const r = i0.apply(this, arguments); try { gizBuild(); } catch (e) { console.warn('3D helpers:', e.message); } return r; };
   const b0 = bindPoseSurface; bindPoseSurface = function (cv, big) { gizBind(cv, big); return b0.apply(this, arguments); };
   markSel = gizMarkSel;
-  const s0 = setPoseOnCanvas; setPoseOnCanvas = function (on) { const r = s0.apply(this, arguments); if (on) gizBarButtons(); render3D(); return r; };
+  hookAfter('setPoseOnCanvas', (out, [on]) => { if (on) gizBarButtons(); render3D(); });
   const p0 = build3DPanel; build3DPanel = function () { const r = p0.apply(this, arguments); gizPanelOptions(); return r; };
   const l0 = placeOnLayer; placeOnLayer = function () { GIZ.placing = true; try { return l0.apply(this, arguments); } finally { GIZ.placing = false; render3D(); } };
 }

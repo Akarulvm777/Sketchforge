@@ -61,7 +61,7 @@ function pageKeepLayout(at) {
 function installPagesPanel() {
   const pa0 = pageAdd; pageAdd = function () { const n = state.frameCount, out = pa0.apply(this, arguments); if (isComic() && state.frameCount > n) { pageKeepLayout(state.frame); refreshAll(); } return out; };
   // any file change (New, Open, tab switch) refreshes everything: open / close the panel to match the file
-  const ra0 = refreshAll; refreshAll = function () { const out = ra0.apply(this, arguments); const p = $('#pagesPanel'), want = pagesPanelWanted(PAGES.pref, state.projectType); if ((p ? !p.hidden : false) !== want || (want && !isComic()) || (!!$('#modeSwitch [data-mode="anim"]') && $('#modeSwitch [data-mode="anim"]').disabled !== isComic())) pagesPanelSync(); return out; };
+  hookAfter('refreshAll', () => { const p = $('#pagesPanel'), want = pagesPanelWanted(PAGES.pref, state.projectType); if ((p ? !p.hidden : false) !== want || (want && !isComic()) || (!!$('#modeSwitch [data-mode="anim"]') && $('#modeSwitch [data-mode="anim"]').disabled !== isComic())) pagesPanelSync(); });
   // Fit leaves room for the panel (on phones it covered part of the page)
   const fit0 = fit; fit = function () {
     const p = $('#pagesPanel'); if (!p || p.hidden) return fit0.apply(this, arguments);
@@ -78,8 +78,8 @@ function installPagesPanel() {
     if (m === 'anim' && isComic()) { if (!quiet) toast('This is a manga / comic project: its pages are in the Pages panel. Animation mode is for animation files.', 4000); m = 'draw'; }
     const out = sm0.call(this, m, quiet); pagesPanelSync(); return out;
   };
-  const gf0 = gotoFrame; gotoFrame = function () { const out = gf0.apply(this, arguments); if (isComic()) pagesChanged(120); return out; };
-  const md0 = markDirty; markDirty = function () { const out = md0.apply(this, arguments); if (isComic()) { PAGES.dirty.add(state.frame); pagesChanged(700); } return out; };
+  hookAfter('gotoFrame', () => { if (isComic()) pagesChanged(120); });
+  hookAfter('markDirty', () => { if (isComic()) { PAGES.dirty.add(state.frame); pagesChanged(700); } });
   CMD.pagesPanel = () => {
     PAGES.pref = PAGES.pref === 'off' ? 'auto' : 'off';
     try { localStorage.setItem('sketchforge.pagespanel.v1', PAGES.pref); } catch (e) { /* ignore */ }

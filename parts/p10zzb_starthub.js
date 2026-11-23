@@ -25,12 +25,13 @@ const recentList = async () => (await recentKV('readonly', s => s.get('list'))) 
 /* the recent list after adding / replacing one file (pure): newest first, one entry per name, at most max */
 function recentMerge(list, entry, max = RECENT_MAX) { return [entry, ...list.filter(e => e.name !== entry.name)].slice(0, max); }
 async function recentRecord() {
+  if (typeof RECENT_SKIP !== 'undefined' && RECENT_SKIP) return;
   try {
     if (!state.layers || !state.layers.some(l => !l.paper)) return;
     // everything about this document is read now (a closed tab is gone after the first await)
     const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d');
     g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H);
-    const entry = { name: state.name || 'Untitled', time: Date.now(), thumb: tc.toDataURL('image/jpeg', 0.8), w: state.w, h: state.h, type: state.projectType || 'illust', frames: state.frameCount };
+    const entry = { name: state.name || 'Untitled', draft: !(DOCS.cur && DOCS.cur.realFile), time: Date.now(), thumb: tc.toDataURL('image/jpeg', 0.8), w: state.w, h: state.h, type: state.projectType || 'illust', frames: state.frameCount };
     const doc = await buildDocObject(undefined, { cache: true, quiet: true }), text = JSON.stringify(doc);
     if (text.length > 40e6) return;
     const list = recentMerge(await recentList(), entry), keep = new Set(list.map(e => 'doc:' + e.name));
@@ -43,9 +44,10 @@ async function recentOpen(name) {
   const open = DOCS.list.find(r => docName(r) === name); if (open) { docSwitch(open); hubClose(); return; }
   const text = await recentKV('readonly', s => s.get('doc:' + name));
   if (!text) { toast('This file is no longer in the recent list'); return; }
+  const e = (await recentList()).find(x => x.name === name);
   hubClose(); await openDocumentFile(new File([text], name + '.sketchforge', { type: 'application/json' }));
+  if (DOCS.cur) { DOCS.cur.realFile = !(e && e.draft); syncTab(); }
 }
-const hubEsc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const hubAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
 function hubNew(kind) {
   hubClose();
@@ -64,7 +66,7 @@ const HUB_LEARN = [
   ['▶', 'Video: rig like Spine', 'Hair & cloth bones', () => CMD.videoSpine && CMD.videoSpine()],
   ['▶', 'Video: swap drawings', 'Faces, hands, eyes', () => CMD.videoSwap && CMD.videoSwap()]
 ];
-function hubCards(items) { return items.map((it, i) => `<button class="hub-learn" data-i="${i}"><span class="hl-ico">${it[0]}</span><b>${hubEsc(it[1])}</b><small>${hubEsc(it[2])}</small></button>`).join(''); }
+function hubCards(items) { return items.map((it, i) => `<button class="hub-learn" data-i="${i}"><span class="hl-ico">${it[0]}</span><b>${escHtml(it[1])}</b><small>${escHtml(it[2])}</small></button>`).join(''); }
 async function hubShared() {
   if (HUB.shared) return HUB.shared;
   const sb = window.SFSB; if (!sb || !sb.rest || !(window.SF_CLOUD || {}).url) return [];
@@ -78,11 +80,12 @@ async function hubRender() {
   H.querySelectorAll('.hub-rail [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   const all = await recentList();
   const liveThumb = () => { try { const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H); return tc.toDataURL('image/jpeg', 0.8); } catch (e) { return ''; } };
-  const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
+  const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, draft: !r.realFile, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
   const recent = all.filter(e => !open.some(o => o.name === e.name));
-  const fileCard = e => `<button class="hub-file" data-name="${hubEsc(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${hubEsc(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
-  const files = [...open, ...recent];
-  const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your files will show here after you save (auto-save counts too).</p>';
+  const fileCard = e => `<button class="hub-file" data-name="${escHtml(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${escHtml(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
+  const files = [...open, ...recent].filter(e => !e.draft), drafts = [...open, ...recent].filter(e => e.draft);
+  const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your saved files show here (File › Save makes a real file on your device).</p>';
+  const draftsHtml = drafts.length ? drafts.map(fileCard).join('') : '';
   const newCards = `<div class="hub-new">
     <button data-new="illust"><span>🖼</span><b>Illustration</b><small>A new picture</small></button>
     <button data-new="manga"><span>📖</span><b>Manga / comic</b><small>Pages, panels, tones</small></button>
@@ -90,14 +93,15 @@ async function hubRender() {
     <button data-new="webtoon"><span>📜</span><b>Webtoon</b><small>A long vertical strip</small></button>
     <button data-cmd="open"><span>📂</span><b>Open a file</b><small>.sketchforge, PSD, images</small></button></div>`;
   const changes = (typeof APP_CHANGES !== 'undefined' ? APP_CHANGES : []).slice(0, 3);
-  const news = changes.map(c => `<div class="hub-news"><b>${hubEsc(c.title[0].toUpperCase() + c.title.slice(1))}</b><p>${hubEsc(c.items[0]).slice(0, 220)}${c.items[0].length > 220 ? '…' : ''}</p></div>`).join('');
+  const news = changes.map(c => `<div class="hub-news"><b>${escHtml(c.title[0].toUpperCase() + c.title.slice(1))}</b><p>${escHtml(c.items[0]).slice(0, 220)}${c.items[0].length > 220 ? '…' : ''}</p></div>`).join('');
   const tips = (typeof HELP_TIPS !== 'undefined' ? HELP_TIPS : []).slice().sort(() => Math.random() - 0.5).slice(0, 3)
-    .map(t => `<div class="hub-tip"><b>💡 ${hubEsc(t.t)}</b><p>${hubEsc(String(t.x).replace(/\[\[[^\]]*\]\]/g, '').replace(/<[^>]+>/g, '')).slice(0, 170)}…</p></div>`).join('');
+    .map(t => `<div class="hub-tip"><b>💡 ${escHtml(t.t)}</b><p>${escHtml(String(t.x).replace(/\[\[[^\]]*\]\]/g, '').replace(/<[^>]+>/g, '')).slice(0, 170)}…</p></div>`).join('');
   const sec = (title, more, body) => `<section class="hub-sec"><div class="hub-sec-h"><h3>${title}</h3>${more || ''}</div>${body}</section>`;
   let html = '';
   if (v === 'home') {
     html = sec('Start something new', '', newCards)
       + sec('Continue drawing', files.length > 5 ? '<a href="#" data-v="projects">See all</a>' : '', `<div class="hub-files">${filesHtml}</div>`)
+      + (drafts.length ? sec('📝 Drafts — not saved as files', '<span class="muted small">Kept inside Sketchforge only: deleted if you reinstall or reset it. Open one and use File › Save to keep it.</span>', `<div class="hub-files">${draftsHtml}</div>`) : '')
       + `<div class="hub-two">${sec(`What's new in ${APP_VERSION}`, '<a href="#" data-cmd="whatsNew">All changes</a>', news)}${sec('Tips', '<a href="#" data-cmd="askAI">✨ Ask</a>', tips)}</div>`
       + sec('Learn', '<a href="#" data-v="learn">All tutorials</a>', `<div class="hub-learns">${hubCards(HUB_LEARN.slice(0, 8))}</div>`)
       + sec('From the community', `<a href="${hubSiteLink('shared.html')}" target="_blank" rel="noopener">See more</a>`, '<div class="hub-comm muted">Loading…</div>');
@@ -127,7 +131,7 @@ async function hubRender() {
       const pub = (window.SFSB && window.SFSB.publicUrl) || null;
       comm.classList.remove('muted');
       comm.innerHTML = items.slice(0, v === 'home' ? 6 : 12).map(it => { const art = /^(art|timelapse)$/.test(it.kind), img = art && pub && /\.(png|jpe?g|webp|gif)$/i.test(it.file_path || '') ? pub('shared', it.file_path) : '';
-        return `<a class="hub-share" href="${hubSiteLink('shared.html' + (art ? '#art' : '#tools'))}" target="_blank" rel="noopener">${img ? `<img src="${hubEsc(img)}" alt="" loading="lazy">` : `<span class="hs-ico">${art ? '🎨' : '🖌'}</span>`}<b>${hubEsc(it.name)}</b><small>${hubEsc(it.kind)}${it.author ? ' · ' + hubEsc(it.author) : ''}</small></a>`; }).join('');
+        return `<a class="hub-share" href="${hubSiteLink('shared.html' + (art ? '#art' : '#tools'))}" target="_blank" rel="noopener">${img ? `<img src="${escHtml(img)}" alt="" loading="lazy">` : `<span class="hs-ico">${art ? '🎨' : '🖌'}</span>`}<b>${escHtml(it.name)}</b><small>${escHtml(it.kind)}${it.author ? ' · ' + escHtml(it.author) : ''}</small></a>`; }).join('');
     }
   }
 }
@@ -153,14 +157,38 @@ function hubOpen(view) {
   H.querySelector('#hubShowAtStart').checked = hubShouldShow(hubPref(), hubInstalled());
   HUB.view = view || 'home'; H.hidden = false; document.body.classList.add('hub-open');
   H.tabIndex = -1; H.focus();
-  hubRender();
+  hubRender(); if (typeof renderTabs === 'function') renderTabs(); hubPlace();
 }
-function hubClose() { const H = $('#startHub'); if (H) H.hidden = true; document.body.classList.remove('hub-open'); }
+function hubClose() { const H = $('#startHub'); if (H) H.hidden = true; document.body.classList.remove('hub-open'); if (typeof renderTabs === 'function') renderTabs(); }
+/* the Home page sits under the menu and tab bars, like a tab next to the drawing (the 🏠 Home tab) */
+function hubPlace() {
+  const H = $('#startHub'), bar = $('#tabrow') || $('#tabbar'); if (!H || H.hidden) return;
+  const r = bar && bar.offsetParent ? bar.getBoundingClientRect() : null;
+  H.style.top = (r && r.bottom > 0 ? Math.round(r.bottom) : 0) + 'px';
+}
 function installStartHub() {
   CMD.startHub = () => hubOpen('home');
+  // 🏠 Home tab, just before the file tabs (its own element, so file tabs keep their places); a file tab closes the Home page
+  const bar0 = $('#tabbar');
+  if (bar0 && !$('#hometab')) {
+    const row = document.createElement('div'); row.id = 'tabrow'; bar0.parentNode.insertBefore(row, bar0); row.appendChild(bar0);
+    const h = document.createElement('button'); h.id = 'hometab'; h.type = 'button'; h.title = 'Home page: new files, your drafts and recent files, learn, community';
+    h.textContent = '🏠 Home'; h.onclick = () => hubOpen('home'); row.insertBefore(h, bar0);
+  }
+  const rt0 = renderTabs; renderTabs = function () {
+    const out = rt0.apply(this, arguments), bar = $('#tabbar'), open = document.body.classList.contains('hub-open');
+    const h = $('#hometab'); if (h) h.classList.toggle('on', open);
+    if (bar) {
+      if (open) bar.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+      bar.querySelectorAll('.tab').forEach(t => t.addEventListener('click', e => { if (!e.target.classList.contains('x') && document.body.classList.contains('hub-open')) hubClose(); }));
+    }
+    return out;
+  };
+  addEventListener('resize', hubPlace);
+  renderTabs();
   const F = MENUS.find(m => m[0] === 'File'); if (F) F[1].unshift(['🏠 Start screen', 'startHub'], '-');
   // recent files: on save, on auto-save, when a tab is closed
-  const s0 = saveDocument; saveDocument = async function () { const out = await s0.apply(this, arguments); recentRecord(); return out; };
+  hookAfter('saveDocument', () => recentRecord(), 10);
   if (typeof autoSaveNow === 'function') { const a0 = autoSaveNow; autoSaveNow = async function () { const out = await a0.apply(this, arguments); recentRecord(); return out; }; }
   const c0 = docClose; docClose = function (r) { if (r === DOCS.cur && !docPristine(r)) recentRecord(); return c0.apply(this, arguments); };
   // at start: after the welcome animation (and the session reopening the last work)

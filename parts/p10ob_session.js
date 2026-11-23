@@ -28,7 +28,7 @@ async function sessionSave() {
       const doc = await buildDocObject(src, { cache: true, quiet: true });
       const info = cur ? { frame: state.frame, view: { ...view }, dirty, blank: !!r.blank && !dirty && !history.undo.length }
         : { frame: r.saved.state.frame, view: r.saved.view, dirty: r.saved.dirty, blank: false };
-      docs.push({ json: JSON.stringify(doc), ...info });
+      docs.push({ json: JSON.stringify(doc), ...info, real: !!r.realFile });
     }
     await sessKV('readwrite', s => s.put({ t: Date.now(), active: DOCS.list.indexOf(DOCS.cur), docs, tool: state.tool, color: state.color, color2: state.color2 }, 'last'));
   } catch (e) { console.warn('session save failed', e); }
@@ -48,7 +48,7 @@ async function sessionRestore() {
       await openDocumentFile(new File([d.json], 'last work.sketchforge'));
       if (d.frame) gotoFrame(d.frame);
       if (d.view) { Object.assign(view, d.view); applyView(); }
-      dirty = !!d.dirty; syncTab();
+      dirty = !!d.dirty; if (DOCS.cur) DOCS.cur.realFile = !!d.real; syncTab();
       opened.push({ rec: DOCS.cur, i });
     }
     const act = opened.find(o => o.i === rec.active) || opened[opened.length - 1];

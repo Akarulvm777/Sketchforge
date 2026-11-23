@@ -290,6 +290,5 @@ function installFace() {
   Object.assign(CMD, { faceSliders: () => toggleFacePanel(), faceBlink: () => faceBlink(activeLayer()) });
   const A = MENUS.find(m => m[0] === 'Animation') || MENUS.find(m => m[0] === 'Layer');
   if (A) A[1].push('-', ['🙂 Face sliders (blink, mouth, smile)…', 'faceSliders'], ['👁 Blink here', 'faceBlink']);
-  const rt = renderTimeline;
-  renderTimeline = function () { const r = rt.apply(this, arguments); try { renderFacePanel(); } catch (er) { /* never break the timeline */ } return r; };
+  hookAfter('renderTimeline', () => renderFacePanel());
 }

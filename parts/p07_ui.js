@@ -189,11 +189,10 @@ function renderSubTools() {
   subs.forEach(id => {
     const b = document.createElement('button');
     b.className = 'sub-item' + (id === state.tool ? ' active' : '');
-    b.innerHTML = (kindOf(id) === 'brush' || TOOLDEF[id].stops)
-      ? `<span class="prev"></span><span class="nm">${TOOLDEF[id].name}</span>`
-      : `${icon(TOOLDEF[id].icon)}<span class="nm">${TOOLDEF[id].name}</span>`;
-    if (kindOf(id) === 'brush') b.querySelector('.prev').appendChild(strokePreview(id));
-    else if (TOOLDEF[id].stops) b.querySelector('.prev').appendChild(gradPreview(id));
+    // a sample of what the tool makes: tone pattern, balloon, panel, shape… (p10zbe), else a stroke / the gradient; tools with nothing to show keep their icon
+    const pv = toolPreview(id) || (kindOf(id) === 'brush' ? strokePreview(id) : TOOLDEF[id].stops ? gradPreview(id) : null);
+    b.innerHTML = pv ? `<span class="prev"></span><span class="nm">${TOOLDEF[id].name}</span>` : `${icon(TOOLDEF[id].icon)}<span class="nm">${TOOLDEF[id].name}</span>`;
+    if (pv) b.querySelector('.prev').appendChild(pv);
     b.onclick = () => selectTool(id);
     list.appendChild(b);
   });

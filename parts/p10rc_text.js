@@ -66,11 +66,9 @@ function installText() {
     const txt = $('#textInput').value; $('#textDialog').close();
     if (txt.trim() && textPos) drawText(txt, textPos);
   }, true);
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
-    if (kindOf(state.tool) !== 'text') return out;
-    const body = $('#propBody'); if (!body) return out;
+  hookAfter('refreshProps', () => {
+    if (kindOf(state.tool) !== 'text') return;
+    const body = $('#propBody'); if (!body) return;
     const sel0 = body.querySelector('select'); // the old font list → the comic font families
     if (sel0) { sel0.innerHTML = COMIC_FONTS.map(([v, n]) => `<option value='${v.replace(/'/g, '&#39;')}'>${n}</option>`).join(''); if (!COMIC_FONTS.some(f => f[0] === state.font)) state.font = COMIC_FONTS[0][0]; sel0.value = state.font; sel0.onchange = () => { state.font = sel0.value; }; }
     grp(body, 'Comic text');
@@ -82,6 +80,5 @@ function installText() {
     sb.value = state.textBalloon; sb.onchange = () => { state.textBalloon = sb.value; refreshProps(); }; row.appendChild(sb); body.appendChild(row);
     if (state.textBalloon) slider(body, 'Tail direction', 0, 359, 5, state.textTail, v => v + '°', v => state.textTail = v);
     hint(body, state.textBalloon ? 'The balloon fits the text by itself, drawn under it on the same layer.' : 'Choose a balloon to put one around the text automatically.');
-    return out;
-  };
+  });
 }

@@ -114,16 +114,13 @@ function installSmartFill() {
   CMD.autoFlat = autoFlat;
   const E = MENUS.find(m => m[0] === 'Edit'); if (E) E[1].push('-', ['🎨 Auto-flat colours (one colour per area)', 'autoFlat']);
   const L = MENUS.find(m => m[0] === 'Layer'); if (L) L[1].push('-', ['🎨 Auto-flat colours…', 'autoFlat']);
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
-    if (kindOf(state.tool) !== 'fill') return out;
-    const body = $('#propBody'); if (!body) return out;
+  hookAfter('refreshProps', () => {
+    if (kindOf(state.tool) !== 'fill') return;
+    const body = $('#propBody'); if (!body) return;
     grp(body, 'Smart colouring');
     slider(body, 'Close gaps', 0, 20, 1, state.fillGap || 0, v => v ? v + 'px' : 'off', v => state.fillGap = v);
     hint(body, 'The fill stops at gaps up to this size in your lines.');
     btns(body, [['🎨 Auto-flat colours', autoFlat]]);
     hint(body, 'One flat colour per closed area, on a new layer under your lines. Uses the reference layers, or the active layer.');
-    return out;
-  };
+  });
 }

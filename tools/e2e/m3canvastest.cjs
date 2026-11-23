@@ -37,6 +37,7 @@ const H = require('./harness.cjs');
   const v1 = await S(`(() => [M3.cam.dist, M3.cam.az])`);
   check('wheel zooms and right-drag turns the view of the 3D model', v1[0] > v0[0] && Math.abs(v1[1] - v0[1]) > 0.2);
   check('when posing ends the model sits at its layer in the stack, and hiding the layer hides it', await S(`(() => { setPoseOnCanvas(false); const z = M3.renderer.domElement.style.zIndex === String(11 + state.layers.indexOf(m3Layer()) * 2); m3Layer().visible = false; refreshStage(); const hid = M3.renderer.domElement.style.display === 'none'; m3Layer().visible = true; refreshStage(); return z && hid; })`));
+  check('deleting the 3D layer deletes the model, undo brings both back', await S(`(() => { timelineOp(() => removeLayerObj(m3Layer())); refreshAll(); const gone = M3.deleted && !M3.root.parent; CMD.undo(); refreshAll(); return gone && !!m3Layer() && !M3.deleted && !!M3.root.parent; })`));
   // closing the panel keeps the model
   await pg.evaluate(() => window.__sketchforge.scope("togglePanel('3d-model')")); await pg.waitForTimeout(400);
   check('closing the 3D panel keeps the model on the drawing', await onCanvas());

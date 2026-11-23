@@ -82,19 +82,18 @@ function whatsNew(force) {
   if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Sketchforge ' + APP_VERSION); return; }
   let d = $('#whatsNew'); if (d) d.remove();
   d = document.createElement('dialog'); d.id = 'whatsNew'; d.className = 'csdlg wndlg';
-  const esc2 = s => String(s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
   // the current update first, then every earlier one (newest first) with its date and time, in one scrolling list
   const when = iso => { if (!iso) return ''; try { return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso.slice(0, 10); } };
-  const items = list => list.map(c => `<section><b>${esc2(c.title.charAt(0).toUpperCase() + c.title.slice(1))}</b><ul>${c.items.map(i => /^Fixed:/i.test(i)
-    ? `<li><span class="wnfix">Fixed</span> ${esc2(i.replace(/^Fixed:\s*/i, ''))}</li>` : `<li>${esc2(i)}</li>`).join('')}</ul></section>`).join('');
+  const items = list => list.map(c => `<section><b>${escHtml(c.title.charAt(0).toUpperCase() + c.title.slice(1))}</b><ul>${c.items.map(i => /^Fixed:/i.test(i)
+    ? `<li><span class="wnfix">Fixed</span> ${escHtml(i.replace(/^Fixed:\s*/i, ''))}</li>` : `<li>${escHtml(i)}</li>`).join('')}</ul></section>`).join('');
   const H = typeof APP_HISTORY !== 'undefined' ? APP_HISTORY : [], mm = APP_VERSION.split('.').slice(0, 2).join('.');
   const cur = H.find(h => h.v === mm), older = H.filter(h => h !== cur);
   d.innerHTML = `<form method="dialog"><h5>🎉 Sketchforge ${APP_VERSION}: what's new</h5>
-    ${last && !force ? `<p class="muted small" style="margin:0 0 8px">Updated from ${esc2(last)}. Your drawings and settings were kept.</p>` : ''}
+    ${last && !force ? `<p class="muted small" style="margin:0 0 8px">Updated from ${escHtml(last)}. Your drawings and settings were kept.</p>` : ''}
     <div class="wnlist">
-      <div class="wnhead"><span class="wnnew">New</span> <b>${esc2(APP_VERSION)}</b>${cur && cur.last ? ` <span class="muted small">· ${esc2(when(cur.last))}</span>` : ''}</div>
+      <div class="wnhead"><span class="wnnew">New</span> <b>${escHtml(APP_VERSION)}</b>${cur && cur.last ? ` <span class="muted small">· ${escHtml(when(cur.last))}</span>` : ''}</div>
       ${items(APP_CHANGES)}
-      ${older.length ? `<h6 class="wnold">Earlier updates</h6>` + older.map(h => `<details class="wnver"><summary><b>${esc2(h.latest)}</b> <span class="muted small">${h.last ? esc2(when(h.last)) : ''}</span><span class="wntitles">${esc2(h.sections.map(c => c.title).join(' · '))}</span></summary>${items(h.sections)}</details>`).join('') : ''}
+      ${older.length ? `<h6 class="wnold">Earlier updates</h6>` + older.map(h => `<details class="wnver"><summary><b>${escHtml(h.latest)}</b> <span class="muted small">${h.last ? escHtml(when(h.last)) : ''}</span><span class="wntitles">${escHtml(h.sections.map(c => c.title).join(' · '))}</span></summary>${items(h.sections)}</details>`).join('') : ''}
     </div>
     <div class="dialog-actions"><span style="flex:1"></span><button value="ok" class="primary">Start drawing</button></div></form>`;
   document.body.appendChild(d); d.showModal();

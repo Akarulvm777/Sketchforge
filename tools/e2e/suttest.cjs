@@ -103,6 +103,14 @@ const fs = require('fs'), path = require('path');
   const [fc2] = await Promise.all([pg.waitForEvent('filechooser'), pg.evaluate(() => window.__sketchforge.CMD.addSut())]);
   await fc2.setFiles(path.join(dir, 'pack.zip')); await pg.waitForTimeout(2000);
   check('a .zip of tools imports them all (4 tools)', /Imported 4 tools/.test(await pg.textContent('#toast')));
+  // the import window: one row per tool, each at 100 % with its group and a preview
+  const iw = await pg.evaluate(() => { const d = document.querySelector('#importWin'); if (!d) return null; return { shown: !d.hidden, done: d.classList.contains('done'), all: d.querySelector('.impw-all').textContent,
+    rows: [...d.querySelectorAll('.impw-tool')].map(r => [r.querySelector('b').textContent, r.querySelector('.impw-pct').textContent, r.querySelector('.impw-grp').textContent, !!r.querySelector('.impw-prev canvas')]) }; });
+  console.log('     ' + JSON.stringify(iw));
+  check('the import window shows each tool studied to 100 % with its group and preview', iw && iw.shown && iw.done && iw.all === '100%' && iw.rows.length === 4 && iw.rows.every(r => r[1] === '100%' && /→/.test(r[2]) && r[3]));
+  await pg.screenshot({ path: out + '/sut_importwin.png' });
+  await pg.click('#importWin .impw-x');
+  check('Close hides the import window', await pg.evaluate(() => document.querySelector('#importWin').hidden));
   // still there after a restart (saved in IndexedDB)
   await pg.reload(); await pg.waitForTimeout(3000);
   const w2 = await where();

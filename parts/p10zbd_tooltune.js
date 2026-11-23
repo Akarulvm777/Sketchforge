@@ -85,15 +85,28 @@ function tuneApply(id, res) {
   T.report = [[x ? 'ok' : 'ok', line], ...(T.report || []).filter(r => !String(r[1]).startsWith('⚡'))];
 }
 /* tune imported tools (ids), one per idle moment; record the result in the saved definition */
-async function tuneTools(ids, quiet) {
-  if (TUNE.busy || !ids.length) return; TUNE.busy = true;
+/* opts.now: the import window is showing the study, so do not wait for the user to be idle (still never during a
+   stroke); opts.onTool(id, result) reports each tool to the window */
+/* short text for the import window */
+function impwTestNote(res) {
+  const p = res.perf || {};
+  if (p.perfDefer) return 'heavy tool: a light stand-in draws while you move, the full stroke appears when you lift the pen';
+  if (p.perfSpacing || p.perfCount) return `tuned for smooth drawing (${res.before.toFixed(1)} → ${res.after.toFixed(1)} ms per 100 px, same look)`;
+  return 'draws smoothly';
+}
+async function tuneTools(ids, quiet, opts = {}) {
+  if (!ids.length) return;
+  const own = !opts.now; // the import window's study runs even while a background study waits for the user to be idle
+  if (own) { if (TUNE.busy) return; TUNE.busy = true; }
   let faster = 0;
   try {
     for (const id of ids) {
-      await new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 30)));
-      while ((typeof stroke !== 'undefined' && stroke) || (typeof inputQuiet === 'function' && !inputQuiet(4000))) await new Promise(r => setTimeout(r, 400)); // never while drawing
+      if (opts.now) await impwTick();
+      else await new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 30)));
+      while ((typeof stroke !== 'undefined' && stroke) || (!opts.now && !inputQuiet(4000))) await new Promise(r => setTimeout(r, 400)); // never while drawing
       const s = settings[id]; if (!s) continue;
-      let res; try { res = tuneTool(s); } catch (e) { continue; }
+      let res; try { res = tuneTool(s); } catch (e) { if (opts.onTool) opts.onTool(id, null); continue; }
+      if (opts.onTool) opts.onTool(id, res);
       tuneApply(id, res);
       if (res.perf.perfSpacing || res.perf.perfCount || res.perf.perfDefer) faster++;
       const rec = (addons.brushes || []).find(b => b.id === id);
@@ -102,7 +115,7 @@ async function tuneTools(ids, quiet) {
     if (typeof saveAddons === 'function') saveAddons();
     if (!quiet) toast(faster ? `⚡ ${faster} imported tool${faster > 1 ? 's were' : ' was'} tuned for smooth drawing (ⓘ shows what changed).` : `⚡ Imported tools checked: they draw smoothly.`, 4500);
     if (typeof renderSubTools === 'function') renderSubTools();
-  } finally { TUNE.busy = false; }
+  } finally { if (own) TUNE.busy = false; }
 }
 /* very heavy tools: draw the stroke again with the full settings from the recorded path (called by endStroke) */
 function replayFull(st) {
@@ -134,8 +147,7 @@ function installToolTune() {
     if (st && st.rec && !st.replaying) { if (!st.rec0) st.rec0 = [st.lx, st.ly, st.lp]; st.rec.push([x, y, pr]); }
     return sg0.apply(this, arguments);
   };
-  // a new import: study the new tools
-  const i0 = importTools; importTools = async function () { const out = await i0.apply(this, arguments); if (out && out.length) setTimeout(() => tuneTools(out.map(t => t.id).filter(id => TOOLDEF[id] && kindOf(id) === 'brush'), true), 300); return out; };
+  // a new import is studied by importTools itself (test stroke step of the import window, p10zbf)
   // after an update (or the first time): every imported tool whose study is older than this version
   const l0 = loadAddons; loadAddons = async function () {
     const out = await l0.apply(this, arguments);

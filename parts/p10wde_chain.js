@@ -272,9 +272,7 @@ function installChainBones() {
   CMD.boneChain = () => selectTool('bonechain'); CMD.chainPractice = chainPractice;
   const A = MENUS.find(m => m[0] === 'Animation'); if (A) { const i = A[1].findIndex(x => Array.isArray(x) && x[1] === 'physBone'); A[1].splice(i < 0 ? A[1].length : i + 1, 0, ['〰 Hair & cloth bones (bend and flow)', 'boneChain'], ['🧝 Hair & cloth practice model', 'chainPractice']); }
   // the stage shows the bent drawing instead of the cel
-  const rs0 = refreshStage;
-  refreshStage = function () {
-    const out = rs0.apply(this, arguments);
+  hookAfter('refreshStage', () => {
     state.layers.forEach(l => {
       const c = l.canvas; if (!c || !chainOn(l) || l.vref) { if (l._chainView && l._chainView.parentNode) l._chainView.remove(); return; }
       if (!l.visible || chainEditing(l) || isCustomBlend(l.blend) || l.clip || l.mask || c.style.display === 'none') { if (l._chainView && l._chainView.parentNode) l._chainView.remove(); return; }
@@ -283,8 +281,7 @@ function installChainBones() {
       v.style.cssText = c.style.cssText; v.style.pointerEvents = 'none'; c.style.display = 'none';
       if (v.parentNode !== stage) stage.insertBefore(v, c.nextSibling);
     });
-    return out;
-  };
+  });
   // exports and previews: compositeFrame gets the bent drawing
   const fp0 = frameParams;
   frameParams = function (l, f) {
