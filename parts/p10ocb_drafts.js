@@ -34,9 +34,9 @@ function draftCloseAsk(r) {
     const draft = !r.realFile, name = docName(r);
     const d = document.createElement('dialog'); d.className = 'csdlg'; d.id = 'closeAskDlg';
     d.innerHTML = draft
-      ? `<h3>Close “${hubEscD(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Sketchforge (Home page) and are deleted if you reinstall or reset the app.</p>
+      ? `<h3>Close “${escHtml(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Sketchforge (Home page) and are deleted if you reinstall or reset the app.</p>
          <div class="btnrow"><button class="primary" data-a="save">💾 Save as a file…</button><button data-a="keep">Keep as a draft</button><button data-a="delete">Delete it</button><button data-a="cancel">Cancel</button></div>`
-      : `<h3>Save the changes to “${hubEscD(name)}”?</h3><p>Your file on the device does not have the latest changes yet.</p>
+      : `<h3>Save the changes to “${escHtml(name)}”?</h3><p>Your file on the device does not have the latest changes yet.</p>
          <div class="btnrow"><button class="primary" data-a="save">💾 Save</button><button data-a="nosave">Don't save</button><button data-a="cancel">Cancel</button></div>`;
     document.body.appendChild(d);
     const done = v => { d.close(); d.remove(); res(v); };
@@ -58,7 +58,6 @@ function draftCloseAsk(r) {
     d.showModal();
   });
 }
-const hubEscD = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 let DRAFT_CLOSE = r => r;
 function installDrafts() {
   // saving makes a real file; opening a .sketchforge from the device too

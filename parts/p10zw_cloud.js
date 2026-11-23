@@ -15,7 +15,7 @@ function needLogin(then) {
   if (SB().user()) return true;
   accountDialog(then); return false;
 }
-const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+const esc = escHtml;
 function cloudDlg(id, title, html, wide) {
   let d = $('#' + id);
   if (!d) { d = document.createElement('dialog'); d.id = id; d.className = 'csdlg clouddlg' + (wide ? ' wide' : ''); document.body.appendChild(d); }

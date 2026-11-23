@@ -303,7 +303,23 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installGpuMix(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installText(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installFx2(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); install3DLayer(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); installStudio(); installDrafts(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  // Modules start in this order: a later module may hook or wrap what an earlier one built (see p00b_core).
+  // Each starts on its own: one that fails is logged (window.__sfStartErrors) and the others still start.
+  const STARTUP = [
+    loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
+    installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
+    installCloud, buildMenus,
+    installWorkspace, installMasks, installPro, installPersp, installText, installFilters, installSmartFill, installVector, // drawing
+    installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
+    installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
+    installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset
+    installStartHub, installToolTutorials, installMoreTutorials, installMangaPage, installSwap, installLipSync, installFace, // home, learn
+    installPhysics, installPagesPanel, installColorSets, installBrushEditor, installToolAdvanced, installToolTune,
+    installPaperTexture, installStudio, installDrafts,                                                                 // last: they wrap the ones above
+    buildMenus, buildToolbox, renderSwatches, restoreLayout
+  ];
+  for (const f of STARTUP) { try { f(); } catch (e) { console.error('Sketchforge: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
+  loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);

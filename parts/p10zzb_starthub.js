@@ -48,7 +48,6 @@ async function recentOpen(name) {
   hubClose(); await openDocumentFile(new File([text], name + '.sketchforge', { type: 'application/json' }));
   if (DOCS.cur) { DOCS.cur.realFile = !(e && e.draft); syncTab(); }
 }
-const hubEsc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const hubAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
 function hubNew(kind) {
   hubClose();
@@ -67,7 +66,7 @@ const HUB_LEARN = [
   ['▶', 'Video: rig like Spine', 'Hair & cloth bones', () => CMD.videoSpine && CMD.videoSpine()],
   ['▶', 'Video: swap drawings', 'Faces, hands, eyes', () => CMD.videoSwap && CMD.videoSwap()]
 ];
-function hubCards(items) { return items.map((it, i) => `<button class="hub-learn" data-i="${i}"><span class="hl-ico">${it[0]}</span><b>${hubEsc(it[1])}</b><small>${hubEsc(it[2])}</small></button>`).join(''); }
+function hubCards(items) { return items.map((it, i) => `<button class="hub-learn" data-i="${i}"><span class="hl-ico">${it[0]}</span><b>${escHtml(it[1])}</b><small>${escHtml(it[2])}</small></button>`).join(''); }
 async function hubShared() {
   if (HUB.shared) return HUB.shared;
   const sb = window.SFSB; if (!sb || !sb.rest || !(window.SF_CLOUD || {}).url) return [];
@@ -83,7 +82,7 @@ async function hubRender() {
   const liveThumb = () => { try { const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H); return tc.toDataURL('image/jpeg', 0.8); } catch (e) { return ''; } };
   const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, draft: !r.realFile, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
   const recent = all.filter(e => !open.some(o => o.name === e.name));
-  const fileCard = e => `<button class="hub-file" data-name="${hubEsc(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${hubEsc(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
+  const fileCard = e => `<button class="hub-file" data-name="${escHtml(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${escHtml(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
   const files = [...open, ...recent].filter(e => !e.draft), drafts = [...open, ...recent].filter(e => e.draft);
   const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your saved files show here (File › Save makes a real file on your device).</p>';
   const draftsHtml = drafts.length ? drafts.map(fileCard).join('') : '';
@@ -94,9 +93,9 @@ async function hubRender() {
     <button data-new="webtoon"><span>📜</span><b>Webtoon</b><small>A long vertical strip</small></button>
     <button data-cmd="open"><span>📂</span><b>Open a file</b><small>.sketchforge, PSD, images</small></button></div>`;
   const changes = (typeof APP_CHANGES !== 'undefined' ? APP_CHANGES : []).slice(0, 3);
-  const news = changes.map(c => `<div class="hub-news"><b>${hubEsc(c.title[0].toUpperCase() + c.title.slice(1))}</b><p>${hubEsc(c.items[0]).slice(0, 220)}${c.items[0].length > 220 ? '…' : ''}</p></div>`).join('');
+  const news = changes.map(c => `<div class="hub-news"><b>${escHtml(c.title[0].toUpperCase() + c.title.slice(1))}</b><p>${escHtml(c.items[0]).slice(0, 220)}${c.items[0].length > 220 ? '…' : ''}</p></div>`).join('');
   const tips = (typeof HELP_TIPS !== 'undefined' ? HELP_TIPS : []).slice().sort(() => Math.random() - 0.5).slice(0, 3)
-    .map(t => `<div class="hub-tip"><b>💡 ${hubEsc(t.t)}</b><p>${hubEsc(String(t.x).replace(/\[\[[^\]]*\]\]/g, '').replace(/<[^>]+>/g, '')).slice(0, 170)}…</p></div>`).join('');
+    .map(t => `<div class="hub-tip"><b>💡 ${escHtml(t.t)}</b><p>${escHtml(String(t.x).replace(/\[\[[^\]]*\]\]/g, '').replace(/<[^>]+>/g, '')).slice(0, 170)}…</p></div>`).join('');
   const sec = (title, more, body) => `<section class="hub-sec"><div class="hub-sec-h"><h3>${title}</h3>${more || ''}</div>${body}</section>`;
   let html = '';
   if (v === 'home') {
@@ -132,7 +131,7 @@ async function hubRender() {
       const pub = (window.SFSB && window.SFSB.publicUrl) || null;
       comm.classList.remove('muted');
       comm.innerHTML = items.slice(0, v === 'home' ? 6 : 12).map(it => { const art = /^(art|timelapse)$/.test(it.kind), img = art && pub && /\.(png|jpe?g|webp|gif)$/i.test(it.file_path || '') ? pub('shared', it.file_path) : '';
-        return `<a class="hub-share" href="${hubSiteLink('shared.html' + (art ? '#art' : '#tools'))}" target="_blank" rel="noopener">${img ? `<img src="${hubEsc(img)}" alt="" loading="lazy">` : `<span class="hs-ico">${art ? '🎨' : '🖌'}</span>`}<b>${hubEsc(it.name)}</b><small>${hubEsc(it.kind)}${it.author ? ' · ' + hubEsc(it.author) : ''}</small></a>`; }).join('');
+        return `<a class="hub-share" href="${hubSiteLink('shared.html' + (art ? '#art' : '#tools'))}" target="_blank" rel="noopener">${img ? `<img src="${escHtml(img)}" alt="" loading="lazy">` : `<span class="hs-ico">${art ? '🎨' : '🖌'}</span>`}<b>${escHtml(it.name)}</b><small>${escHtml(it.kind)}${it.author ? ' · ' + escHtml(it.author) : ''}</small></a>`; }).join('');
     }
   }
 }

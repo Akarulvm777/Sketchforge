@@ -278,6 +278,8 @@ const TESTS = {
     return seen.join('') === 'ab' && typeof sd === 'function' && pv === 'y' && prefs.get('unit.x', 'd') === 'd' && escHtml('<a href="x">') === '&lt;a href=&quot;x&quot;&gt;' ? true : { seen, pv };
   },
 
+  'every module started (no failure in the start-up list)': () => !window.__sfStartErrors || { failed: window.__sfStartErrors },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

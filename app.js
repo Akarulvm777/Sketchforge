@@ -4512,9 +4512,9 @@ function draftCloseAsk(r) {
     const draft = !r.realFile, name = docName(r);
     const d = document.createElement('dialog'); d.className = 'csdlg'; d.id = 'closeAskDlg';
     d.innerHTML = draft
-      ? `<h3>Close “${hubEscD(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Sketchforge (Home page) and are deleted if you reinstall or reset the app.</p>
+      ? `<h3>Close “${escHtml(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Sketchforge (Home page) and are deleted if you reinstall or reset the app.</p>
          <div class="btnrow"><button class="primary" data-a="save">💾 Save as a file…</button><button data-a="keep">Keep as a draft</button><button data-a="delete">Delete it</button><button data-a="cancel">Cancel</button></div>`
-      : `<h3>Save the changes to “${hubEscD(name)}”?</h3><p>Your file on the device does not have the latest changes yet.</p>
+      : `<h3>Save the changes to “${escHtml(name)}”?</h3><p>Your file on the device does not have the latest changes yet.</p>
          <div class="btnrow"><button class="primary" data-a="save">💾 Save</button><button data-a="nosave">Don't save</button><button data-a="cancel">Cancel</button></div>`;
     document.body.appendChild(d);
     const done = v => { d.close(); d.remove(); res(v); };
@@ -4536,7 +4536,6 @@ function draftCloseAsk(r) {
     d.showModal();
   });
 }
-const hubEscD = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 let DRAFT_CLOSE = r => r;
 function installDrafts() {
   // saving makes a real file; opening a .sketchforge from the device too
@@ -13729,12 +13728,11 @@ function csLoad() {
 function csSave() { try { localStorage.setItem(CS_KEY, JSON.stringify(CSETS)); } catch (e) { /* full */ } }
 function chSave() { try { localStorage.setItem(CH_KEY, JSON.stringify((state.recent || []).slice(0, CH_MAX))); } catch (e) { /* full */ } }
 const csSet = () => CSETS.sets[CSETS.cur];
-const csEsc = t => String(t).replace(/[<&"]/g, c => ({ '<': '&lt;', '&': '&amp;', '"': '&quot;' })[c]);
 /* draws the current set and the history (called by renderSwatches in p07) */
 function renderColorSets() {
   if (!CSETS) csLoad();
   const sel = $('#csSel');
-  if (sel) { sel.innerHTML = CSETS.sets.map((s, i) => `<option value="${i}">${csEsc(s.name)} (${s.colors.length})</option>`).join(''); sel.value = String(CSETS.cur); }
+  if (sel) { sel.innerHTML = CSETS.sets.map((s, i) => `<option value="${i}">${escHtml(s.name)} (${s.colors.length})</option>`).join(''); sel.value = String(CSETS.cur); }
   const mk = (box, arr, inSet) => {
     if (!box) return;
     box.innerHTML = '';
@@ -14005,19 +14003,18 @@ function whatsNew(force) {
   if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Sketchforge ' + APP_VERSION); return; }
   let d = $('#whatsNew'); if (d) d.remove();
   d = document.createElement('dialog'); d.id = 'whatsNew'; d.className = 'csdlg wndlg';
-  const esc2 = s => String(s).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
   // the current update first, then every earlier one (newest first) with its date and time, in one scrolling list
   const when = iso => { if (!iso) return ''; try { return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso.slice(0, 10); } };
-  const items = list => list.map(c => `<section><b>${esc2(c.title.charAt(0).toUpperCase() + c.title.slice(1))}</b><ul>${c.items.map(i => /^Fixed:/i.test(i)
-    ? `<li><span class="wnfix">Fixed</span> ${esc2(i.replace(/^Fixed:\s*/i, ''))}</li>` : `<li>${esc2(i)}</li>`).join('')}</ul></section>`).join('');
+  const items = list => list.map(c => `<section><b>${escHtml(c.title.charAt(0).toUpperCase() + c.title.slice(1))}</b><ul>${c.items.map(i => /^Fixed:/i.test(i)
+    ? `<li><span class="wnfix">Fixed</span> ${escHtml(i.replace(/^Fixed:\s*/i, ''))}</li>` : `<li>${escHtml(i)}</li>`).join('')}</ul></section>`).join('');
   const H = typeof APP_HISTORY !== 'undefined' ? APP_HISTORY : [], mm = APP_VERSION.split('.').slice(0, 2).join('.');
   const cur = H.find(h => h.v === mm), older = H.filter(h => h !== cur);
   d.innerHTML = `<form method="dialog"><h5>🎉 Sketchforge ${APP_VERSION}: what's new</h5>
-    ${last && !force ? `<p class="muted small" style="margin:0 0 8px">Updated from ${esc2(last)}. Your drawings and settings were kept.</p>` : ''}
+    ${last && !force ? `<p class="muted small" style="margin:0 0 8px">Updated from ${escHtml(last)}. Your drawings and settings were kept.</p>` : ''}
     <div class="wnlist">
-      <div class="wnhead"><span class="wnnew">New</span> <b>${esc2(APP_VERSION)}</b>${cur && cur.last ? ` <span class="muted small">· ${esc2(when(cur.last))}</span>` : ''}</div>
+      <div class="wnhead"><span class="wnnew">New</span> <b>${escHtml(APP_VERSION)}</b>${cur && cur.last ? ` <span class="muted small">· ${escHtml(when(cur.last))}</span>` : ''}</div>
       ${items(APP_CHANGES)}
-      ${older.length ? `<h6 class="wnold">Earlier updates</h6>` + older.map(h => `<details class="wnver"><summary><b>${esc2(h.latest)}</b> <span class="muted small">${h.last ? esc2(when(h.last)) : ''}</span><span class="wntitles">${esc2(h.sections.map(c => c.title).join(' · '))}</span></summary>${items(h.sections)}</details>`).join('') : ''}
+      ${older.length ? `<h6 class="wnold">Earlier updates</h6>` + older.map(h => `<details class="wnver"><summary><b>${escHtml(h.latest)}</b> <span class="muted small">${h.last ? escHtml(when(h.last)) : ''}</span><span class="wntitles">${escHtml(h.sections.map(c => c.title).join(' · '))}</span></summary>${items(h.sections)}</details>`).join('') : ''}
     </div>
     <div class="dialog-actions"><span style="flex:1"></span><button value="ok" class="primary">Start drawing</button></div></form>`;
   document.body.appendChild(d); d.showModal();
@@ -14060,7 +14057,7 @@ function needLogin(then) {
   if (SB().user()) return true;
   accountDialog(then); return false;
 }
-const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+const esc = escHtml;
 function cloudDlg(id, title, html, wide) {
   let d = $('#' + id);
   if (!d) { d = document.createElement('dialog'); d.id = id; d.className = 'csdlg clouddlg' + (wide ? ' wide' : ''); document.body.appendChild(d); }
@@ -16201,7 +16198,6 @@ async function recentOpen(name) {
   hubClose(); await openDocumentFile(new File([text], name + '.sketchforge', { type: 'application/json' }));
   if (DOCS.cur) { DOCS.cur.realFile = !(e && e.draft); syncTab(); }
 }
-const hubEsc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const hubAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
 function hubNew(kind) {
   hubClose();
@@ -16220,7 +16216,7 @@ const HUB_LEARN = [
   ['▶', 'Video: rig like Spine', 'Hair & cloth bones', () => CMD.videoSpine && CMD.videoSpine()],
   ['▶', 'Video: swap drawings', 'Faces, hands, eyes', () => CMD.videoSwap && CMD.videoSwap()]
 ];
-function hubCards(items) { return items.map((it, i) => `<button class="hub-learn" data-i="${i}"><span class="hl-ico">${it[0]}</span><b>${hubEsc(it[1])}</b><small>${hubEsc(it[2])}</small></button>`).join(''); }
+function hubCards(items) { return items.map((it, i) => `<button class="hub-learn" data-i="${i}"><span class="hl-ico">${it[0]}</span><b>${escHtml(it[1])}</b><small>${escHtml(it[2])}</small></button>`).join(''); }
 async function hubShared() {
   if (HUB.shared) return HUB.shared;
   const sb = window.SFSB; if (!sb || !sb.rest || !(window.SF_CLOUD || {}).url) return [];
@@ -16236,7 +16232,7 @@ async function hubRender() {
   const liveThumb = () => { try { const H = 180, k = H / state.h, w = Math.max(40, Math.round(state.w * k)), tc = makeCanvas(w, H), g = tc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, H); g.drawImage(compositeFrame(state.frame, { scale: Math.min(1, k * 2) }), 0, 0, w, H); return tc.toDataURL('image/jpeg', 0.8); } catch (e) { return ''; } };
   const open = DOCS.list.filter(r => !docPristine(r)).map(r => { const e = all.find(x => x.name === docName(r)) || {}; return { name: docName(r), open: true, draft: !r.realFile, thumb: r === DOCS.cur ? liveThumb() : e.thumb, type: r === DOCS.cur ? state.projectType : e.type }; });
   const recent = all.filter(e => !open.some(o => o.name === e.name));
-  const fileCard = e => `<button class="hub-file" data-name="${hubEsc(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${hubEsc(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
+  const fileCard = e => `<button class="hub-file" data-name="${escHtml(e.name)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : '<span class="hf-blank">✎</span>'}<b>${escHtml(e.name)}</b><small>${e.open ? 'Open now' : hubAgo(e.time)}${e.type === 'comic' ? ' · 📖' : e.type === 'anim' ? ' · 🎞' : ''}</small></button>`;
   const files = [...open, ...recent].filter(e => !e.draft), drafts = [...open, ...recent].filter(e => e.draft);
   const filesHtml = files.length ? files.map(fileCard).join('') : '<p class="muted">Your saved files show here (File › Save makes a real file on your device).</p>';
   const draftsHtml = drafts.length ? drafts.map(fileCard).join('') : '';
@@ -16247,9 +16243,9 @@ async function hubRender() {
     <button data-new="webtoon"><span>📜</span><b>Webtoon</b><small>A long vertical strip</small></button>
     <button data-cmd="open"><span>📂</span><b>Open a file</b><small>.sketchforge, PSD, images</small></button></div>`;
   const changes = (typeof APP_CHANGES !== 'undefined' ? APP_CHANGES : []).slice(0, 3);
-  const news = changes.map(c => `<div class="hub-news"><b>${hubEsc(c.title[0].toUpperCase() + c.title.slice(1))}</b><p>${hubEsc(c.items[0]).slice(0, 220)}${c.items[0].length > 220 ? '…' : ''}</p></div>`).join('');
+  const news = changes.map(c => `<div class="hub-news"><b>${escHtml(c.title[0].toUpperCase() + c.title.slice(1))}</b><p>${escHtml(c.items[0]).slice(0, 220)}${c.items[0].length > 220 ? '…' : ''}</p></div>`).join('');
   const tips = (typeof HELP_TIPS !== 'undefined' ? HELP_TIPS : []).slice().sort(() => Math.random() - 0.5).slice(0, 3)
-    .map(t => `<div class="hub-tip"><b>💡 ${hubEsc(t.t)}</b><p>${hubEsc(String(t.x).replace(/\[\[[^\]]*\]\]/g, '').replace(/<[^>]+>/g, '')).slice(0, 170)}…</p></div>`).join('');
+    .map(t => `<div class="hub-tip"><b>💡 ${escHtml(t.t)}</b><p>${escHtml(String(t.x).replace(/\[\[[^\]]*\]\]/g, '').replace(/<[^>]+>/g, '')).slice(0, 170)}…</p></div>`).join('');
   const sec = (title, more, body) => `<section class="hub-sec"><div class="hub-sec-h"><h3>${title}</h3>${more || ''}</div>${body}</section>`;
   let html = '';
   if (v === 'home') {
@@ -16285,7 +16281,7 @@ async function hubRender() {
       const pub = (window.SFSB && window.SFSB.publicUrl) || null;
       comm.classList.remove('muted');
       comm.innerHTML = items.slice(0, v === 'home' ? 6 : 12).map(it => { const art = /^(art|timelapse)$/.test(it.kind), img = art && pub && /\.(png|jpe?g|webp|gif)$/i.test(it.file_path || '') ? pub('shared', it.file_path) : '';
-        return `<a class="hub-share" href="${hubSiteLink('shared.html' + (art ? '#art' : '#tools'))}" target="_blank" rel="noopener">${img ? `<img src="${hubEsc(img)}" alt="" loading="lazy">` : `<span class="hs-ico">${art ? '🎨' : '🖌'}</span>`}<b>${hubEsc(it.name)}</b><small>${hubEsc(it.kind)}${it.author ? ' · ' + hubEsc(it.author) : ''}</small></a>`; }).join('');
+        return `<a class="hub-share" href="${hubSiteLink('shared.html' + (art ? '#art' : '#tools'))}" target="_blank" rel="noopener">${img ? `<img src="${escHtml(img)}" alt="" loading="lazy">` : `<span class="hs-ico">${art ? '🎨' : '🖌'}</span>`}<b>${escHtml(it.name)}</b><small>${escHtml(it.kind)}${it.author ? ' · ' + escHtml(it.author) : ''}</small></a>`; }).join('');
     }
   }
 }
@@ -16711,7 +16707,23 @@ function buildHelp() {
 
 /* ---------- init ---------- */
 function init() {
-  loadBuiltinPens(); loadCustomP(); applyIcons(); installCsFeatures(); installGpuMix(); installAddonUI(); installCustomP(); installMultiDoc(); installSession(); installAutoSave(); installMobile(); installWelcome(); installTutorials(); installUpdater(); installCloud(); buildMenus(); installWorkspace(); installMasks(); installPro(); installPersp(); installText(); installFilters(); installSmartFill(); installVector(); installAnim(); installVideo(); installPSD(); installReuse(); installRig(); installUiExtras(); installTimelapse(); installSymmetry(); installAnimPlus(); installImport(); installEffects(); installFx2(); installHold(); installBoneTool(); installChainBones(); installSkeleton(); installLayersPro(); installFoxRig(); installSwapTutorial(); install3DGizmo(); install3DCanvas(); install3DLayer(); installReset(); installStartHub(); installToolTutorials(); installMoreTutorials(); installMangaPage(); installSwap(); installLipSync(); installFace(); installPhysics(); installPagesPanel(); installColorSets(); installBrushEditor(); installToolAdvanced(); installToolTune(); installPaperTexture(); installStudio(); installDrafts(); buildMenus(); buildToolbox(); renderSwatches(); restoreLayout(); loadAddons().then(() => { buildMenus(); });
+  // Modules start in this order: a later module may hook or wrap what an earlier one built (see p00b_core).
+  // Each starts on its own: one that fails is logged (window.__sfStartErrors) and the others still start.
+  const STARTUP = [
+    loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
+    installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
+    installCloud, buildMenus,
+    installWorkspace, installMasks, installPro, installPersp, installText, installFilters, installSmartFill, installVector, // drawing
+    installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
+    installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
+    installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset
+    installStartHub, installToolTutorials, installMoreTutorials, installMangaPage, installSwap, installLipSync, installFace, // home, learn
+    installPhysics, installPagesPanel, installColorSets, installBrushEditor, installToolAdvanced, installToolTune,
+    installPaperTexture, installStudio, installDrafts,                                                                 // last: they wrap the ones above
+    buildMenus, buildToolbox, renderSwatches, restoreLayout
+  ];
+  for (const f of STARTUP) { try { f(); } catch (e) { console.error('Sketchforge: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
+  loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();
   newDocument(1280, 720, 1, 12, false);
