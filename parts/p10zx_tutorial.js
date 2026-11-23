@@ -123,7 +123,7 @@ const TUTORIALS = [
     { el: '#tlBtn', t: 'Time-lapse', x: 'Records how you draw — each file has its own. Modes: <b>Workspace view</b> (zoom, rotation, tool, cursor), <b>Whole screen</b>, <b>Canvas only</b>. ▾ → Export video.' },
     { el: '#btn3d', t: '3D model', x: 'Posable man / woman: <b>drag a hand, foot or any part</b> and the body follows (or switch to Drag: Rotate joint), every finger bends, hand poses (fist, point, peace…), body shape (head, build, shoulders, hips, arm and leg length), zoom and size. Then <b>Place on new layer</b> to trace it.', demo: ['Open the 3D model', () => CMD.show3d()] },
     { el: '#tabbar', t: 'Many files', x: 'Open as many files as you like. Right-click a tab: <b>Move to new window</b>. Window › <b>Second view</b>: a live floating view with its own zoom / flip.' },
-    { el: menuEl('File'), t: 'Photoshop & Clip Studio', x: 'File › Open reads <b>.psd</b> with layers and <b>.clip</b> (as one picture). File › Save as Photoshop PSD keeps your layers.' },
+    { el: menuEl('File'), t: 'Photoshop & Clip Studio', x: 'File › Open reads <b>.psd</b> with layers and <b>.clip</b> (Clip Studio, with layers and animation). File › Save as Photoshop PSD keeps your layers.' },
     { el: menuEl('Animation'), pre: anim, t: 'Video & sound reference', x: 'Animation › <b>Import video reference</b>: a video layer that plays with your timeline (not exported) or frames to trace over; its sound plays too.' },
     { t: 'Your work is remembered', x: 'Close the app any time: next start reopens your files on the same frame and zoom. (File › Reopen my last work: on / off.)' }
   ] },
