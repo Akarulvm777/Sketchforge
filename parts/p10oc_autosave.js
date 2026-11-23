@@ -50,7 +50,7 @@ function installAutoSave() {
     }
     if (canPickSave()) {
       try {
-        const h = await window.showSaveFilePicker({ suggestedName: docFileName(), types: [{ description: 'Sketchforge file', accept: { 'application/json': ['.sketchforge'] } }] });
+        const h = await window.showSaveFilePicker({ suggestedName: docFileName(), types: [{ description: 'Nexilune file', accept: { 'application/json': ['.sketchforge'] } }] });
         const doc = await buildDocObject(); await writeHandle(h, new Blob([JSON.stringify(doc)], { type: 'application/json' }));
         if (r) r.handle = h; dirty = false; syncTab(); AUTO.last = Date.now();
         toast(`Saved: ${h.name}${AUTO.on ? ` — it is now auto-saved every ${AUTO.min} minutes while you rest` : ''}`, 4500); autoSaveStatus('Saved ' + new Date().toTimeString().slice(0, 5)); return;

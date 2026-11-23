@@ -1,4 +1,4 @@
-/* Sketchforge website › Profile (profile.html?u=<user id>; without u = your own). Anyone sees the name, picture, bio,
+/* Nexilune website › Profile (profile.html?u=<user id>; without u = your own). Anyone sees the name, picture, bio,
    website and the person's shared art / tools (their own posts and reshares). The owner edits it (profiles row,
    picture squared to 256 px and uploaded to shared/<uid>/avatar-….png). */
 (function () {
@@ -13,8 +13,8 @@
     S.PROF.delete(uid); await S.loadProfiles([uid]); prof = S.PROF.get(uid);
     let fallback = own() ? S.me().name : '';
     if (!fallback) { try { const r = await SB.restPublic(`shared_items?user_id=eq.${uid}&select=author&limit=1`); fallback = r[0] && r[0].author; } catch (e) { /* none */ } }
-    const name = (prof && prof.display_name) || fallback || 'Sketchforge artist';
-    $('#pName').textContent = name; document.title = name + ' — Sketchforge';
+    const name = (prof && prof.display_name) || fallback || 'Nexilune artist';
+    $('#pName').textContent = name; document.title = name + ' — Nexilune';
     const av = (prof && prof.avatar_url) || (own() && S.me().avatar) || 'icon-192.png'; $('#pAvatar').src = av;
     $('#pBio').textContent = (prof && prof.bio) || (own() ? 'Tell people about yourself: ✏ Edit my profile.' : '');
     const site = prof && prof.website; $('#pSite').hidden = !site;

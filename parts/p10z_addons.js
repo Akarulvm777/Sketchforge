@@ -424,8 +424,8 @@ function sutLearn(keys) {
   for (const k of keys) m[k] = (m[k] || 0) + 1;
   try { localStorage.setItem('sketchforge.sutlearn.v1', JSON.stringify(m)); } catch (e) { /* full */ }
 }
-/* Convert Clip Studio sub tool data (.sut) into Sketchforge tool definitions, each with the group it belongs to and a report:
-   every setting the tool changes, and what became of it (✓ same, ≈ close, ✗ not in Sketchforge yet). */
+/* Convert Clip Studio sub tool data (.sut) into Nexilune tool definitions, each with the group it belongs to and a report:
+   every setting the tool changes, and what became of it (✓ same, ≈ close, ✗ not in Nexilune yet). */
 function sutToDefs(buf) {
   const t = readSqlite(buf);
   const variants = new Map((t.Variant || []).map(v => [v.VariantID, v]));
@@ -561,7 +561,7 @@ function sutToDefs(buf) {
     if (v.CompositeMode && def.paint == null) { const b = SUT_BLEND[v.CompositeMode]; if (b) { def.blendOp = b[0]; (b[2] ? near : ok)(`Blending mode: ${b[1]}`); } else no(`Blending mode ${v.CompositeMode}`); }
     if (group === 'blend' && def.paint == null) { def.smudge = /blur|ぼかし|模糊/i.test(n.NodeName) ? 0 : 0.85; if (def.smudge === 0) def.blurTool = true; ok(def.blurTool ? 'Blur tool' : 'Blend (smudge) tool'); }
     if (group === 'eraser') { def.erase = true; ok('Eraser'); }
-    // everything else the tool changes that Sketchforge does not use yet
+    // everything else the tool changes that Nexilune does not use yet
     const unknown = [];
     for (const [k, x] of Object.entries(v)) {
       if (SUT_USED.has(k) || SUT_IGNORE.test(k) || x == null || x instanceof Uint8Array || typeof x === 'string') continue;
@@ -572,7 +572,7 @@ function sutToDefs(buf) {
       const usual = SUT_USUAL[k] ?? 0;
       if (Math.abs(x - usual) > 1e-6) unknown.push(k);
     }
-    for (const k of unknown) no(`${SUT_LABEL[k] || k.replace(/^Brush/, '').replace(/([a-z])([A-Z])/g, '$1 $2')}: ${typeof v[k] === 'number' ? +v[k].toFixed(2) : v[k]} (not in Sketchforge yet)`);
+    for (const k of unknown) no(`${SUT_LABEL[k] || k.replace(/^Brush/, '').replace(/([a-z])([A-Z])/g, '$1 $2')}: ${typeof v[k] === 'number' ? +v[k].toFixed(2) : v[k]} (not in Nexilune yet)`);
     def.report = R; def.unknown = unknown;
     defs.push(def);
   }
@@ -595,7 +595,7 @@ async function importSut(file, F) {
     const nImg = (def.tips && def.tips.length ? def.tips.length : def.tip ? 1 : 0) + (def.texImg ? 1 : 0);
     T.step('mat', nImg ? nImg + ' image' + (nImg > 1 ? 's' : '') + (def.texImg ? ' (with a paper texture)' : '') : def.kind === 'gradient' ? 'colours of the gradient' : 'none needed'); await impwTick();
     const rep = def.report || [], n = { ok: 0, approx: 0, no: 0 }; rep.forEach(r => n[r[0]]++);
-    T.step('set', rep.length ? `${n.ok} same${n.approx ? ', ' + n.approx + ' close' : ''}${n.no ? ', ' + n.no + ' not in Sketchforge yet' : ''}` : 'read'); await impwTick();
+    T.step('set', rep.length ? `${n.ok} same${n.approx ? ', ' + n.approx + ' close' : ''}${n.no ? ', ' + n.no + ' not in Nexilune yet' : ''}` : 'read'); await impwTick();
     const group = def.kind === 'gradient' ? 'gradient' : def.group || 'brush';
     const id = await registerBrush(keep, true);
     T.step('place', '', GROUP_LABEL[group] || group);
@@ -649,7 +649,7 @@ async function importTools(files) {
   const parts = Object.entries(per).map(([g, k]) => `${k} → ${GROUP_LABEL[g] || g}`);
   const close = all.filter(t => (t.report || []).some(r => r[0] !== 'ok')).length;
   toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}` +
-    (all.length ? ` · ⓘ under Sub Tool shows how each tool was translated${close ? ` (${close} with settings Sketchforge does differently)` : ''}` : ''), 8000);
+    (all.length ? ` · ⓘ under Sub Tool shows how each tool was translated${close ? ` (${close} with settings Nexilune does differently)` : ''}` : ''), 8000);
   W.finish(`${all.length} tool${all.length === 1 ? '' : 's'} added${parts.length ? ': ' + parts.join(', ') : ''}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}. ⓘ under Sub Tool shows how each tool was translated.`);
   all.forEach(t => { delete t.row; });
   lastImport = all;
@@ -709,9 +709,9 @@ const API = {
     buildMenus();
   }
 };
-window.Sketchforge = API;
+window.Sketchforge = API; window.Nexilune = API; // add-ons written for the old name keep working
 function runScript(text, name) {
-  try { new Function('Sketchforge', text)(API); return true; }
+  try { new Function('Sketchforge', 'Nexilune', text)(API, API); return true; }
   catch (e) { toast(`Add-on "${name}" failed: ${e.message}`); return false; }
 }
 function installAddonUI() {
@@ -889,7 +889,7 @@ function openPenDialog() {
 async function importAnyFile(f) {
   try {
     if (/\.(sut|zip)$/i.test(f.name)) await importTools([f]);
-    else if (/\.sfbrush$/i.test(f.name)) { const j = JSON.parse(await readFile(f, true)); if (!j.def) throw new Error('not a Sketchforge brush'); await importSfBrush(j.def); }
+    else if (/\.sfbrush$/i.test(f.name)) { const j = JSON.parse(await readFile(f, true)); if (!j.def) throw new Error('not a Nexilune brush'); await importSfBrush(j.def); }
     else if (/^image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name)) {
       const id = await registerBrush({ name: f.name.replace(/\.[^.]+$/, ''), tip: await readFile(f) }, true); selectTool(id); toast('Brush added');
     } else toast('Drop a .sut brush or an image');
@@ -919,9 +919,9 @@ function toolReport(id) {
   const counts = ['ok', 'approx', 'no'].map(k => rows.filter(r => r[0] === k).length);
   const top = Object.entries(learnt).sort((a, b) => b[1] - a[1]).slice(0, 8);
   dlg.innerHTML = `<form method="dialog"><h3>ⓘ ${d.name.replace(/[<&]/g, '')}</h3>
-    <p class="sub">Clip Studio tool → Sketchforge <b>${GROUP_LABEL[(groupOf(id) || {}).id] || ''}</b> · ✓ ${counts[0]} same · ≈ ${counts[1]} close · ✗ ${counts[2]} not yet</p>
+    <p class="sub">Clip Studio tool → Nexilune <b>${GROUP_LABEL[(groupOf(id) || {}).id] || ''}</b> · ✓ ${counts[0]} same · ≈ ${counts[1]} close · ✗ ${counts[2]} not yet</p>
     <ul class="trep">${list}</ul>
-    ${top.length ? `<details><summary>Clip Studio settings seen in your tools that Sketchforge does not use yet</summary><p class="sub">${top.map(([k, c]) => `${SUT_LABEL[k] || k} (${c})`).join(' · ')}</p></details>` : ''}
+    ${top.length ? `<details><summary>Clip Studio settings seen in your tools that Nexilune does not use yet</summary><p class="sub">${top.map(([k, c]) => `${SUT_LABEL[k] || k} (${c})`).join(' · ')}</p></details>` : ''}
     ${others.length ? `<p class="sub">Other tools from the last import: ${others.map(t => `<a href="#" data-id="${t.id}">${TOOLDEF[t.id].name.replace(/[<&]/g, '')}</a>`).join(' · ')}</p>` : ''}
     <div class="row"><button type="button" data-a="tune">⚙ Adjust in the brush editor…</button><button value="ok">Close</button></div></form>`;
   dlg.querySelectorAll('a[data-id]').forEach(a => a.onclick = e => { e.preventDefault(); dlg.close(); selectTool(a.dataset.id); toolReport(a.dataset.id); });

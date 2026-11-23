@@ -4,6 +4,10 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.4: Sketchforge is now Nexilune
+- New name: Sketchforge is now **Nexilune**, with a new logo (the glowing N) in the app, on the website and on your home screen.
+- Nothing to do: your drawings, drafts, settings and imported tools are kept, and installed apps update themselves as before. Files you saved (.sketchforge) still open.
+
 ## 3.3: Languages, Home tab, drafts, import window, pressure curve
 - Sketchforge speaks your language: it follows the language of your computer or phone, and asks once at the first start and after each update (Help › 🌐 Language… any time). English, ไทย, Français, Español, Português, Deutsch, 日本語, 中文, 한국어 (menus, panels and main windows).
 - 🏠 Home tab next to your file tabs: the start page stays one click away while you draw.

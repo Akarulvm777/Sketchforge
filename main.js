@@ -9,6 +9,10 @@ const { pathToFileURL } = require('url');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'sfapp', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 
+// The app was called Sketchforge before 3.4: keep its data folder (settings, saved session, imported tools, live
+// updates) when the name shown to people changes, so nothing is lost after the update.
+app.setPath('userData', path.join(app.getPath('appData'), 'Sketchforge'));
+
 const BUILTIN = __dirname;
 const LIVE = () => path.join(app.getPath('userData'), 'web');
 const STATE = () => path.join(LIVE(), 'state.json');
@@ -62,7 +66,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#2b2b2b',
-    title: 'Sketchforge',
+    title: 'Nexilune',
     icon: path.join(__dirname, 'icon-512.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
   });

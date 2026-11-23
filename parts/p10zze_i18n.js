@@ -1,5 +1,5 @@
 /* ---------- languages (3.3) ----------
-   The interface follows the language of the browser / system (navigator.languages) when Sketchforge has it, and a
+   The interface follows the language of the browser / system (navigator.languages) when Nexilune has it, and a
    picker (like Blender's first-start setup) asks once at the first start and once after each update. Help › 🌐
    Language… changes it any time. Key sketchforge.lang.v1 = code ('en', 'th'…); langasked.v1 = version last asked.
    How: the texts of the interface stay in English in the code; a MutationObserver translates every text node and
@@ -11,7 +11,7 @@ const I18N = { lang: 'en', map: null, obs: null };
 const I18N_ATTRS = ['title', 'placeholder', 'aria-label'];
 const I18N_SKIP = 'script, style, textarea, input, [contenteditable], .noi18n';
 
-/* pure: first language of the list Sketchforge has ('th-TH' → 'th'), else English */
+/* pure: first language of the list Nexilune has ('th-TH' → 'th'), else English */
 function langDetect(list) {
   for (const l of list || []) { const c = String(l || '').toLowerCase().split(/[-_]/)[0]; if (I18N_LANGS.some(x => x[0] === c)) return c; }
   return 'en';
@@ -91,7 +91,7 @@ function langPicker(first) {
   const d = document.createElement('div'); d.id = 'langPick'; d.className = 'langpick noi18n';
   const sug = langDetect(navigator.languages || [navigator.language]);
   d.innerHTML = `<h3>🌐 Language · ภาษา · Langue · Idioma · 言語</h3>
-    <p class="muted small">${first ? 'Choose the language of Sketchforge. You can change it any time: Help › 🌐 Language.' : 'Change the language of Sketchforge.'}</p>
+    <p class="muted small">${first ? 'Choose the language of Nexilune. You can change it any time: Help › 🌐 Language.' : 'Change the language of Nexilune.'}</p>
     <div class="langgrid">${I18N_LANGS.map(([c, n]) => `<button type="button" data-l="${c}" class="${c === I18N.lang ? 'on' : ''}">${escHtml(n)}${c === sug && c !== 'en' ? ' <span class="muted small">(your system)</span>' : ''}</button>`).join('')}</div>
     <div class="dialog-actions"><button type="button" class="primary" data-a="ok">OK</button></div>`;
   document.body.appendChild(d);

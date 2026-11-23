@@ -318,7 +318,7 @@ function init() {
     installPaperTexture, installStudio, installDrafts, installLanguages,                                                                 // last: they wrap the ones above
     buildMenus, buildToolbox, renderSwatches, restoreLayout
   ];
-  for (const f of STARTUP) { try { f(); } catch (e) { console.error('Sketchforge: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
+  for (const f of STARTUP) { try { f(); } catch (e) { console.error('Nexilune: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
   loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();

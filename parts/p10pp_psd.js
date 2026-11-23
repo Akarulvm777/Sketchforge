@@ -127,7 +127,7 @@ async function readPSD(buf) {
   const ver = r.u16(); if (ver !== 1 && ver !== 2) throw new Error('Unknown PSD version ' + ver);
   r.p += 6;
   const nch = r.u16(), H = r.u32(), W = r.u32(), depth = r.u16(), mode = r.u16();
-  if (![1, 3, 4].includes(mode)) throw new Error('This PSD uses a colour mode Sketchforge cannot read (' + ({ 0: 'bitmap', 2: 'indexed', 7: 'multichannel', 8: 'duotone', 9: 'Lab' }[mode] || mode) + '). Convert it to RGB in Photoshop first.');
+  if (![1, 3, 4].includes(mode)) throw new Error('This PSD uses a colour mode Nexilune cannot read (' + ({ 0: 'bitmap', 2: 'indexed', 7: 'multichannel', 8: 'duotone', 9: 'Lab' }[mode] || mode) + '). Convert it to RGB in Photoshop first.');
   if (depth !== 8 && depth !== 16) throw new Error('Only 8-bit and 16-bit PSD files can be opened (this one is ' + depth + '-bit)');
   { const n = r.u32(); r.p += n; } // colour mode data
   { const n = r.u32(); r.p += n; } // image resources

@@ -1,7 +1,7 @@
 /* ---------- Real files and drafts ----------
    A drawing is a REAL FILE once you saved it (File › Save) or opened it from your device (r.realFile, kept by the
    session). Auto-save writes real files only. A new drawing you never saved is a DRAFT: auto-save keeps it inside
-   Sketchforge (the reopened tabs + Home page › Drafts) to save space on the device, and drafts are deleted when the app
+   Nexilune (the reopened tabs + Home page › Drafts) to save space on the device, and drafts are deleted when the app
    is reset to defaults or installed again (dropDrafts, p10zza_reset, the install check in index.html).
    • Every new file shows a short notice saying so (sketchforge.draftnote.v1 = 'off': don't show again).
    • Closing a file always asks: a draft → Save as a file / Keep as a draft / Delete it / Cancel; a real file with
@@ -22,7 +22,7 @@ function draftNotice() {
   try { if (localStorage.getItem('sketchforge.draftnote.v1') === 'off') return; } catch (e) { /* show it */ }
   let n = $('#draftNote'); if (n) n.remove();
   n = document.createElement('div'); n.id = 'draftNote'; n.setAttribute('role', 'status');
-  n.innerHTML = `<b>📝 New drawing = a draft</b><p>Auto-save keeps it inside Sketchforge (Home page › Drafts) to save space on your device. It becomes a real file when you use <b>File › Save</b> (Ctrl+S); after that, auto-save updates that file. Drafts are deleted if you reinstall or reset Sketchforge.</p>
+  n.innerHTML = `<b>📝 New drawing = a draft</b><p>Auto-save keeps it inside Nexilune (Home page › Drafts) to save space on your device. It becomes a real file when you use <b>File › Save</b> (Ctrl+S); after that, auto-save updates that file. Drafts are deleted if you reinstall or reset Nexilune.</p>
     <div class="dn-row"><label><input type="checkbox" id="draftNoteOff"> Don't show this again</label><button class="primary" type="button">Got it</button></div>`;
   n.addEventListener('pointerdown', e => e.stopPropagation());
   n.querySelector('button').onclick = () => { if (n.querySelector('#draftNoteOff').checked) { try { localStorage.setItem('sketchforge.draftnote.v1', 'off'); } catch (e) { /* ignore */ } } n.remove(); };
@@ -34,7 +34,7 @@ function draftCloseAsk(r) {
     const draft = !r.realFile, name = docName(r);
     const d = document.createElement('dialog'); d.className = 'csdlg'; d.id = 'closeAskDlg';
     d.innerHTML = draft
-      ? `<h3>Close “${escHtml(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Sketchforge (Home page) and are deleted if you reinstall or reset the app.</p>
+      ? `<h3>Close “${escHtml(name)}”?</h3><p>This drawing is a <b>draft</b>: it is not saved as a file on your device yet. Drafts stay inside Nexilune (Home page) and are deleted if you reinstall or reset the app.</p>
          <div class="btnrow"><button class="primary" data-a="save">💾 Save as a file…</button><button data-a="keep">Keep as a draft</button><button data-a="delete">Delete it</button><button data-a="cancel">Cancel</button></div>`
       : `<h3>Save the changes to “${escHtml(name)}”?</h3><p>Your file on the device does not have the latest changes yet.</p>
          <div class="btnrow"><button class="primary" data-a="save">💾 Save</button><button data-a="nosave">Don't save</button><button data-a="cancel">Cancel</button></div>`;

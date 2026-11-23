@@ -39,7 +39,7 @@ async function signIn(provider) {
   const url = `${site}/link.html?p=${provider}#code=${code}`;
   if (isElectron()) window.open(url, '_blank'); // the desktop shell opens web links in the browser
   else location.assign(url); // Android: links to other sites open in the browser, the app stays
-  const d = $('#acctDlg'); if (d) d.querySelector('.cloudbody').innerHTML = `<p>Finish signing in in your browser…</p><p class="muted small">Sketchforge opened the website. When it says "You're signed in", come back here.</p><p><span class="spin"></span> Waiting</p><button type="button" id="acctCancel">Cancel</button>`;
+  const d = $('#acctDlg'); if (d) d.querySelector('.cloudbody').innerHTML = `<p>Finish signing in in your browser…</p><p class="muted small">Nexilune opened the website. When it says "You're signed in", come back here.</p><p><span class="spin"></span> Waiting</p><button type="button" id="acctCancel">Cancel</button>`;
   const cancel = $('#acctCancel'); if (cancel) cancel.onclick = () => { clearInterval(linkPoll); accountDialog(); };
   const t0 = Date.now(); clearInterval(linkPoll);
   linkPoll = setInterval(async () => {
@@ -76,7 +76,7 @@ function accountDialog(then) {
       <label class="check"><input type="checkbox" id="acctAuto" ${prefAutoSync() ? 'checked' : ''}> Keep my settings in sync automatically</label>
       <div class="btnrow"><button type="button" data-a="library">Brushes & themes library</button><button type="button" data-a="ai">✨ Ask the helper</button></div>
       <div class="btnrow"><button type="button" data-a="out">Sign out</button>${siteUrl() ? `<a class="btnlink" href="${esc(siteUrl())}/account.html" target="_blank" rel="noopener">Open my account on the website</a>` : ''}</div>`
-    : `<p>Sign in to save drawings in the cloud, keep your settings on all your devices, and share brushes and themes. Everything else in Sketchforge works without an account.</p>
+    : `<p>Sign in to save drawings in the cloud, keep your settings on all your devices, and share brushes and themes. Everything else in Nexilune works without an account.</p>
       <div class="acct-providers"><button type="button" class="prov google" data-p="google">Continue with Google</button><button type="button" class="prov github" data-p="github">Continue with GitHub</button></div>
       <p class="muted small">Signing up is the same as signing in: the first time creates your account.</p>`;
   const d = cloudDlg('acctDlg', p ? '👤 Your account' : '👤 Sign in or sign up', html);
@@ -180,7 +180,7 @@ async function libraryDialog() {
       const me = SB().user() && SB().user().id;
       d.querySelector('#libList').innerHTML = rows.length ? `<div class="cloudgrid">${rows.map(r => `<div class="cfile lib" data-id="${r.id}"><span class="kind">${r.kind === 'brush' ? '🖌 Brush' : '🎨 Theme'}</span><b>${esc(r.name)}</b>
         <span class="muted small">${esc(r.author || 'Anonymous')} · ⬇ ${r.downloads}</span><span class="small desc">${esc(r.description)}</span>
-        <div class="btnrow"><button type="button" data-add class="primary">Add to Sketchforge</button>${r.user_id === me ? '<button type="button" data-del title="Stop sharing">🗑</button>' : ''}</div></div>`).join('')}</div>`
+        <div class="btnrow"><button type="button" data-add class="primary">Add to Nexilune</button>${r.user_id === me ? '<button type="button" data-del title="Stop sharing">🗑</button>' : ''}</div></div>`).join('')}</div>`
         : '<p>Nothing shared yet. Be the first: <b>＋ Share mine</b>.</p>';
       for (const el of d.querySelectorAll('.cfile.lib')) {
         const r = rows.find(x => x.id === el.dataset.id);

@@ -81,7 +81,7 @@ function pressureOf(e) {
     penSamples++; if (Math.abs(raw - 0.5) > 0.001 && raw > 0) { penFlat = false; realPressureSeen = true; }
     if (!penWarned && penSamples > 40 && penFlat) {
       penWarned = true;
-      toast(IS_IOS ? 'Your Apple Pencil sends no pressure here: open Sketchforge in Safari (not inside another app), update iPadOS, and turn off Settings › Apple Pencil › Scribble. Test it: View › Pen pressure & touch.'
+      toast(IS_IOS ? 'Your Apple Pencil sends no pressure here: open Nexilune in Safari (not inside another app), update iPadOS, and turn off Settings › Apple Pencil › Scribble. Test it: View › Pen pressure & touch.'
         : 'Your pen sends no pressure data: turn on Windows Ink in your tablet driver (Wacom, XP-Pen, Huion…), then restart. Help: View › Pen pressure & touch.', 8000);
     }
     return shapePressure(raw > 0 ? Math.max(raw, 0.03) : 0.03);

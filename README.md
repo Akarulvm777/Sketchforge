@@ -1,6 +1,6 @@
-# Sketchforge
+# Nexilune
 
-**Sketchforge is a free 2D drawing and animation app.** Paint illustrations and comics, then bring them to life with
+**Nexilune is a free 2D drawing and animation app.** Paint illustrations and comics, then bring them to life with
 frame-by-frame or cut-out animation, all in one workspace. It runs on Windows, Mac, Linux, Android, and in any browser
 (iPad and iPhone included).
 
@@ -8,7 +8,7 @@ Its layout will feel familiar to people who know professional illustration and a
 original.
 
 > [!WARNING]
-> **Sketchforge is an experimental, vibe-coded personal project.** It is built with an AI coding assistant and tested
+> **Nexilune is an experimental, vibe-coded personal project.** It is built with an AI coding assistant and tested
 > mostly by automated tests, not by a team.
 >
 > - **Linux and macOS builds are untested** on real machines: they are built automatically and may not work.
