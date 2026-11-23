@@ -38,7 +38,7 @@ Download the latest version from the [website](https://akarulvm777.github.io/Ske
 
 | Platform | File |
 |---|---|
-| Windows | `Sketchforge-Setup-<version>.exe` |
+| Windows | `Nexilune-Setup-<version>.exe` |
 | Mac | `…-mac-arm64.dmg` (Apple Silicon) or `…-mac-x64.dmg` (Intel) |
 | Linux | `…-linux-x86_64.AppImage` |
 | Android | `…-android.apk` |
