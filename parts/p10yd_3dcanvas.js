@@ -55,7 +55,7 @@ function m3PanelTile() {
 }
 function install3DCanvas() {
   // the model is never removed by a stage refresh
-  const rs0 = refreshStage; refreshStage = function () { const out = rs0.apply(this, arguments); m3KeepOnStage(); return out; };
+  hookAfter('refreshStage', m3KeepOnStage, 10);
   // drop the model from the panel onto the canvas
   viewport.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('text/sf3d')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
   viewport.addEventListener('drop', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('text/sf3d')) { e.preventDefault(); e.stopPropagation(); m3Drop(e.clientX, e.clientY); } }, true);
@@ -76,6 +76,6 @@ function install3DCanvas() {
     if (M3.poseOn && ['brush', 'fill', 'shape', 'poly'].includes(kindOf(id))) setPoseOnCanvas(false);
     m3Fab(); return out;
   };
-  const sp0 = setPoseOnCanvas; setPoseOnCanvas = function () { const out = sp0.apply(this, arguments); m3KeepOnStage(); m3Fab(); return out; };
-  const r0 = render3D; render3D = function () { const out = r0.apply(this, arguments); requestAnimationFrame(() => m3Fab()); return out; };
+  hookAfter('setPoseOnCanvas', () => { m3KeepOnStage(); m3Fab(); });
+  hookAfter('render3D', () => requestAnimationFrame(() => m3Fab()));
 }

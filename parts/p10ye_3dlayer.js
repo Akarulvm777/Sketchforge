@@ -73,12 +73,11 @@ function install3DLayer() {
     if (!M3.viewTip) { M3.viewTip = true; toast('3D model on its own layer "🧍 3D model". Left-drag = pose · right-drag = turn the view · wheel = zoom · middle / Shift-drag = move it', 6500); }
     return out;
   };
-  const sp0 = setPoseOnCanvas; setPoseOnCanvas = function (on) {
-    const out = sp0.apply(this, arguments);
+  hookAfter('setPoseOnCanvas', (out, [on]) => {
     if (on && M3.renderer) { m3ViewControls(M3.renderer.domElement); if (M3.root && !m3Layer()) m3EnsureLayer(); }
     const lbl = $('#m3dPoseBar'); if (lbl) lbl.title = 'Left-drag: pose · Right-drag: turn the view · Wheel: zoom · Middle or Shift-drag: move the model';
-    m3ApplyLayer(); return out;
-  };
-  const rs0 = refreshStage; refreshStage = function () { const out = rs0.apply(this, arguments); m3ApplyLayer(); return out; };
-  const r0 = render3D; render3D = function () { const out = r0.apply(this, arguments); requestAnimationFrame(m3ApplyLayer); return out; };
+    m3ApplyLayer();
+  });
+  hookAfter('refreshStage', m3ApplyLayer, 20); // after the 3D canvas is back on the stage
+  hookAfter('render3D', () => requestAnimationFrame(m3ApplyLayer));
 }

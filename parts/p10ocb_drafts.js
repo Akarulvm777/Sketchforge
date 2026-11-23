@@ -62,8 +62,7 @@ const hubEscD = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': 
 let DRAFT_CLOSE = r => r;
 function installDrafts() {
   // saving makes a real file; opening a .sketchforge from the device too
-  const s0 = saveDocument; saveDocument = async function () { const r = DOCS.cur; const out = await s0.apply(this, arguments); if (r && !dirty && !r.realFile) { r.realFile = true; syncTab(); if (typeof recentRecord === 'function') recentRecord(); } return out; };
-  CMD.save = () => saveDocument();
+  hookAfter('saveDocument', () => { const r = DOCS.cur; if (r && !dirty && !r.realFile) { r.realFile = true; syncTab(); } }, -10); // before the Home page records the file
   if (typeof openAnyDocument === 'function') {
     const o0 = openAnyDocument; openAnyDocument = async function (f) { DRAFT_OPENING++; try { const out = await o0.apply(this, arguments); if (f && /\.sketchforge$/i.test(f.name || '') && DOCS.cur) { DOCS.cur.realFile = true; syncTab(); } return out; } finally { DRAFT_OPENING--; } };
   }

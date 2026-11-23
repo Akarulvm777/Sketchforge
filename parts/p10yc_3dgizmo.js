@@ -149,7 +149,7 @@ function install3DGizmo() {
   const i0 = initThree; initThree = function () { const r = i0.apply(this, arguments); try { gizBuild(); } catch (e) { console.warn('3D helpers:', e.message); } return r; };
   const b0 = bindPoseSurface; bindPoseSurface = function (cv, big) { gizBind(cv, big); return b0.apply(this, arguments); };
   markSel = gizMarkSel;
-  const s0 = setPoseOnCanvas; setPoseOnCanvas = function (on) { const r = s0.apply(this, arguments); if (on) gizBarButtons(); render3D(); return r; };
+  hookAfter('setPoseOnCanvas', (out, [on]) => { if (on) gizBarButtons(); render3D(); });
   const p0 = build3DPanel; build3DPanel = function () { const r = p0.apply(this, arguments); gizPanelOptions(); return r; };
   const l0 = placeOnLayer; placeOnLayer = function () { GIZ.placing = true; try { return l0.apply(this, arguments); } finally { GIZ.placing = false; render3D(); } };
 }

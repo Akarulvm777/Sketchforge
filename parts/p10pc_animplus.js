@@ -245,13 +245,11 @@ function installAnimPlus() {
   tlInner.addEventListener('pointermove', anMove, true);
   tlInner.addEventListener('pointerup', anUp, true);
   // play range shading on the ruler
-  const rt = renderTimeline;
-  renderTimeline = function () {
-    rt();
+  hookAfter('renderTimeline', () => {
     if (state.playIn == null && state.playOut == null) return;
     const [lo, hi] = playRange();
     tlInner.querySelectorAll('.tl-ruler .tl-rc').forEach(c => { const f = +c.dataset.f; c.classList.toggle('out-range', f < lo || f > hi); c.classList.toggle('range-in', f === lo); c.classList.toggle('range-out', f === hi); });
-  };
+  });
   // export dialog: range, background, sprite sheet
   const fmt = $('#expFormat');
   fmt.insertAdjacentHTML('beforeend', '<option value="sheet">Sprite sheet (one PNG)</option>');

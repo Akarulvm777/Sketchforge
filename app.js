@@ -267,6 +267,54 @@ function canvasToBlob(c, type = 'image/png') {
 }
 
 
+/* ---------- Core helpers shared by every module ----------
+   • hookAfter(name, fn, order): run fn after the core function `name` (listed in HOOKABLE) (fn(out, args)). Modules add behaviour to core
+     functions (refreshStage, refreshProps, renderTimeline, saveDocument…) through hooks instead of replacing them:
+     one wrapper per function, hooks run in `order` (then registration order), a hook that throws is logged and the
+     others still run, and an async function's hooks run once its promise resolves. Replacing a core function by hand
+     (`x = function () { … x0() … }`) is kept only where a module must change the arguments or skip the original.
+   • prefs: the app's settings in localStorage ('sketchforge.' + key), never throwing (private windows, blocked storage).
+   • escHtml: text → safe HTML. */
+const HOOKS = Object.create(null);
+/* the functions modules may hook (the app runs in one shared scope, so each needs a getter / setter here; the
+   function declarations are visible everywhere in that scope) */
+const HOOKABLE = {
+  refreshStage: [() => refreshStage, f => { refreshStage = f; }],
+  refreshProps: [() => refreshProps, f => { refreshProps = f; }],
+  refreshAll: [() => refreshAll, f => { refreshAll = f; }],
+  renderTimeline: [() => renderTimeline, f => { renderTimeline = f; }],
+  setMode: [() => setMode, f => { setMode = f; }],
+  gotoFrame: [() => gotoFrame, f => { gotoFrame = f; }],
+  markDirty: [() => markDirty, f => { markDirty = f; }],
+  saveDocument: [() => saveDocument, f => { saveDocument = f; }],
+  render3D: [() => render3D, f => { render3D = f; }],
+  setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }]
+};
+function hookAfter(name, fn, order = 0) {
+  let h = HOOKS[name];
+  if (!h) {
+    const acc = HOOKABLE[name]; if (!acc) throw new Error('hookAfter: ' + name + ' is not in HOOKABLE');
+    const base = acc[0]();
+    if (typeof base !== 'function') throw new Error('hookAfter: no function ' + name);
+    h = HOOKS[name] = { list: [], seq: 0 };
+    const run = (self, out, args) => { for (const x of h.list) { try { x.fn.call(self, out, args); } catch (e) { console.error('hook ' + name + ':', e); } } };
+    acc[1](function () {
+      const out = base.apply(this, arguments), args = arguments;
+      if (out && typeof out.then === 'function') return out.then(v => { run(this, v, args); return v; });
+      run(this, out, args); return out;
+    });
+  }
+  h.list.push({ fn, order, i: h.seq++ });
+  h.list.sort((a, b) => a.order - b.order || a.i - b.i);
+}
+const prefs = {
+  get(k, d = null) { try { const v = localStorage.getItem('sketchforge.' + k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { if (v == null) localStorage.removeItem('sketchforge.' + k); else localStorage.setItem('sketchforge.' + k, String(v)); } catch (e) { /* storage blocked */ } },
+  json(k, d = null) { try { const v = localStorage.getItem('sketchforge.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  setJson(k, v) { try { localStorage.setItem('sketchforge.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
+};
+const escHtml = s => String(s == null ? '' : s).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
+
 /* ---------- canvases: stroke buffer, onion skin, selection, scratch ---------- */
 const bufCanvas = makeCanvas(state.w, state.h);
 bufCanvas.id = 'stroke-buffer';
@@ -4492,8 +4540,7 @@ const hubEscD = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': 
 let DRAFT_CLOSE = r => r;
 function installDrafts() {
   // saving makes a real file; opening a .sketchforge from the device too
-  const s0 = saveDocument; saveDocument = async function () { const r = DOCS.cur; const out = await s0.apply(this, arguments); if (r && !dirty && !r.realFile) { r.realFile = true; syncTab(); if (typeof recentRecord === 'function') recentRecord(); } return out; };
-  CMD.save = () => saveDocument();
+  hookAfter('saveDocument', () => { const r = DOCS.cur; if (r && !dirty && !r.realFile) { r.realFile = true; syncTab(); } }, -10); // before the Home page records the file
   if (typeof openAnyDocument === 'function') {
     const o0 = openAnyDocument; openAnyDocument = async function (f) { DRAFT_OPENING++; try { const out = await o0.apply(this, arguments); if (f && /\.sketchforge$/i.test(f.name || '') && DOCS.cur) { DOCS.cur.realFile = true; syncTab(); } return out; } finally { DRAFT_OPENING--; } };
   }
@@ -5445,13 +5492,11 @@ function installAnimPlus() {
   tlInner.addEventListener('pointermove', anMove, true);
   tlInner.addEventListener('pointerup', anUp, true);
   // play range shading on the ruler
-  const rt = renderTimeline;
-  renderTimeline = function () {
-    rt();
+  hookAfter('renderTimeline', () => {
     if (state.playIn == null && state.playOut == null) return;
     const [lo, hi] = playRange();
     tlInner.querySelectorAll('.tl-ruler .tl-rc').forEach(c => { const f = +c.dataset.f; c.classList.toggle('out-range', f < lo || f > hi); c.classList.toggle('range-in', f === lo); c.classList.toggle('range-out', f === hi); });
-  };
+  });
   // export dialog: range, background, sprite sheet
   const fmt = $('#expFormat');
   fmt.insertAdjacentHTML('beforeend', '<option value="sheet">Sprite sheet (one PNG)</option>');
@@ -5572,10 +5617,8 @@ function installSwap() {
   const A = MENUS.find(m => m[0] === 'Animation') || MENUS.find(m => m[0] === 'Layer');
   if (A) A[1].push('-', ['Swap: add this drawing', 'swapAdd'], ['Swap: next drawing', 'swapNext', 'Alt+]'], ['Swap: previous drawing', 'swapPrev', 'Alt+[']);
   document.addEventListener('keydown', e => { if (!e.altKey || e.ctrlKey || e.metaKey || /input|textarea|select/i.test((e.target.tagName || ''))) return; if (e.code === 'BracketRight') { e.preventDefault(); swapStep(1); } else if (e.code === 'BracketLeft') { e.preventDefault(); swapStep(-1); } });
-  const sm = setMode;
-  setMode = function () { const r = sm.apply(this, arguments); try { renderSwapBar(true); } catch (er) { /* ignore */ } return r; };
-  const rt = renderTimeline;
-  renderTimeline = function () { const r = rt.apply(this, arguments); try { renderSwapBar(); } catch (er) { /* never break the timeline */ } return r; };
+  hookAfter('setMode', () => renderSwapBar(true));
+  hookAfter('renderTimeline', () => renderSwapBar());
 }
 
 /* ---------- Lip-sync from the sound, and the sound in exported videos ----------
@@ -5934,8 +5977,7 @@ function installFace() {
   Object.assign(CMD, { faceSliders: () => toggleFacePanel(), faceBlink: () => faceBlink(activeLayer()) });
   const A = MENUS.find(m => m[0] === 'Animation') || MENUS.find(m => m[0] === 'Layer');
   if (A) A[1].push('-', ['🙂 Face sliders (blink, mouth, smile)…', 'faceSliders'], ['👁 Blink here', 'faceBlink']);
-  const rt = renderTimeline;
-  renderTimeline = function () { const r = rt.apply(this, arguments); try { renderFacePanel(); } catch (er) { /* never break the timeline */ } return r; };
+  hookAfter('renderTimeline', () => renderFacePanel());
 }
 
 /* ---------- Easier rig: a main part, and gravity bones for hair / cloth (secondary motion, Spine-like) ----------
@@ -6103,7 +6145,7 @@ function pageKeepLayout(at) {
 function installPagesPanel() {
   const pa0 = pageAdd; pageAdd = function () { const n = state.frameCount, out = pa0.apply(this, arguments); if (isComic() && state.frameCount > n) { pageKeepLayout(state.frame); refreshAll(); } return out; };
   // any file change (New, Open, tab switch) refreshes everything: open / close the panel to match the file
-  const ra0 = refreshAll; refreshAll = function () { const out = ra0.apply(this, arguments); const p = $('#pagesPanel'), want = pagesPanelWanted(PAGES.pref, state.projectType); if ((p ? !p.hidden : false) !== want || (want && !isComic()) || (!!$('#modeSwitch [data-mode="anim"]') && $('#modeSwitch [data-mode="anim"]').disabled !== isComic())) pagesPanelSync(); return out; };
+  hookAfter('refreshAll', () => { const p = $('#pagesPanel'), want = pagesPanelWanted(PAGES.pref, state.projectType); if ((p ? !p.hidden : false) !== want || (want && !isComic()) || (!!$('#modeSwitch [data-mode="anim"]') && $('#modeSwitch [data-mode="anim"]').disabled !== isComic())) pagesPanelSync(); });
   // Fit leaves room for the panel (on phones it covered part of the page)
   const fit0 = fit; fit = function () {
     const p = $('#pagesPanel'); if (!p || p.hidden) return fit0.apply(this, arguments);
@@ -6120,8 +6162,8 @@ function installPagesPanel() {
     if (m === 'anim' && isComic()) { if (!quiet) toast('This is a manga / comic project: its pages are in the Pages panel. Animation mode is for animation files.', 4000); m = 'draw'; }
     const out = sm0.call(this, m, quiet); pagesPanelSync(); return out;
   };
-  const gf0 = gotoFrame; gotoFrame = function () { const out = gf0.apply(this, arguments); if (isComic()) pagesChanged(120); return out; };
-  const md0 = markDirty; markDirty = function () { const out = md0.apply(this, arguments); if (isComic()) { PAGES.dirty.add(state.frame); pagesChanged(700); } return out; };
+  hookAfter('gotoFrame', () => { if (isComic()) pagesChanged(120); });
+  hookAfter('markDirty', () => { if (isComic()) { PAGES.dirty.add(state.frame); pagesChanged(700); } });
   CMD.pagesPanel = () => {
     PAGES.pref = PAGES.pref === 'off' ? 'auto' : 'off';
     try { localStorage.setItem('sketchforge.pagespanel.v1', PAGES.pref); } catch (e) { /* ignore */ }
@@ -7404,18 +7446,15 @@ function installSmartFill() {
   CMD.autoFlat = autoFlat;
   const E = MENUS.find(m => m[0] === 'Edit'); if (E) E[1].push('-', ['🎨 Auto-flat colours (one colour per area)', 'autoFlat']);
   const L = MENUS.find(m => m[0] === 'Layer'); if (L) L[1].push('-', ['🎨 Auto-flat colours…', 'autoFlat']);
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
-    if (kindOf(state.tool) !== 'fill') return out;
-    const body = $('#propBody'); if (!body) return out;
+  hookAfter('refreshProps', () => {
+    if (kindOf(state.tool) !== 'fill') return;
+    const body = $('#propBody'); if (!body) return;
     grp(body, 'Smart colouring');
     slider(body, 'Close gaps', 0, 20, 1, state.fillGap || 0, v => v ? v + 'px' : 'off', v => state.fillGap = v);
     hint(body, 'The fill stops at gaps up to this size in your lines.');
     btns(body, [['🎨 Auto-flat colours', autoFlat]]);
     hint(body, 'One flat colour per closed area, on a new layer under your lines. Uses the reference layers, or the active layer.');
-    return out;
-  };
+  });
 }
 
 /* ---------- More FX (Filter › More effects) ----------
@@ -8109,11 +8148,9 @@ function installText() {
     const txt = $('#textInput').value; $('#textDialog').close();
     if (txt.trim() && textPos) drawText(txt, textPos);
   }, true);
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
-    if (kindOf(state.tool) !== 'text') return out;
-    const body = $('#propBody'); if (!body) return out;
+  hookAfter('refreshProps', () => {
+    if (kindOf(state.tool) !== 'text') return;
+    const body = $('#propBody'); if (!body) return;
     const sel0 = body.querySelector('select'); // the old font list → the comic font families
     if (sel0) { sel0.innerHTML = COMIC_FONTS.map(([v, n]) => `<option value='${v.replace(/'/g, '&#39;')}'>${n}</option>`).join(''); if (!COMIC_FONTS.some(f => f[0] === state.font)) state.font = COMIC_FONTS[0][0]; sel0.value = state.font; sel0.onchange = () => { state.font = sel0.value; }; }
     grp(body, 'Comic text');
@@ -8125,8 +8162,7 @@ function installText() {
     sb.value = state.textBalloon; sb.onchange = () => { state.textBalloon = sb.value; refreshProps(); }; row.appendChild(sb); body.appendChild(row);
     if (state.textBalloon) slider(body, 'Tail direction', 0, 359, 5, state.textTail, v => v + '°', v => state.textTail = v);
     hint(body, state.textBalloon ? 'The balloon fits the text by itself, drawn under it on the same layer.' : 'Choose a balloon to put one around the text automatically.');
-    return out;
-  };
+  });
 }
 
 /* ---------- layer masks ----------
@@ -9915,19 +9951,16 @@ function installTwoTone() {
   for (const k of ['outlinemarker', 'neonpen']) settings[k] = { ...TOOLDEF[k].preset };
   const g = GROUPS.find(x => x.id === 'pen'); if (g) g.subs.push('outlinemarker', 'neonpen');
   // Tool Property: Two colours (any round brush)
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
+  hookAfter('refreshProps', () => {
     const body = $('#propBody'), id = state.tool, s = settings[id];
-    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].erase || s.smudge != null || s.shape) return out;
+    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].erase || s.smudge != null || s.shape) return;
     grp(body, 'Two colours');
     const row = document.createElement('label'); row.className = 'select'; row.innerHTML = '<span>Colours</span><select><option value="">One colour</option><option value="edge">Main inside, sub colour outside</option><option value="glow">Main colour + sub colour glow</option></select>';
     const sel = row.querySelector('select'); sel.value = s.twoTone || ''; body.appendChild(row);
     sel.onchange = () => { s.twoTone = sel.value || undefined; if (s.twoTone && s.twoEdge == null) s.twoEdge = s.twoTone === 'glow' ? 0.8 : 0.35; refreshProps(); };
     if (s.twoTone) slider(body, s.twoTone === 'glow' ? 'Glow size' : 'Outline width', 5, 90, 1, (s.twoEdge ?? 0.35) * 100, v => v + '%', v => s.twoEdge = v / 100);
     if (s.twoTone) { const t = document.createElement('div'); t.className = 'hint'; t.textContent = 'The outside uses the sub colour (the second colour square; X swaps them).'; body.appendChild(t); }
-    return out;
-  };
+  });
 }
 
 /* ---------- Manga page setup (File › New manga page…, Manga menu) ----------
@@ -10931,9 +10964,7 @@ function installChainBones() {
   CMD.boneChain = () => selectTool('bonechain'); CMD.chainPractice = chainPractice;
   const A = MENUS.find(m => m[0] === 'Animation'); if (A) { const i = A[1].findIndex(x => Array.isArray(x) && x[1] === 'physBone'); A[1].splice(i < 0 ? A[1].length : i + 1, 0, ['〰 Hair & cloth bones (bend and flow)', 'boneChain'], ['🧝 Hair & cloth practice model', 'chainPractice']); }
   // the stage shows the bent drawing instead of the cel
-  const rs0 = refreshStage;
-  refreshStage = function () {
-    const out = rs0.apply(this, arguments);
+  hookAfter('refreshStage', () => {
     state.layers.forEach(l => {
       const c = l.canvas; if (!c || !chainOn(l) || l.vref) { if (l._chainView && l._chainView.parentNode) l._chainView.remove(); return; }
       if (!l.visible || chainEditing(l) || isCustomBlend(l.blend) || l.clip || l.mask || c.style.display === 'none') { if (l._chainView && l._chainView.parentNode) l._chainView.remove(); return; }
@@ -10942,8 +10973,7 @@ function installChainBones() {
       v.style.cssText = c.style.cssText; v.style.pointerEvents = 'none'; c.style.display = 'none';
       if (v.parentNode !== stage) stage.insertBefore(v, c.nextSibling);
     });
-    return out;
-  };
+  });
   // exports and previews: compositeFrame gets the bent drawing
   const fp0 = frameParams;
   frameParams = function (l, f) {
@@ -12098,7 +12128,7 @@ function install3DGizmo() {
   const i0 = initThree; initThree = function () { const r = i0.apply(this, arguments); try { gizBuild(); } catch (e) { console.warn('3D helpers:', e.message); } return r; };
   const b0 = bindPoseSurface; bindPoseSurface = function (cv, big) { gizBind(cv, big); return b0.apply(this, arguments); };
   markSel = gizMarkSel;
-  const s0 = setPoseOnCanvas; setPoseOnCanvas = function (on) { const r = s0.apply(this, arguments); if (on) gizBarButtons(); render3D(); return r; };
+  hookAfter('setPoseOnCanvas', (out, [on]) => { if (on) gizBarButtons(); render3D(); });
   const p0 = build3DPanel; build3DPanel = function () { const r = p0.apply(this, arguments); gizPanelOptions(); return r; };
   const l0 = placeOnLayer; placeOnLayer = function () { GIZ.placing = true; try { return l0.apply(this, arguments); } finally { GIZ.placing = false; render3D(); } };
 }
@@ -12160,7 +12190,7 @@ function m3PanelTile() {
 }
 function install3DCanvas() {
   // the model is never removed by a stage refresh
-  const rs0 = refreshStage; refreshStage = function () { const out = rs0.apply(this, arguments); m3KeepOnStage(); return out; };
+  hookAfter('refreshStage', m3KeepOnStage, 10);
   // drop the model from the panel onto the canvas
   viewport.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('text/sf3d')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
   viewport.addEventListener('drop', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('text/sf3d')) { e.preventDefault(); e.stopPropagation(); m3Drop(e.clientX, e.clientY); } }, true);
@@ -12181,8 +12211,8 @@ function install3DCanvas() {
     if (M3.poseOn && ['brush', 'fill', 'shape', 'poly'].includes(kindOf(id))) setPoseOnCanvas(false);
     m3Fab(); return out;
   };
-  const sp0 = setPoseOnCanvas; setPoseOnCanvas = function () { const out = sp0.apply(this, arguments); m3KeepOnStage(); m3Fab(); return out; };
-  const r0 = render3D; render3D = function () { const out = r0.apply(this, arguments); requestAnimationFrame(() => m3Fab()); return out; };
+  hookAfter('setPoseOnCanvas', () => { m3KeepOnStage(); m3Fab(); });
+  hookAfter('render3D', () => requestAnimationFrame(() => m3Fab()));
 }
 
 /* ---------- The 3D model has its own layer, and the mouse turns / zooms the view ----------
@@ -12260,14 +12290,13 @@ function install3DLayer() {
     if (!M3.viewTip) { M3.viewTip = true; toast('3D model on its own layer "🧍 3D model". Left-drag = pose · right-drag = turn the view · wheel = zoom · middle / Shift-drag = move it', 6500); }
     return out;
   };
-  const sp0 = setPoseOnCanvas; setPoseOnCanvas = function (on) {
-    const out = sp0.apply(this, arguments);
+  hookAfter('setPoseOnCanvas', (out, [on]) => {
     if (on && M3.renderer) { m3ViewControls(M3.renderer.domElement); if (M3.root && !m3Layer()) m3EnsureLayer(); }
     const lbl = $('#m3dPoseBar'); if (lbl) lbl.title = 'Left-drag: pose · Right-drag: turn the view · Wheel: zoom · Middle or Shift-drag: move the model';
-    m3ApplyLayer(); return out;
-  };
-  const rs0 = refreshStage; refreshStage = function () { const out = rs0.apply(this, arguments); m3ApplyLayer(); return out; };
-  const r0 = render3D; render3D = function () { const out = r0.apply(this, arguments); requestAnimationFrame(m3ApplyLayer); return out; };
+    m3ApplyLayer();
+  });
+  hookAfter('refreshStage', m3ApplyLayer, 20); // after the 3D canvas is back on the stage
+  hookAfter('render3D', () => requestAnimationFrame(m3ApplyLayer));
 }
 
 /* ---------- movable / floating panels ---------- */
@@ -13424,14 +13453,12 @@ function installBrushEditor() {
     const ref = bar.querySelector('[data-ic=copy]'); bar.insertBefore(b, ref || bar.firstChild);
   }
   // Tool Property: a button to every setting of the current brush
-  const rp = refreshProps;
-  refreshProps = function () {
-    rp.apply(this, arguments);
+  hookAfter('refreshProps', () => {
     if (kindOf(state.tool) !== 'brush') return;
     const body = $('#propBody');
     if (!body || body.querySelector('.beopen')) return;
     const b = document.createElement('button'); b.className = 'beopen'; b.type = 'button'; b.textContent = '⚙ All brush settings…'; b.onclick = () => openBrushEditor(state.tool); body.appendChild(b);
-  };
+  });
 }
 
 /* ---------- Advanced tool setup and stroke quality ----------
@@ -13530,14 +13557,11 @@ function installToolAdvanced() {
   try { const q = localStorage.getItem('sketchforge.quality.v1'); if (QUALITY_STEP[q]) QUALITY.mode = q; } catch (e) { /* ignore */ }
   const s0 = stepAt;
   stepAt = function (st, pr) { return qualityStep(s0(st, pr), st.direct); };
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
+  hookAfter('refreshProps', () => {
     const body = $('#propBody'), id = state.tool, s = settings[id];
-    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].props) return out;
+    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].props) return;
     advSection(body, id, s);
-    return out;
-  };
+  });
 }
 
 /* ---------- Tool tuner: imported tools are studied and made smooth by themselves ----------
@@ -16318,7 +16342,7 @@ function installStartHub() {
   renderTabs();
   const F = MENUS.find(m => m[0] === 'File'); if (F) F[1].unshift(['🏠 Start screen', 'startHub'], '-');
   // recent files: on save, on auto-save, when a tab is closed
-  const s0 = saveDocument; saveDocument = async function () { const out = await s0.apply(this, arguments); recentRecord(); return out; };
+  hookAfter('saveDocument', () => recentRecord(), 10);
   if (typeof autoSaveNow === 'function') { const a0 = autoSaveNow; autoSaveNow = async function () { const out = await a0.apply(this, arguments); recentRecord(); return out; }; }
   const c0 = docClose; docClose = function (r) { if (r === DOCS.cur && !docPristine(r)) recentRecord(); return c0.apply(this, arguments); };
   // at start: after the welcome animation (and the session reopening the last work)
@@ -16331,7 +16355,7 @@ function installStartHub() {
 function rangeFillPct(v, min, max) { const a = +min || 0, b = max === '' || max == null ? 100 : +max; return b > a ? clamp((+v - a) / (b - a) * 100, 0, 100) : 0; }
 function rangeFill(el) { if (el && el.type === 'range') el.style.setProperty('--fill', rangeFillPct(el.value, el.min, el.max).toFixed(1) + '%'); }
 function installStudio() {
-  const rs0 = refreshStage; refreshStage = function () { const out = rs0.apply(this, arguments); if (MIR_OV && stroke === MIR_OV.st && MIR_OV.cv.parentNode === stage && MIR_OV.el.parentNode !== stage) MIR_OV.cv.after(MIR_OV.el); return out; };
+  hookAfter('refreshStage', () => { if (MIR_OV && stroke === MIR_OV.st && MIR_OV.cv.parentNode === stage && MIR_OV.el.parentNode !== stage) MIR_OV.cv.after(MIR_OV.el); }, 30); // keep the mixing-brush tile overlay on the stage
   installAskFab();
   document.body.classList.add('studio');
   const all = root => (root.querySelectorAll ? root.querySelectorAll('input[type=range]') : []).forEach(rangeFill);

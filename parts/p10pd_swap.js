@@ -101,8 +101,6 @@ function installSwap() {
   const A = MENUS.find(m => m[0] === 'Animation') || MENUS.find(m => m[0] === 'Layer');
   if (A) A[1].push('-', ['Swap: add this drawing', 'swapAdd'], ['Swap: next drawing', 'swapNext', 'Alt+]'], ['Swap: previous drawing', 'swapPrev', 'Alt+[']);
   document.addEventListener('keydown', e => { if (!e.altKey || e.ctrlKey || e.metaKey || /input|textarea|select/i.test((e.target.tagName || ''))) return; if (e.code === 'BracketRight') { e.preventDefault(); swapStep(1); } else if (e.code === 'BracketLeft') { e.preventDefault(); swapStep(-1); } });
-  const sm = setMode;
-  setMode = function () { const r = sm.apply(this, arguments); try { renderSwapBar(true); } catch (er) { /* ignore */ } return r; };
-  const rt = renderTimeline;
-  renderTimeline = function () { const r = rt.apply(this, arguments); try { renderSwapBar(); } catch (er) { /* never break the timeline */ } return r; };
+  hookAfter('setMode', () => renderSwapBar(true));
+  hookAfter('renderTimeline', () => renderSwapBar());
 }

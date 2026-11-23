@@ -229,12 +229,10 @@ function installBrushEditor() {
     const ref = bar.querySelector('[data-ic=copy]'); bar.insertBefore(b, ref || bar.firstChild);
   }
   // Tool Property: a button to every setting of the current brush
-  const rp = refreshProps;
-  refreshProps = function () {
-    rp.apply(this, arguments);
+  hookAfter('refreshProps', () => {
     if (kindOf(state.tool) !== 'brush') return;
     const body = $('#propBody');
     if (!body || body.querySelector('.beopen')) return;
     const b = document.createElement('button'); b.className = 'beopen'; b.type = 'button'; b.textContent = '⚙ All brush settings…'; b.onclick = () => openBrushEditor(state.tool); body.appendChild(b);
-  };
+  });
 }

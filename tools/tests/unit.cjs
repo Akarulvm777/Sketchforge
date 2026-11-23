@@ -268,6 +268,16 @@ const TESTS = {
 
   'GPU mixing engine compiles where WebGL2 exists': () => { const gl = document.createElement('canvas').getContext('webgl2'); return !gl || gpuMixInit() === true; },
 
+  'hooks: run in order after the function, a failing hook does not stop the others, async waits; prefs never throw': async () => {
+    const seen = [];
+    hookAfter('markDirty', () => seen.push('b'), 5); hookAfter('markDirty', () => { throw new Error('broken'); }, 1); hookAfter('markDirty', () => seen.push('a'), -5);
+    const ce = console.error; console.error = () => {}; markDirty(); console.error = ce;
+    let after = null; hookAfter('saveDocument', () => { after = after || 'hook'; }, 99);
+    const sd = HOOKABLE.saveDocument[0]();
+    prefs.set('unit.x', 'y'); const pv = prefs.get('unit.x'); prefs.set('unit.x', null);
+    return seen.join('') === 'ab' && typeof sd === 'function' && pv === 'y' && prefs.get('unit.x', 'd') === 'd' && escHtml('<a href="x">') === '&lt;a href=&quot;x&quot;&gt;' ? true : { seen, pv };
+  },
+
   'swap drawings: video layers have none': () => swapsOf({ vref: {} }).length === 0 && Array.isArray(swapsOf({})),
 };
 

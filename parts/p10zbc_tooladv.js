@@ -94,12 +94,9 @@ function installToolAdvanced() {
   try { const q = localStorage.getItem('sketchforge.quality.v1'); if (QUALITY_STEP[q]) QUALITY.mode = q; } catch (e) { /* ignore */ }
   const s0 = stepAt;
   stepAt = function (st, pr) { return qualityStep(s0(st, pr), st.direct); };
-  const r0 = refreshProps;
-  refreshProps = function () {
-    const out = r0.apply(this, arguments);
+  hookAfter('refreshProps', () => {
     const body = $('#propBody'), id = state.tool, s = settings[id];
-    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].props) return out;
+    if (!body || !s || kindOf(id) !== 'brush' || TOOLDEF[id].props) return;
     advSection(body, id, s);
-    return out;
-  };
+  });
 }

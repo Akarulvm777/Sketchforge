@@ -189,7 +189,7 @@ function installStartHub() {
   renderTabs();
   const F = MENUS.find(m => m[0] === 'File'); if (F) F[1].unshift(['🏠 Start screen', 'startHub'], '-');
   // recent files: on save, on auto-save, when a tab is closed
-  const s0 = saveDocument; saveDocument = async function () { const out = await s0.apply(this, arguments); recentRecord(); return out; };
+  hookAfter('saveDocument', () => recentRecord(), 10);
   if (typeof autoSaveNow === 'function') { const a0 = autoSaveNow; autoSaveNow = async function () { const out = await a0.apply(this, arguments); recentRecord(); return out; }; }
   const c0 = docClose; docClose = function (r) { if (r === DOCS.cur && !docPristine(r)) recentRecord(); return c0.apply(this, arguments); };
   // at start: after the welcome animation (and the session reopening the last work)
