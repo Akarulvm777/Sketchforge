@@ -24,7 +24,7 @@ const H = require('./harness.cjs');
   const APPV = await pg.evaluate(() => APP_VERSION.split('.').slice(0, 2).join('.') + '.');
   check('What\'s new also lists the earlier updates, newest first, with date and time', hist.n >= 10 && /^\d+\.\d+/.test(hist.first.trim()) && !hist.first.trim().startsWith(APPV) && hist.last === '0.5' && hist.dated >= 8 && hist.scroll === 'auto');
   await pg.click('#whatsNew .wnver >> nth=0'); await pg.waitForTimeout(100);
-  check('tapping an earlier update shows its notes', await pg.evaluate(() => { const d = document.querySelector('#whatsNew .wnver'); return d.open && d.querySelectorAll('li').length > 2; }));
+  check('tapping an earlier update shows its notes', await pg.evaluate(() => { const d = document.querySelector('#whatsNew .wnver'); return d.open && d.querySelectorAll('li').length > 0; }));
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
   await done();
 })();

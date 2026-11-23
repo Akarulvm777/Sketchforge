@@ -53,7 +53,8 @@ const path = require('path');
   // a broken file falls back to the flat preview
   const fs = require('fs'), b = fs.readFileSync(path.join(dir, 'layers.clip'));
   const j = b.indexOf(Buffer.from('BlockDataBeginChunk', 'utf16le').swap16());
-  b.fill(0xff, j - 8, j + 60); // the first tile record is unreadable fs.writeFileSync(path.join(dir, 'broken.clip'), b);
+  b.fill(0xff, j - 8, j + 60); // the first tile record is unreadable
+  fs.writeFileSync(path.join(dir, 'broken.clip'), b);
   const t3 = await open('broken.clip');
   console.log('     ' + t3);
   check('a file whose layers cannot be read still opens', await pg.evaluate(() => window.__sketchforge.state.layers.length >= 1) && !errors.length);
