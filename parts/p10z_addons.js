@@ -623,7 +623,7 @@ async function importTools(files) {
   toast(`Imported ${all.length} tool${all.length === 1 ? '' : 's'}: ${parts.join(', ') || 'none'}${skipped ? ` · ${skipped} skipped (not drawing tools)` : ''}${failed.length ? ` · ${failed.length} could not be read` : ''}` +
     (all.length ? ` · ⓘ under Sub Tool shows how each tool was translated${close ? ` (${close} with settings Sketchforge does differently)` : ''}` : ''), 8000);
   lastImport = all;
-  if (all.length) { const last = all[all.length - 1]; const grp = GROUPS.find(g => g.subs.includes(last.id)); if (grp) selectGroup(grp.id); selectTool(last.id); }
+  if (all.length) { const last = all[all.length - 1]; const grp = GROUPS.find(g => g.subs && g.subs.includes(last.id)); if (grp) selectGroup(grp.id); selectTool(last.id); }
   return all;
 }
 /* files from a drop: folders too */

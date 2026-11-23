@@ -7,6 +7,15 @@ frame-by-frame or cut-out animation, all in one workspace. It runs on Windows, M
 Its layout will feel familiar to people who know professional illustration and animation software. All of its code is
 original.
 
+> [!WARNING]
+> **Sketchforge is an experimental, vibe-coded personal project.** It is built with an AI coding assistant and tested
+> mostly by automated tests, not by a team.
+>
+> - **Linux and macOS builds are untested** on real machines: they are built automatically and may not work.
+> - **Always back up your work**: save your `.sketchforge` files often and keep copies somewhere safe. A bug or an update
+>   can lose or damage a drawing.
+> - **Do not use it for critical projects** (paid commissions, deadlines, work you cannot redo).
+
 ## What it is for
 
 - **Drawing and painting:** pens, pencils, brushes, airbrush, watercolour and textured brushes with pen pressure

@@ -91,7 +91,7 @@ async function tuneTools(ids, quiet) {
   try {
     for (const id of ids) {
       await new Promise(r => (window.requestIdleCallback ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 30)));
-      while ((typeof stroke !== 'undefined' && stroke) || (typeof inputQuiet === 'function' && !inputQuiet(800))) await new Promise(r => setTimeout(r, 400)); // never while drawing
+      while ((typeof stroke !== 'undefined' && stroke) || (typeof inputQuiet === 'function' && !inputQuiet(4000))) await new Promise(r => setTimeout(r, 400)); // never while drawing
       const s = settings[id]; if (!s) continue;
       let res; try { res = tuneTool(s); } catch (e) { continue; }
       tuneApply(id, res);
