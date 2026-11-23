@@ -1,4 +1,4 @@
-/* Sketchforge home: menu, reveal, live app embed, animation video tabs, active section in nav. */
+/* Nexilune home: menu, reveal, live app embed, animation video tabs, active section in nav. */
 (function () {
   const $ = s => document.querySelector(s);
 
@@ -20,11 +20,11 @@
     const scr = device.querySelector('.sf-device-screen');
     const load = document.createElement('div'); load.className = 'sf-loading'; load.textContent = 'Loading the studio…';
     const f = document.createElement('iframe');
-    f.src = 'app/'; f.title = 'Sketchforge'; f.allow = 'fullscreen; clipboard-read; clipboard-write; autoplay';
+    f.src = 'app/'; f.title = 'Nexilune'; f.allow = 'fullscreen; clipboard-read; clipboard-write; autoplay';
     f.setAttribute('allowfullscreen', '');
     f.onload = () => load.remove();
     scr.append(load, f); device.classList.add('live');
-    device.querySelector('.sf-device-url').textContent = 'sketchforge · live';
+    device.querySelector('.sf-device-url').textContent = 'nexilune · live';
   };
 
   // animation tabs + autoplay when visible

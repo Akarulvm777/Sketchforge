@@ -341,7 +341,7 @@ async function cpSnapshot() {
   return { format: 'sketchforge-theme', version: 2, preset: CP.preset, custom: CP.custom, icons: CP.icons, o: JSON.parse(JSON.stringify(cpO())), assets };
 }
 async function cpRestore(t) {
-  if (!t || t.format !== 'sketchforge-theme') throw new Error('Not a Sketchforge theme file');
+  if (!t || t.format !== 'sketchforge-theme') throw new Error('Not a Nexilune theme file');
   CP.preset = t.preset || 'default'; CP.custom = t.custom || null; CP.icons = t.icons || {}; CP.o = t.o || {};
   for (const k in customIcons) delete customIcons[k]; Object.assign(customIcons, CP.icons);
   for (const k of CP_ASSET_KEYS) await cpSetAsset(k, t.assets && t.assets[k] ? await (await fetch(t.assets[k])).blob() : null);

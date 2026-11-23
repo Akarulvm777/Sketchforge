@@ -211,8 +211,8 @@ function installImport() {
     if (!files.length) return;
     e.preventDefault(); importPictures(files);
   });
-  // Ctrl+V: a picture copied in another app (since you last copied inside Sketchforge) goes on a new layer;
-  // otherwise Sketchforge's own clipboard is pasted as before. The browser's paste event carries the picture.
+  // Ctrl+V: a picture copied in another app (since you last copied inside Nexilune) goes on a new layer;
+  // otherwise Nexilune's own clipboard is pasted as before. The browser's paste event carries the picture.
   let pending = 0;
   document.addEventListener('keydown', e => {
     if (!(e.ctrlKey || e.metaKey)) return;

@@ -8,6 +8,8 @@ Instructions de passation pour Claude Code. À lire avant toute modification.
 - **Restauration du 17/11/2026** : ce dépôt part du dernier instantané disponible, **v2.0.0 (17/11/2026, 02:36)**. Une version plus récente, développée dans une session Claude, a été perdue. Son contenu est **inconnu** : il ne faut **pas** inventer ces fonctionnalités. Elles seront redécrites par l'utilisateur et réimplémentées une par une (voir § 7).
 - L'utilisateur est francophone mais souhaite des réponses en anglais. Code et commentaires en anglais.
 
+- **Nom (3.4, 23/11/2026)** : l'app s'appelle maintenant **Nexilune** (logo « N » néon de l'utilisateur : `icon.svg`, `icon-192.png`, `icon-512.png`). Seul le nom affiché change : l'identifiant de l'app (`app.sketchforge.studio`), les clés `sketchforge.*`, les bases IndexedDB `sketchforge-*`, le format `.sketchforge`, le dépôt GitHub et l'adresse du site restent. Electron garde l'ancien dossier de données (`app.setPath('userData', …/Sketchforge)` dans `main.js`). L'API des add-ons existe sous les deux noms (`window.Nexilune` et `window.Sketchforge`). Dans ce fichier, « Sketchforge » désigne la même app.
+
 ## 2. Lancer
 
 ```bash

@@ -23,8 +23,8 @@ VERSION = PKG['version']
 class Version(unittest.TestCase):
     def test_index_html(self):
         html = read('index.html')
-        self.assertIn(f'<title>Sketchforge {VERSION}</title>', html)
-        self.assertIn(f'Sketchforge v{VERSION}', html, 'status bar text')
+        self.assertIn(f'<title>Nexilune {VERSION}</title>', html)
+        self.assertIn(f'Nexilune v{VERSION}', html, 'status bar text')
         found = set(re.findall(r'\?v=([\w.]+)', html))
         self.assertEqual(found, {VERSION}, 'every ?v= in index.html (style.css, app.js, cloud files)')
 

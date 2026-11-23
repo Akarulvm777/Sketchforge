@@ -20,8 +20,8 @@ const anim = () => { if (state.mode !== 'anim') setMode('anim'); };
 
 /* ---- tutorial content ---- */
 const TUTORIALS = [
-  { id: 'welcome', cat: 'Get started', icon: '👋', title: 'Welcome tour', desc: 'What Sketchforge is and where everything is (2 minutes).', steps: [
-    { t: 'Welcome to Sketchforge 👋', x: 'A drawing <b>and</b> animation studio: pens and brushes like a comic / illustration app, plus a timeline, tweens and rigging like an animation app. This tour shows where everything is. Use <b>Next</b> or the → key.' },
+  { id: 'welcome', cat: 'Get started', icon: '👋', title: 'Welcome tour', desc: 'What Nexilune is and where everything is (2 minutes).', steps: [
+    { t: 'Welcome to Nexilune 👋', x: 'A drawing <b>and</b> animation studio: pens and brushes like a comic / illustration app, plus a timeline, tweens and rigging like an animation app. This tour shows where everything is. Use <b>Next</b> or the → key.' },
     { el: ['#menus', '#btnMenu'], t: 'Menus', x: 'Every command lives here: File, Edit, Select, Layer, Manga, Animation, View, Filter, Window, Add-ons, 🎨 Custom P and Help. On phones and tablets it is the <b>☰ Menu</b> button.' },
     { el: '#modeSwitch', t: 'Drawing / Animation', x: '<b>Drawing</b> is for illustrations and comics. <b>Animation</b> shows the timeline for frames, keyframes and tweens. Switch any time.' },
     { el: '#cmdbar', t: 'Quick buttons', x: 'New, open, save, undo / redo, selection, zoom, flip, export and help, plus <b>Symmetry</b>, <b>REC Time-lapse</b> and <b>3D model</b>.' },
@@ -110,7 +110,7 @@ const TUTORIALS = [
   ] },
   { id: 'brushes', cat: 'Tools & options', icon: '🖌', title: 'Clip Studio tools & your own brushes', desc: 'Import tools, see how they were translated, tune them to match, make new brushes.', steps: [
     { el: '#subtoolBar button[data-ic=plus]', pre: () => { tutDock('left'); if (!['pen', 'pencil', 'brush'].includes(state.group)) selectGroup('pen'); }, t: 'Import Clip Studio tools', x: '＋ adds Clip Studio tools: several <b>.sut</b> files, a <b>.zip</b> or a folder (or drop them on this panel). Each one goes to the right group by itself: pens, brushes, decoration, gradients…' },
-    { el: '#subtoolBar button[data-ic=info]', pre: () => tutDock('left'), t: 'ⓘ How it was translated', x: 'Pick an imported tool, then ⓘ: every Clip Studio setting and what Sketchforge did with it — <b>✓ same</b>, <b>≈ close</b>, <b>✗ not in Sketchforge yet</b>. Tools imported before 2.10 need to be imported again.' },
+    { el: '#subtoolBar button[data-ic=info]', pre: () => tutDock('left'), t: 'ⓘ How it was translated', x: 'Pick an imported tool, then ⓘ: every Clip Studio setting and what Nexilune did with it — <b>✓ same</b>, <b>≈ close</b>, <b>✗ not in Nexilune yet</b>. Tools imported before 2.10 need to be imported again.' },
     { el: '#subtoolBar button[data-ic=sliders]', pre: () => tutDock('left'), t: '⚙ Make it match', x: 'The brush editor opens any tool with <b>all its settings</b>. For an imported tool it lists what Clip Studio does differently: draw the same stroke in both apps and tune size, pressure curves, spacing, texture… until it matches. The preview updates as you move the sliders.', demo: ['Open the brush editor', () => openBrushEditor(state.tool)] },
     { t: 'Every setting', x: 'Tip pictures (or the drawing on your layer), angle, thickness, rotation · pressure, tilt and speed curves (drag the points) · thin start / end · spray · colour change and colour mixing · watercolour edge · texture · blending mode · eraser, smudge or blur.' },
     { t: 'Save and share', x: '<b>Save</b> keeps your changes, <b>Save as new</b> makes a copy. Built-in tools are changed as a copy "(mine)", so the originals stay. <b>Export .sfbrush</b> makes a file you can share; ＋ or a drop opens it.' },
@@ -195,12 +195,12 @@ const TUTORIALS = [
     { el: '#cpReset', pre: () => cpOpen('effects'), t: 'Reset', x: '<b>Reset to default</b> brings everything back. Press Done when you are happy.' }
   ] },
   { id: 'apps', cat: 'Customise', icon: '📲', title: 'Install the app', desc: 'Windows, Mac, Android, iPad / iPhone.', steps: [
-    { t: 'Sketchforge everywhere', x: '<b>Windows</b>: Sketchforge-Setup .exe. <b>Mac</b>: the .dmg (arm64 for Apple Silicon, x64 for Intel). <b>Android</b>: the .apk. All are on the project\'s Releases page.' },
+    { t: 'Nexilune everywhere', x: '<b>Windows</b>: Sketchforge-Setup .exe. <b>Mac</b>: the .dmg (arm64 for Apple Silicon, x64 for Intel). <b>Android</b>: the .apk. All are on the project\'s Releases page.' },
     { t: 'iPad & iPhone', x: 'Open the web link in Safari → Share → <b>Add to Home Screen</b>. It then opens full screen like an app and works offline.' },
     { t: 'Your files', x: 'Save .sketchforge files to keep your work; open them on any device. Your last work also reopens automatically on the same device.' },
     { el: ['#acctBtn', '#aiBtn', '#btnMenu'], pre: tutNoDock, t: 'Account & cloud (optional)', x: 'When accounts are switched on, <b>Sign in</b> with Google or GitHub (top right) saves drawings in the cloud, keeps your settings on all your devices and shares brushes and themes. Everything else works without an account.' },
     { el: ['#aiBtn', '#aiFab', '#acctBtn', '#btnMenu'], t: '✨ Ask the helper', x: 'Ask where a tool is or how something works (✨ Ask, or Help › Ask the helper on phones). It is free, works offline, and answers with buttons that take you there. It never draws for you.' },
-    { el: menuEl('Help'), t: 'Updates', x: 'Sketchforge updates itself: you get a small card when a new version is ready. <b>Help › Check for updates</b> checks right away.' }
+    { el: menuEl('Help'), t: 'Updates', x: 'Nexilune updates itself: you get a small card when a new version is ready. <b>Help › Check for updates</b> checks right away.' }
   ] }
 ];
 
@@ -314,7 +314,7 @@ function tutWelcome() {
   if (tutState.seen || location.hash === '#sf-child') return;
   tutState.seen = true; tutSave();
   const w = document.createElement('div'); w.id = 'tutWelcome';
-  w.innerHTML = `<b>👋 New to Sketchforge?</b><span>Take the 2-minute tour of the app.</span><div><button class="primary" data-a="go">Start the tour</button><button data-a="all">All tutorials</button><button data-a="no">Later</button></div>`;
+  w.innerHTML = `<b>👋 New to Nexilune?</b><span>Take the 2-minute tour of the app.</span><div><button class="primary" data-a="go">Start the tour</button><button data-a="all">All tutorials</button><button data-a="no">Later</button></div>`;
   w.onclick = e => { const a = e.target.dataset && e.target.dataset.a; if (!a) return; w.remove(); if (a === 'go') tutStart('welcome'); else if (a === 'all') tutCenter(); };
   document.body.appendChild(w);
   setTimeout(() => { if (w.isConnected) w.classList.add('fade'); }, 25000);
@@ -328,7 +328,7 @@ function animIntro() {
   if (v === 'never' || v === 'done' || $('#animIntro')) return;
   const d = document.createElement('dialog'); d.id = 'animIntro'; d.className = 'csdlg tutdlg';
   d.innerHTML = `<form method="dialog"><h5>🎞 Welcome to the Animation workspace</h5>
-    <p style="margin:6px 0 10px;line-height:1.5">Is this your first time making an animation in Sketchforge?<br><span class="muted small">A short guided tour shows how to draw an animation on one layer, then every timeline tool and setting.</span></p>
+    <p style="margin:6px 0 10px;line-height:1.5">Is this your first time making an animation in Nexilune?<br><span class="muted small">A short guided tour shows how to draw an animation on one layer, then every timeline tool and setting.</span></p>
     <label class="check" style="margin:0 0 10px"><input type="checkbox" id="aiNever"> Don't ask me again</label>
     <div class="dialog-actions"><button type="button" id="aiNo">No, I know how</button><span style="flex:1"></span><button type="button" id="aiYes" class="primary">Yes, show me</button></div></form>`;
   document.body.appendChild(d);

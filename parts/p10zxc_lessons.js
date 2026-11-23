@@ -1,5 +1,5 @@
 /* ---------- ✨ Ask: painting and animation lessons (free, offline) ----------
-   Short step-by-step lessons on technique, each with buttons to the Sketchforge tools that help. ✨ Ask finds them by
+   Short step-by-step lessons on technique, each with buttons to the Nexilune tools that help. ✨ Ask finds them by
    question ("how do I shade skin?", "perspective", "lip sync") and the 📚 Learn button lists them by topic.
    A lesson: { id, cat, t (title), q (search words), steps: [...], a: [[kind, id, label], …] }. It teaches; it never draws. */
 const HELP_LESSONS = [
@@ -111,11 +111,11 @@ const HELP_LESSONS = [
       'Pose with the Bone pose sub tool and make keyframes; tweens fill the frames between.', 'Swap drawings for hands or eyes at keyframes for more expression.'],
     a: [['cmd', 'boneTool', 'Bone tool'], ['tut', 'fox', 'Rig the fox']] },
   // ---- workflow ----
-  { id: 'layersflow', cat: 'Working in Sketchforge', t: 'A clean layer setup', q: 'layers organise organize folder workflow order setup structure',
+  { id: 'layersflow', cat: 'Working in Nexilune', t: 'A clean layer setup', q: 'layers organise organize folder workflow order setup structure',
     steps: ['From bottom to top: paper, background, colours (flats), shadows (Multiply, clipped), light (Add / Screen), line art, effects.', 'Group a character in a folder; give folders colour labels.',
       'Lock layers you are done with so you don\'t paint on them by mistake.', 'Name layers — it saves time when the picture grows.'],
     a: [['cmd', 'layerFolder', 'New folder'], ['cmd', 'layerTag', 'Colour label'], ['cmd', 'lockLayer', 'Lock layer']] },
-  { id: 'finish', cat: 'Working in Sketchforge', t: 'Finishing touches', q: 'finish final polish effects glow vignette export final touches',
+  { id: 'finish', cat: 'Working in Nexilune', t: 'Finishing touches', q: 'finish final polish effects glow vignette export final touches',
     steps: ['Flip the canvas one last time to catch mistakes.', 'Add effects: glow on lights, a soft vignette, a little chromatic aberration for a camera look.',
       'Check the colours with Tone curve or Colour balance.', 'Export a PNG (or a GIF / video for animations).'],
     a: [['cmd', 'fxGlow', 'Glow'], ['cmd', 'fxVignette', 'Vignette'], ['cmd', 'fCurve', 'Tone curve']] }

@@ -4,7 +4,7 @@
    + your recent files with thumbnails), What's new in this version, Learn (tutorials and videos), Tips, and the newest
    shares of the community (Supabase shared_items, when online).
    Shown when the installed app starts (desktop app, Android / iPad app, installed web app) — and on the web if you tick
-   "Show when Sketchforge starts" (sketchforge.start.v1: 'on' / 'off'; unset = installed apps only). File › 🏠 Start screen.
+   "Show when Nexilune starts" (sketchforge.start.v1: 'on' / 'off'; unset = installed apps only). File › 🏠 Start screen.
    Recent files: IndexedDB 'sketchforge-recent' (list + each file's .sketchforge data, up to RECENT_MAX files, 40 MB each),
    recorded when you save, when auto-save runs and when you close a tab. */
 const RECENT_MAX = 12;
@@ -101,7 +101,7 @@ async function hubRender() {
   if (v === 'home') {
     html = sec('Start something new', '', newCards)
       + sec('Continue drawing', files.length > 5 ? '<a href="#" data-v="projects">See all</a>' : '', `<div class="hub-files">${filesHtml}</div>`)
-      + (drafts.length ? sec('📝 Drafts — not saved as files', '<span class="muted small">Kept inside Sketchforge only: deleted if you reinstall or reset it. Open one and use File › Save to keep it.</span>', `<div class="hub-files">${draftsHtml}</div>`) : '')
+      + (drafts.length ? sec('📝 Drafts — not saved as files', '<span class="muted small">Kept inside Nexilune only: deleted if you reinstall or reset it. Open one and use File › Save to keep it.</span>', `<div class="hub-files">${draftsHtml}</div>`) : '')
       + `<div class="hub-two">${sec(`What's new in ${APP_VERSION}`, '<a href="#" data-cmd="whatsNew">All changes</a>', news)}${sec('Tips', '<a href="#" data-cmd="askAI">✨ Ask</a>', tips)}</div>`
       + sec('Learn', '<a href="#" data-v="learn">All tutorials</a>', `<div class="hub-learns">${hubCards(HUB_LEARN.slice(0, 8))}</div>`)
       + sec('From the community', `<a href="${hubSiteLink('shared.html')}" target="_blank" rel="noopener">See more</a>`, '<div class="hub-comm muted">Loading…</div>');
@@ -139,8 +139,8 @@ function hubOpen(view) {
   let H = $('#startHub');
   if (!H) {
     H = document.createElement('div'); H.id = 'startHub';
-    H.innerHTML = `<header class="hub-top"><img src="icon-192.png" alt=""><div class="hub-brand"><b>Sketchforge</b><small>v${APP_VERSION}</small></div><span class="grow"></span>
-      <label class="hub-pref"><input type="checkbox" id="hubShowAtStart"> Show when Sketchforge starts</label><button class="hub-close primary" title="Go to the canvas (Esc)">Go to canvas ✕</button></header>
+    H.innerHTML = `<header class="hub-top"><img src="icon-192.png" alt=""><div class="hub-brand"><b>Nexilune</b><small>v${APP_VERSION}</small></div><span class="grow"></span>
+      <label class="hub-pref"><input type="checkbox" id="hubShowAtStart"> Show when Nexilune starts</label><button class="hub-close primary" title="Go to the canvas (Esc)">Go to canvas ✕</button></header>
       <nav class="hub-rail"><button class="hub-draw" data-act="draw"><span>✎</span>Draw</button><hr>
       <button data-v="home"><span>⌂</span>Home</button><button data-v="projects"><span>🗂</span>Projects</button><button data-v="learn"><span>📚</span>Learn</button>
       <button data-v="community"><span>🌐</span>Community</button><hr><button data-act="account"><span>👤</span>Account</button></nav>

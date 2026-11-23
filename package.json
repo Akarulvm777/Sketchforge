@@ -1,9 +1,9 @@
 {
   "name": "sketchforge",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
-  "author": "Sketchforge",
+  "author": "Nexilune",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "app.sketchforge.studio",
-    "productName": "Sketchforge",
+    "productName": "Nexilune",
     "files": [
       "main.js",
       "index.html",
@@ -85,7 +85,7 @@
       "icon": "icon-512.png",
       "category": "Graphics"
     },
-    "artifactName": "Sketchforge-${version}-${os}-${arch}.${ext}",
+    "artifactName": "Nexilune-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -97,16 +97,16 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Sketchforge",
-      "artifactName": "Sketchforge-Setup-${version}.${ext}"
+      "shortcutName": "Nexilune",
+      "artifactName": "Nexilune-Setup-${version}.${ext}"
     },
     "dmg": {
-      "artifactName": "Sketchforge-${version}-mac-${arch}.${ext}"
+      "artifactName": "Nexilune-${version}-mac-${arch}.${ext}"
     },
     "fileAssociations": [
       {
         "ext": "sketchforge",
-        "name": "Sketchforge drawing",
+        "name": "Nexilune drawing",
         "role": "Editor"
       }
     ]

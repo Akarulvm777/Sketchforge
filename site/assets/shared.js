@@ -1,11 +1,11 @@
-/* Sketchforge website › Shared: every shared post, art (pictures, time-lapses) or tools (brushes, .sut, themes).
+/* Nexilune website › Shared: every shared post, art (pictures, time-lapses) or tools (brushes, .sut, themes).
    Opens on a choice between the two (or #art / #tools in the address); sorting by newest / most liked / most
    downloaded; sharing asks who made it (own / other + credit). Cards, likes, reshares, comments: assets/social.js. */
 (function () {
   const S = window.SFSocial, { SB, $ } = S;
   const TABS = {
     art: { kinds: ['art', 'timelapse'], title: 'Share your art or a time-lapse', accept: 'image/*,video/*', help: 'A picture (PNG, JPEG, WebP, GIF) or a time-lapse video (WebM, MP4) — export it from the app with File › Export, or the time-lapse ▾ menu. Up to 100 MB.' },
-    tools: { kinds: ['brush', 'theme'], title: 'Share a brush, tool or theme', accept: '.sut,.sfbrush,.sftheme,.zip', help: 'Clip Studio tools (.sut), Sketchforge brushes (.sfbrush, from the brush editor) or themes (.sftheme, from 🎨 Custom P).' }
+    tools: { kinds: ['brush', 'theme'], title: 'Share a brush, tool or theme', accept: '.sut,.sfbrush,.sftheme,.zip', help: 'Clip Studio tools (.sut), Nexilune brushes (.sfbrush, from the brush editor) or themes (.sftheme, from 🎨 Custom P).' }
   };
   if (!SB || !SB.ready) { $('#cNotSetUp').hidden = false; return; }
   $('#cMain').hidden = false;

@@ -1,4 +1,4 @@
-/* ---------- import window: what Sketchforge does with each imported tool (3.3) ----------
+/* ---------- import window: what Nexilune does with each imported tool (3.3) ----------
    Importing .sut tools is not a download: the app studies each tool. importTools (p10z) opens this window and
    reports every step per tool: reading the file, its materials (pattern / texture images), its settings, where it
    goes (group), a test stroke (the tuner, p10zbd) and the preview. Each tool row shows a percentage, the current
@@ -19,7 +19,7 @@ function impwOpen(nFiles) {
   if (!d) {
     d = document.createElement('div'); d.id = 'importWin'; d.className = 'impw';
     d.innerHTML = `<div class="impw-head"><b>Studying your tools</b><span class="impw-all"></span><button type="button" class="impw-x" title="Hide (the study keeps going)">Hide</button></div>
-      <p class="muted small impw-note">Nothing is downloaded: Sketchforge reads each tool, its images and settings, tries a stroke and makes a preview.</p>
+      <p class="muted small impw-note">Nothing is downloaded: Nexilune reads each tool, its images and settings, tries a stroke and makes a preview.</p>
       <div class="impw-bar"><i></i></div><div class="impw-list"></div>`;
     document.body.appendChild(d);
     d.querySelector('.impw-x').onclick = () => { d.hidden = true; };

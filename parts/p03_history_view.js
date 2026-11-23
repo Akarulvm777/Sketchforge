@@ -3,7 +3,7 @@ const history = { undo: [], redo: [] };
 const busy = () => !!(stroke || active);
 
 function syncTab() {
-  document.title = (dirty ? '• ' : '') + state.name + ' – Sketchforge';
+  document.title = (dirty ? '• ' : '') + state.name + ' – Nexilune';
   if (typeof renderTabs === 'function' && typeof DOCS !== 'undefined' && DOCS.list.length) renderTabs();
 }
 function markDirty() {

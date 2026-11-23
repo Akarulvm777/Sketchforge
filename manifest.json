@@ -1,6 +1,6 @@
 {
-  "name": "Sketchforge",
-  "short_name": "Sketchforge",
+  "name": "Nexilune",
+  "short_name": "Nexilune",
   "description": "Layered drawing and frame-by-frame animation studio.",
   "start_url": "./index.html",
   "scope": "./",

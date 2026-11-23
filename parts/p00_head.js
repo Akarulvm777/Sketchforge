@@ -2,7 +2,7 @@
 'use strict';
 
 /* =====================================================================
-   Sketchforge v0.9.1
+   Nexilune v0.9.1
    Clip Studio-style workspace + Animate-style timeline:
    tool groups, selection, transform, gradient, text, view rotate / flip,
    keyframes, motion tweens, onion skin, GIF / WebM / PNG-sequence export.
