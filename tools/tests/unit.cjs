@@ -44,6 +44,15 @@ const TESTS = {
     return miss.length ? 'no preview: ' + miss.join(', ') : true;
   },
   'import window percentages (impwPct)': () => impwPct(null) === 0 && impwPct('read') === 15 && impwPct('place') === 55 && impwPct('prev') === 100,
+  'languages: detection, split, table rows (langDetect, i18nSplit, i18nTable)': () => {
+    const bad = I18N_ROWS.split('\n').filter(r => r.split('|').length !== I18N_LANGS.length);
+    if (bad.length) return 'rows without 9 columns: ' + bad.slice(0, 3).join(' / ');
+    const keys = I18N_ROWS.split('\n').map(r => r.split('|')[0]), dup = keys.filter((k, i) => keys.indexOf(k) !== i);
+    if (dup.length) return 'same English text twice: ' + dup.join(', ');
+    const sp = i18nSplit('🏠 Start screen…'), th = i18nTable(I18N_ROWS, 'th');
+    return langDetect(['th-TH', 'en']) === 'th' && langDetect(['xx', 'pt-BR']) === 'pt' && langDetect(['nl']) === 'en' &&
+      sp[0] === '🏠 ' && sp[1] === 'Start screen' && sp[2] === '…' && th.get('File') === 'ไฟล์' && i18nTable(I18N_ROWS, 'en').size === 0;
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

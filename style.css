@@ -1285,3 +1285,10 @@ body.hub-open #menubar { z-index: 9002; }
 .impw-grp { flex: 1; }
 .impw-pct { font-variant-numeric: tabular-nums; }
 .impw-step { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* language picker (p10zze_i18n) */
+.langpick { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 9600; width: min(480px, calc(100vw - 32px));
+  background: var(--panel, #2b2b2b); color: var(--text, #ddd); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; box-shadow: 0 16px 50px rgba(0,0,0,.5); padding: 14px 16px; }
+.langpick h3 { margin: 0 0 4px; font-size: 15px; }
+.langgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin: 10px 0; }
+.langgrid button { text-align: left; padding: 8px 10px; font-size: 14px; }
+.langgrid button.on { outline: 2px solid var(--accent, #e0a06a); }
