@@ -12098,7 +12098,7 @@ function install3DCanvas() {
 /* ---------- The 3D model has its own layer, and the mouse turns / zooms the view ----------
    • Dropping the model on the canvas makes a "🧍 3D model" layer (l.m3d) above the active layer: the model is shown at
      that layer's place in the stack (layers above it cover it, layers below are under it), hidden with the layer's eye,
-     faded with its opacity. Delete the layer = the model is hidden. While posing, the model comes to the top so it can
+     faded with its opacity. Delete the layer = the model is deleted with it (undo brings both back). While posing, the model comes to the top so it can
      be grabbed; it goes back to its layer when you pick a drawing tool.
    • Mouse on the model while posing: right-drag = turn the view around it, wheel = zoom, middle-drag or Shift+drag =
      move the model. Left-drag still poses (body parts, rings). */
@@ -12114,11 +12114,25 @@ function m3EnsureLayer() {
 function m3ApplyLayer() {
   if (!M3.renderer) return;
   const cv = M3.renderer.domElement, l = m3Layer();
-  if (!l) { if (M3.layerHad && !M3.hidden) { M3.hidden = true; cv.style.display = 'none'; if (M3.poseOn) setPoseOnCanvas(false); if (typeof m3Fab === 'function') m3Fab(); } return; }
+  if (!l) { if (M3.layerHad && !M3.deleted) m3DeleteModel(); return; }
+  if (M3.deleted) m3RestoreModel(); // the layer came back (undo)
   const i = state.layers.indexOf(l);
   cv.style.zIndex = M3.poseOn ? '4500' : String(11 + i * 2);
   if (!l.visible) cv.style.display = 'none';
   else if (m3Visible()) { cv.style.display = 'block'; cv.style.opacity = String((M3.overOp ?? 1) * l.opacity); }
+}
+/* the 3D layer was deleted: the model goes with it (taken out of the scene; undo brings both back) */
+function m3DeleteModel() {
+  M3.deleted = true; M3.hidden = true;
+  if (M3.root && M3.root.parent) M3.root.parent.remove(M3.root);
+  if (M3.renderer) M3.renderer.domElement.style.display = 'none';
+  if (M3.poseOn) setPoseOnCanvas(false);
+  if (typeof m3Fab === 'function') m3Fab();
+}
+function m3RestoreModel() {
+  M3.deleted = false; M3.hidden = false;
+  if (M3.root && M3.scene && !M3.root.parent) M3.scene.add(M3.root);
+  render3D(); if (typeof m3Fab === 'function') m3Fab();
 }
 function m3ViewControls(cv) {
   if (cv._m3view) return; cv._m3view = true;
@@ -12150,6 +12164,7 @@ function m3ViewControls(cv) {
 }
 function install3DLayer() {
   const md0 = m3Drop; m3Drop = async function () {
+    if (M3.deleted) { m3RestoreModel(); if (typeof applyPose === 'function') applyPose('Stand'); if (typeof fitModel === 'function') fitModel(); }
     const out = await md0.apply(this, arguments);
     m3EnsureLayer(); if (M3.renderer) m3ViewControls(M3.renderer.domElement); m3ApplyLayer();
     if (!M3.viewTip) { M3.viewTip = true; toast('3D model on its own layer "🧍 3D model". Left-drag = pose · right-drag = turn the view · wheel = zoom · middle / Shift-drag = move it', 6500); }
