@@ -77,6 +77,7 @@ const TESTS = {
     const po = adjLUT({ kind: 'posterize', n: 2 }); return (po[100] === 0 && po[200] === 255) || 'posterize';
   },
   'layer border offsets (fxRing)': () => { const r = fxRing(10); return r.length >= 16 && r.every(([x, y]) => Math.hypot(x, y) <= 10.001) && r.some(([x, y]) => Math.hypot(x, y) > 9.99) || 'ring ' + r.length; },
+  'reference window zoom keeps the point under the cursor (refZoomAt)': () => { const v = refZoomAt({ z: 1, x: 10, y: 20 }, 2, 110, 120); return v.z === 2 && (110 - v.x) / v.z === 100 && (120 - v.y) / v.z === 100 || JSON.stringify(v); },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
