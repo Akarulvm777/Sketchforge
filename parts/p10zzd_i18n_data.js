@@ -56,6 +56,12 @@ Expand selected area|ขยายส่วนที่เลือก|Agrandir l
 Shrink selected area|หดส่วนที่เลือก|Réduire la sélection|Contraer selección|Contrair seleção|Auswahl verkleinern|選択範囲を縮小|收缩选区|선택 영역 축소
 Blur border|เบลอขอบ|Adoucir le bord|Desenfocar borde|Suavizar borda|Rand weichzeichnen|境界をぼかす|模糊边缘|경계 흐리기
 Layer|เลเยอร์|Calque|Capa|Camada|Ebene|レイヤー|图层|레이어
+Press harder = less grain|กดแรง = เกรนน้อยลง|Appuyer fort = moins de grain|Presionar más = menos grano|Pressionar mais = menos grão|Fester drücken = weniger Körnung|強く押す = 粒が減る|用力按 = 颗粒更少|세게 누르면 = 결이 줄어듦
+Invert the texture|กลับด้านพื้นผิว|Inverser la texture|Invertir la textura|Inverter a textura|Textur umkehren|テクスチャを反転|反转纹理|텍스처 반전
+Grows with the brush size|ขยายตามขนาดพู่กัน|Suit la taille du pinceau|Crece con el tamaño del pincel|Cresce com o tamanho do pincel|Wächst mit der Pinselgröße|ブラシサイズに合わせる|随画笔大小缩放|붓 크기에 맞춰 커짐
+Second texture|พื้นผิวที่สอง|Deuxième texture|Segunda textura|Segunda textura|Zweite Textur|2つ目のテクスチャ|第二纹理|두 번째 텍스처
+Second strength|ความแรงที่สอง|Force (2e)|Intensidad (2.ª)|Intensidade (2.ª)|Stärke (2.)|2つ目の強さ|第二强度|두 번째 강도
+Second scale|ขนาดที่สอง|Échelle (2e)|Escala (2.ª)|Escala (2.ª)|Skalierung (2.)|2つ目のスケール|第二比例|두 번째 배율
 Layers|เลเยอร์|Calques|Capas|Camadas|Ebenen|レイヤー一覧|图层列表|레이어 목록
 Brush: tools and their settings|พู่กัน: เครื่องมือและการตั้งค่า|Pinceau : outils et réglages|Pincel: herramientas y ajustes|Pincel: ferramentas e ajustes|Pinsel: Werkzeuge und Einstellungen|ブラシ：ツールと設定|画笔：工具与设置|붓: 도구와 설정
 Brush size|ขนาดพู่กัน|Taille du pinceau|Tamaño del pincel|Tamanho do pincel|Pinselgröße|ブラシサイズ|画笔大小|붓 크기

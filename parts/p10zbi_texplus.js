@@ -1,6 +1,6 @@
 /* ---------- brush textures, upgraded (3.6) ----------
-   - 8 more built-in textures (TEX_MORE): linen, cold-press watercolour, sponge, crackle, sand, wood grain, kraft
-     fibres, fine noise — all generated here (tileable, TEX_N px), nothing downloaded.
+   - 16 more built-in textures (TEX_MORE): linen, cold-press watercolour, sponge, crackle, sand, wood grain, kraft
+     fibres, fine noise; 3.7: pastel paper, dry brush, granulation, clouds, stipple, hatching, burlap, concrete — all generated here (tileable, TEX_N px), nothing downloaded.
    - texContrast / texBright (−100..100) and texInv now work for every built-in texture too (before: only for
      pictures from .sut files, baked when imported): a derived texture is made once (texDerivedId → texBase) and used
      by the stroke (paperGrain is wrapped: it already gets the stroke's own copy of the settings).
@@ -8,7 +8,9 @@
      and texPress makes the grain fill in when you press harder (light touch = more texture). drawOne is wrapped for it.
    - Tool Property › Texture: a preview swatch of the texture, Rotation, Contrast, Brightness, Invert, "On each dab",
      "Press harder = less grain". The keys are in BRUSH_KEYS (saved with tools, .sfbrush) and in the brush editor. */
-const TEX_MORE = [['linen', 'Linen'], ['coldpress', 'Cold-press watercolour'], ['sponge', 'Sponge'], ['crackle', 'Crackle'], ['sand', 'Sand'], ['wood', 'Wood grain'], ['kraft', 'Kraft paper fibres'], ['finenoise', 'Fine noise']];
+const TEX_MORE = [['linen', 'Linen'], ['coldpress', 'Cold-press watercolour'], ['sponge', 'Sponge'], ['crackle', 'Crackle'], ['sand', 'Sand'], ['wood', 'Wood grain'], ['kraft', 'Kraft paper fibres'], ['finenoise', 'Fine noise'],
+  // 3.7
+  ['laid', 'Pastel paper (laid lines)'], ['drybrush', 'Dry brush streaks'], ['granulation', 'Watercolour granulation'], ['clouds', 'Soft clouds'], ['stipple', 'Stipple dots'], ['hatch', 'Hatching'], ['burlap', 'Burlap'], ['concrete', 'Concrete']];
 const TEX_ALL = [['paper', 'Watercolour paper'], ['grain', 'Pencil grain'], ['canvas', 'Canvas weave'], ['rough', 'Rough'], ['bristle', 'Bristle'], ['charcoal', 'Charcoal'], ...TEX_MORE];
 /* pure: the values (0..1 = how much paint shows) of one of the new textures, N × N, tileable */
 function texMore(id, N) {
@@ -44,6 +46,34 @@ function texMore(id, N) {
     const n = latticeNoise(N, N, 32, 32, 91); for (let i = 0; i < v.length; i++) v[i] = clamp(v[i] * (0.85 + n[i] * 0.3), 0, 1);
   } else if (id === 'finenoise') {
     for (let i = 0; i < v.length; i++) v[i] = clamp(0.3 + rnd() * 0.7, 0, 1);
+  } else if (id === 'laid') { // pastel paper: fine horizontal ribs, a chain line every 64 px
+    const n = latticeNoise(N, N, 32, 32, 101);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const i = y * N + x, rib = 0.5 + 0.5 * Math.cos(y * Math.PI * 2 / 4), dc = Math.min(x % 64, 64 - x % 64), chain = Math.exp(-dc * dc / 3); v[i] = clamp(0.3 + 0.55 * rib * (0.75 + 0.5 * n[i]) - 0.15 * chain + (rnd() - 0.5) * 0.1, 0, 1); }
+  } else if (id === 'drybrush') { // long broken streaks along the stroke direction (x)
+    const a = latticeNoise(N, N, 4, 96, 111), b = latticeNoise(N, N, 16, 128, 112);
+    for (let i = 0; i < v.length; i++) v[i] = clamp((a[i] * 0.6 + b[i] * 0.4 - 0.38) * 3.5, 0, 1);
+  } else if (id === 'granulation') { // pigment settling in clusters of dark specks
+    const a = latticeNoise(N, N, 16, 16, 121), b = latticeNoise(N, N, 64, 64, 122);
+    for (let i = 0; i < v.length; i++) v[i] = clamp(0.55 + (rnd() < 0.35 * a[i] * b[i] + 0.04 ? 0.45 : -0.15) + (rnd() - 0.5) * 0.12, 0, 1);
+  } else if (id === 'clouds') {
+    const a = latticeNoise(N, N, 4, 4, 131), b = latticeNoise(N, N, 8, 8, 132), c = latticeNoise(N, N, 32, 32, 133);
+    for (let i = 0; i < v.length; i++) v[i] = clamp((a[i] * 0.55 + b[i] * 0.3 + c[i] * 0.15 - 0.2) * 1.7, 0, 1);
+  } else if (id === 'stipple') { // a dot every 8 px, jittered, of varying size: paint only on the dots
+    v.fill(0.04);
+    for (let gy = 0; gy < N; gy += 8) for (let gx = 0; gx < N; gx += 8) {
+      const cx = gx + 4 + (rnd() - 0.5) * 4, cy = gy + 4 + (rnd() - 0.5) * 4, r = 1.2 + rnd() * 1.6;
+      for (let y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (let x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) { const d = Math.hypot(x - cx, y - cy), i = ((y % N + N) % N) * N + ((x % N + N) % N); v[i] = Math.max(v[i], clamp(r + 0.5 - d, 0, 1)); }
+    }
+  } else if (id === 'hatch') { // diagonal lines, 8 px apart, slightly broken
+    const n = latticeNoise(N, N, 64, 64, 141);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const d = (x + y) % 8; v[y * N + x] = d < 3 ? clamp(0.7 + n[y * N + x] * 0.4, 0, 1) : 0.06; }
+  } else if (id === 'burlap') { // coarse loose weave, 8 px threads
+    const nx = latticeNoise(N, N, 32, 4, 151), ny = latticeNoise(N, N, 4, 32, 152);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const i = y * N + x, a = Math.max(0, Math.sin((x + nx[i] * 3) * Math.PI / 4)), b = Math.max(0, Math.sin((y + ny[i] * 3) * Math.PI / 4)); v[i] = clamp(0.08 + 0.85 * Math.max(a, b) * (0.8 + rnd() * 0.3), 0, 1); }
+  } else if (id === 'concrete') { // rough stone with small pits
+    const a = latticeNoise(N, N, 32, 32, 161), b = latticeNoise(N, N, 128, 128, 162);
+    for (let i = 0; i < v.length; i++) v[i] = clamp(0.35 + a[i] * 0.35 + b[i] * 0.25 + (rnd() - 0.5) * 0.2, 0, 1);
+    for (let k = 0; k < 160; k++) { const cx = rnd() * N, cy = rnd() * N, r = 0.8 + rnd() * 2.2; for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) if (Math.hypot(x - cx, y - cy) <= r) v[((y % N + N) % N) * N + ((x % N + N) % N)] = 0.05; }
   } else return null;
   return v;
 }
@@ -86,7 +116,7 @@ function installTexPlus() {
   // brush editor: the new textures and settings
   const at = BE_TEX.findIndex(x => x[0] === 'image'); BE_TEX.splice(at < 0 ? BE_TEX.length : at, 0, ...TEX_MORE);
   const sec = BE_FORM.find(x => x[0] === 'Texture');
-  if (sec && !sec[1].some(f => f[0] === 'texMode')) sec[1].push(['texMode', 'Texture on', 'select', [['', 'The whole stroke'], ['dab', 'Each dab (stamp)']]], ['texPress', 'Press harder = less grain (each dab)', 'range', 0, 1, 0.01, '%']);
+  if (sec && !sec[1].some(f => f[0] === 'texMode')) sec[1].push(['texMode', 'Texture on', 'select', [['', 'The whole stroke'], ['dab', 'Each dab (stamp)']]], ['texPress', 'Press harder = less grain', 'range', 0, 1, 0.01, '%']);
   for (const k of ['texMode', 'texPress']) BE_MANAGED.add(k);
   // each stroke: its own copy of the settings gets the adjusted texture / the per-dab texture
   const pg0 = paperGrain; paperGrain = function (s) {
@@ -99,9 +129,10 @@ function installTexPlus() {
   };
   const d0 = drawOne; drawOne = function (st) {
     const s = st.s;
-    if (!s.texDab || s.tex) return d0.apply(this, arguments);
-    s.tex = s.texDab; s.texAmt = s.texAmtDab * (1 - (s.texPress || 0) * clamp(st.lp ?? 0.5, 0, 1));
-    try { return d0.apply(this, arguments); } finally { delete s.tex; }
+    if (!s.texDab) return d0.apply(this, arguments);
+    const keep = s.tex, keepSt = st.tex; // a second texture (p10zbj) may be on the whole stroke meanwhile
+    s.tex = s.texDab; st.tex = false; s.texAmt = s.texAmtDab * (1 - (s.texPress || 0) * clamp(st.lp ?? 0.5, 0, 1));
+    try { return d0.apply(this, arguments); } finally { s.tex = keep; st.tex = keepSt; if (keep === undefined) delete s.tex; }
   };
   // Tool Property: the texture list, its picture and the new settings
   hookAfter('refreshProps', () => {
@@ -124,7 +155,7 @@ function installTexPlus() {
       checkbox(box, 'Invert the texture', !!s.texInv, v => { s.texInv = v; redraw(); });
     }
     checkbox(box, 'On each dab (like a stamp / sponge)', s.texMode === 'dab', v => { s.texMode = v ? 'dab' : ''; refreshProps(); });
-    if (s.texMode === 'dab') slider(box, 'Press harder = less grain', 0, 100, 1, (s.texPress || 0) * 100, v => v + '%', v => { s.texPress = v / 100; });
+    slider(box, 'Press harder = less grain', 0, 100, 1, (s.texPress || 0) * 100, v => v + '%', v => { s.texPress = v / 100; }); // whole stroke: p10zbj
     anchor.after(box); redraw();
   }, 15);
 }

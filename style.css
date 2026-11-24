@@ -1357,3 +1357,4 @@ body.hub-open #menubar { z-index: 9002; }
 #touchbar.phone button i { margin: 0; }
 #touchbar.phone button span { display: none; }
 @media (max-width: 560px) { #tpop, #tpop[data-side="left"], #tpop[data-side="right"] { right: 62px; } #touchbar.phone { position: fixed; z-index: 9300; } }
+.texplus .texpreview { display: block; width: 100%; max-width: 240px; height: auto; border-radius: 6px; margin: 4px 0 6px; background: #fff; }

@@ -889,7 +889,7 @@ function openPenDialog() {
 async function importAnyFile(f) {
   try {
     if (/\.(sut|zip)$/i.test(f.name)) await importTools([f]);
-    else if (/\.sfbrush$/i.test(f.name)) { const j = JSON.parse(await readFile(f, true)); if (!j.def) throw new Error('not a Inkvessa brush'); await importSfBrush(j.def); }
+    else if (/\.sfbrush$/i.test(f.name)) { const j = JSON.parse(await readFile(f, true)); if (!j.def) throw new Error('not an Inkvessa brush'); await importSfBrush(j.def); }
     else if (/^image\//.test(f.type) || /\.(png|jpe?g|webp)$/i.test(f.name)) {
       const id = await registerBrush({ name: f.name.replace(/\.[^.]+$/, ''), tip: await readFile(f) }, true); selectTool(id); toast('Brush added');
     } else toast('Drop a .sut brush or an image');

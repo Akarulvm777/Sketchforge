@@ -37,7 +37,7 @@ const path = require('path');
   await S("selectTool('marker'); settings.marker.tex = 'crackle'; settings.marker.texMode = ''; refreshProps()");
   const tp = await pg.evaluate(() => { const b = document.querySelector('#propBody'); return { swatch: !!b.querySelector('.texswatch canvas'), txt: b.textContent, opts: [...b.querySelectorAll('select option')].map(o => o.textContent) }; });
   check('Tool Property: texture picture, rotation, contrast, brightness, invert, each dab', tp.swatch && /Rotation/.test(tp.txt) && /Contrast/.test(tp.txt) && /Invert the texture/.test(tp.txt) && /each dab/.test(tp.txt));
-  check('the texture list has the new textures', ['Linen', 'Sponge', 'Crackle', 'Wood grain'].every(n => tp.opts.includes(n)));
+  check('the texture list has the new textures', ['Linen', 'Sponge', 'Crackle', 'Wood grain', 'Pastel paper (laid lines)', 'Dry brush streaks', 'Hatching', 'Burlap', 'Concrete'].every(n => tp.opts.includes(n)));
   check('brush editor knows them too', await S("BE_TEX.some(x => x[0] === 'kraft') && BE_FORM.find(x => x[0] === 'Texture')[1].some(f => f[0] === 'texMode')"));
   await pg.screenshot({ path: path.join(out, 'texplus.png') });
   console.log(errors.length ? errors : 'no errors', ok.every(Boolean) && !errors.length ? 'PASS' : 'FAIL');
