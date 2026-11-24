@@ -1,9 +1,9 @@
 {
   "name": "sketchforge",
-  "version": "3.7.0",
+  "version": "3.8.0",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
-  "author": "Inkvessa",
+  "author": "Inkvessa Draw",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "app.sketchforge.studio",
-    "productName": "Inkvessa",
+    "productName": "Inkvessa Draw",
     "files": [
       "main.js",
       "index.html",
@@ -97,7 +97,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Inkvessa",
+      "shortcutName": "Inkvessa Draw",
       "artifactName": "Inkvessa-Setup-${version}.${ext}"
     },
     "dmg": {
@@ -112,6 +112,7 @@
     ]
   },
   "sketchforge": {
+    "fileName": "Inkvessa",
     "releasesRepo": "Akarulvm777/Sketchforge",
     "minShell": "2.4.0",
     "mac": true

@@ -16,7 +16,7 @@ function sfWelcome(force) {
     const word = 'Welcome!';
     w.innerHTML = `<div class="wl-card"><img class="wl-mascot" src="mascot.gif" alt="The Inkvessa mascot waving">
       <h1 class="wl-word">${[...word].map((ch, i) => `<span style="animation-delay:${0.45 + i * 0.07}s">${ch}</span>`).join('')}</h1>
-      <p class="wl-sub">${update ? `Inkvessa ${APP_VERSION} is here` : 'to Inkvessa — let’s draw something!'}</p>
+      <p class="wl-sub">${update ? `Inkvessa Draw ${APP_VERSION} is here` : 'to Inkvessa Draw — let’s draw something!'}</p>
       <p class="wl-tap">tap to continue</p></div>`;
     let closed = false;
     const close = () => { if (closed) return; closed = true; w.classList.add('wl-out'); setTimeout(() => { w.remove(); done(); }, 450); };

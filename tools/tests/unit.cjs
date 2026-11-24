@@ -116,6 +116,11 @@ const TESTS = {
     tdStamp(m, 10, 10, -5, -5, 2, 1); // outside: nothing, no error
     return tdLinkScale(1, 40, 20) === 2 && tdLinkScale(2, 10, 20) === 1 && tdLinkScale(1, 10, 0) === 1 || 'link';
   },
+  'big-page stroke tiles (buftTiles)': () => {
+    const t = buftTiles(500, 500, 30, 30, 2894, 4093); if (JSON.stringify(t) !== '[[0,0],[1,0],[0,1],[1,1]]') return 'corner ' + JSON.stringify(t);
+    if (buftTiles(-50, -50, 10, 10, 2894, 4093).length !== 0 || buftTiles(-50, -50, 100, 100, 2894, 4093).length !== 1) return 'clamp low';
+    const e = buftTiles(2800, 4000, 500, 500, 2894, 4093); return JSON.stringify(e) === '[[5,7]]' || 'clamp high ' + JSON.stringify(e);
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

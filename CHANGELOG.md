@@ -4,6 +4,11 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.8: Inkvessa Draw — new name and logo
+- New name: **Inkvessa Draw**.
+- New logo: a big "I" shaped like a pen, a tilted "D" with two big eyes and a sparkle stroke, in the same neon colours.
+- Faster drawing on big pages (phones, iPad): the line being drawn is shown in small pieces instead of re-sending the whole page to the screen at every pen movement, and lifting the pen is quicker. Erasers too.
+
 ## 3.7: Brush textures with more control
 - Press harder = less grain now works for every textured brush: a light touch keeps the grain, pressing fills it in (before: only "on each dab").
 - Texture grows with the brush size (tick it in Tool Property › Texture): a big brush gets a big grain.
