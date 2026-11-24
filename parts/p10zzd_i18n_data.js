@@ -47,7 +47,7 @@ Binarization|ขาวดำสองระดับ|Binarisation|Binarización|
 Reverse gradient (invert)|กลับสี|Inverser (négatif)|Invertir|Inverter|Umkehren (Negativ)|階調の反転|反转渐变（反相）|계조 반전
 Auto-flat colours (one colour per area)|ลงสีพื้นอัตโนมัติ (หนึ่งสีต่อพื้นที่)|Aplats automatiques (une couleur par zone)|Colores planos automáticos (un color por zona)|Cores chapadas automáticas (uma cor por área)|Automatische Grundfarben (eine Farbe pro Fläche)|自動下塗り（領域ごとに1色）|自动平涂（每个区域一种颜色）|자동 밑색 (영역마다 한 색)
 Auto-flat colours|ลงสีพื้นอัตโนมัติ|Aplats automatiques|Colores planos automáticos|Cores chapadas automáticas|Automatische Grundfarben|自動下塗り|自动平涂|자동 밑색
-Reset Nexilune to defaults|รีเซ็ต Nexilune เป็นค่าเริ่มต้น|Réinitialiser Nexilune|Restablecer Nexilune|Redefinir o Nexilune|Nexilune zurücksetzen|Nexilune を初期設定に戻す|将 Nexilune 恢复默认|Nexilune 기본값으로 초기화
+Reset Inkvessa to defaults|รีเซ็ต Inkvessa เป็นค่าเริ่มต้น|Réinitialiser Inkvessa|Restablecer Inkvessa|Redefinir o Inkvessa|Inkvessa zurücksetzen|Inkvessa を初期設定に戻す|将 Inkvessa 恢复默认|Inkvessa 기본값으로 초기화
 Select|เลือก|Sélection|Selección|Seleção|Auswahl|選択範囲|选择|선택
 All|ทั้งหมด|Tout|Todo|Tudo|Alles|すべて|全部|전체
 Deselect|ยกเลิกการเลือก|Désélectionner|Deseleccionar|Desmarcar|Auswahl aufheben|選択を解除|取消选择|선택 해제
@@ -277,7 +277,7 @@ Shortcuts & help|ทางลัดและความช่วยเหลื
 Play the welcome animation|เล่นแอนิเมชันต้อนรับ|Rejouer l'animation d'accueil|Ver la animación de bienvenida|Ver a animação de boas-vindas|Willkommensanimation abspielen|ようこそアニメーションを再生|播放欢迎动画|환영 애니메이션 재생
 What's new in this version|มีอะไรใหม่ในเวอร์ชันนี้|Nouveautés de cette version|Novedades de esta versión|Novidades desta versão|Neu in dieser Version|このバージョンの新機能|此版本的新功能|이 버전의 새 기능
 Check for updates|ตรวจหาอัปเดต|Rechercher des mises à jour|Buscar actualizaciones|Verificar atualizações|Nach Updates suchen|アップデートを確認|检查更新|업데이트 확인
-About Nexilune|เกี่ยวกับ Nexilune|À propos de Nexilune|Acerca de Nexilune|Sobre o Nexilune|Über Nexilune|Nexilune について|关于 Nexilune|Nexilune 정보
+About Inkvessa|เกี่ยวกับ Inkvessa|À propos de Inkvessa|Acerca de Inkvessa|Sobre o Inkvessa|Über Inkvessa|Inkvessa について|关于 Inkvessa|Inkvessa 정보
 Language|ภาษา|Langue|Idioma|Idioma|Sprache|言語|语言|언어
 Drawing|วาดภาพ|Dessin|Dibujo|Desenho|Zeichnen|イラスト|绘画|그리기
 Ask|ถาม|Aide|Preguntar|Perguntar|Fragen|質問|提问|질문

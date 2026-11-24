@@ -1,4 +1,4 @@
-/* Nexilune cloud client: sign-in (Google / GitHub), cloud files, settings, shared brushes & themes,
+/* Inkvessa cloud client: sign-in (Google / GitHub), cloud files, settings, shared brushes & themes,
    talking to Supabase's REST endpoints directly (no library). Used by the app and by the website. Settings in
    cloud-config.js (window.SF_CLOUD). The session is kept in localStorage 'sketchforge.auth.v1'. */
 (function () {
@@ -14,7 +14,7 @@
     try { if (s) localStorage.setItem(SKEY, JSON.stringify(s)); else localStorage.removeItem(SKEY); } catch (e) { /* ignore */ }
     window.dispatchEvent(new CustomEvent('sf-auth', { detail: SB.user() }));
   }
-  const need = () => { if (!SB.ready) throw new Error('Online features are not set up in this copy of Nexilune yet.'); };
+  const need = () => { if (!SB.ready) throw new Error('Online features are not set up in this copy of Inkvessa yet.'); };
   async function raw(path, { method = 'GET', body, token, headers = {}, type = 'json' } = {}) {
     need();
     const h = { apikey: key, Authorization: 'Bearer ' + (token || key), ...headers };

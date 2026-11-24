@@ -156,7 +156,7 @@ jobs:
           VER=$(node -p "require('./package.json').version")
           sed -i "s/versionName \".*\"/versionName \"$VER\"/; s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
           npx cap sync android
-      - name: Sign with the Nexilune key (so a new APK installs over the old one, keeping drawings and settings)
+      - name: Sign with the Inkvessa key (so a new APK installs over the old one, keeping drawings and settings)
         env:
           KS1: ${{ secrets.ANDROID_KEYSTORE }}
           KS2: ${{ secrets.ANDROID_KEYSTORE_2 }}
@@ -166,7 +166,7 @@ jobs:
             printf '%s' "$KS" | tr -d ' \r\n' | base64 -d > android/app/sketchforge.keystore
             CLEAN=$(printf '%s' "$KS" | tr -d ' \r\n'); echo "Secret: ${#CLEAN} characters (expected 3536), key file: $(wc -c < android/app/sketchforge.keystore) bytes (expected 2650)"
             if ! keytool -list -keystore android/app/sketchforge.keystore -storepass android -alias androiddebugkey >/dev/null 2>&1; then
-              echo "::error::The ANDROID_KEYSTORE secret is not the Nexilune key (cut off or changed when pasted). Put part 1 in secret ANDROID_KEYSTORE and part 2 in secret ANDROID_KEYSTORE_2 (Settings > Secrets and variables > Actions)."; exit 1
+              echo "::error::The ANDROID_KEYSTORE secret is not the Inkvessa key (cut off or changed when pasted). Put part 1 in secret ANDROID_KEYSTORE and part 2 in secret ANDROID_KEYSTORE_2 (Settings > Secrets and variables > Actions)."; exit 1
             fi
             # sign debug builds with this key explicitly (Gradle's default ~/.android/debug.keystore is not reliable on CI)
             cat >> android/app/build.gradle <<'GRADLE'
@@ -182,7 +182,7 @@ jobs:
           }
           GRADLE
             echo "SF_SIGNED=1" >> "$GITHUB_ENV"
-            echo "Using the Nexilune signing key"
+            echo "Using the Inkvessa signing key"
           else
             echo "::warning::Secret ANDROID_KEYSTORE is not set: this APK gets a random key and cannot be installed over a previous version"
           fi
@@ -194,11 +194,11 @@ jobs:
           CERT=$("$AS" verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256" | head -1 | awk '{print $NF}')
           echo "APK certificate SHA-256: $CERT"
           WANT=46de89643bbc415f6a04eea7c44223056e4f3c1522f98f648203bdc5deca10f8
-          if [ "$SF_SIGNED" = 1 ] && [ "$CERT" != "$WANT" ]; then echo "::error::The APK is not signed with the Nexilune key"; exit 1; fi
+          if [ "$SF_SIGNED" = 1 ] && [ "$CERT" != "$WANT" ]; then echo "::error::The APK is not signed with the Inkvessa key"; exit 1; fi
       - name: Name the APK
         run: |
           VER=$(node -p "require('./package.json').version")
-          mkdir -p out && cp android/app/build/outputs/apk/debug/app-debug.apk out/Nexilune-$VER-android.apk
+          mkdir -p out && cp android/app/build/outputs/apk/debug/app-debug.apk out/Inkvessa-$VER-android.apk
       - uses: actions/upload-artifact@v4
         with: { name: android-apk, path: out/*.apk, if-no-files-found: error }
   ios:
@@ -224,7 +224,7 @@ jobs:
           PL=ios/App/App/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VER" $PL
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" $PL
-          # saved files show in the Files app (On My iPad › Nexilune); every orientation; Pencil-friendly full screen
+          # saved files show in the Files app (On My iPad › Inkvessa); every orientation; Pencil-friendly full screen
           /usr/libexec/PlistBuddy -c "Add :UIFileSharingEnabled bool true" $PL || true
           /usr/libexec/PlistBuddy -c "Add :LSSupportsOpeningDocumentsInPlace bool true" $PL || true
           /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" $PL || true
@@ -239,7 +239,7 @@ jobs:
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -20
           mkdir -p Payload ../../out && cp -R build/Build/Products/Release-iphoneos/App.app Payload/
-          zip -qry ../../out/Nexilune-$VER-ios-unsigned.ipa Payload
+          zip -qry ../../out/Inkvessa-$VER-ios-unsigned.ipa Payload
           ls -la ../../out
       - uses: actions/upload-artifact@v4
         with: { name: ios-ipa, path: out/*.ipa, if-no-files-found: error }
@@ -262,7 +262,7 @@ jobs:
       - name: Zip the web version
         run: |
           VER=$(node -p "require('./package.json').version")
-          mkdir -p out && (cd www && zip -qr ../out/Nexilune-$VER-web.zip .)
+          mkdir -p out && (cd www && zip -qr ../out/Inkvessa-$VER-web.zip .)
       - uses: actions/upload-artifact@v4
         with: { name: web-zip, path: out/*.zip }
       - name: Build the website (site + web app + version.json)
@@ -310,7 +310,7 @@ jobs:
         run: python3 tools/release_notes.py > notes.md && cat notes.md
       - uses: softprops/action-gh-release@v2
         with:
-          name: Nexilune ${{ steps.ver.outputs.v }}
+          name: Inkvessa ${{ steps.ver.outputs.v }}
           tag_name: ${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
           make_latest: true
@@ -329,7 +329,7 @@ jobs:
         with:
           repository: ${{ steps.ver.outputs.repo }}
           token: ${{ secrets.RELEASES_TOKEN }}
-          name: Nexilune ${{ steps.ver.outputs.v }}
+          name: Inkvessa ${{ steps.ver.outputs.v }}
           tag_name: ${{ steps.ver.outputs.v }}
           make_latest: true
           files: |

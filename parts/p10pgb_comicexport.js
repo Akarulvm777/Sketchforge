@@ -19,7 +19,7 @@ function pdfBuild(pages, title = 'Comic') {
     const cs = `q ${w} 0 0 ${h} 0 0 cm /Im${i} Do Q`;
     obj(ct, `<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
   });
-  const infoId = 3 + N * 3; obj(infoId, `<< /Title (${String(title).replace(/[()\\]/g, '')}) /Producer (Nexilune) >>`);
+  const infoId = 3 + N * 3; obj(infoId, `<< /Title (${String(title).replace(/[()\\]/g, '')}) /Producer (Inkvessa) >>`);
   const xref = n, count = infoId + 1;
   add(`xref\n0 ${count}\n0000000000 65535 f \n` + offs.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join(''));
   add(`trailer\n<< /Size ${count} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xref}\n%%EOF\n`);

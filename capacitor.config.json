@@ -1,6 +1,6 @@
 {
   "appId": "app.sketchforge.studio",
-  "appName": "Nexilune",
+  "appName": "Inkvessa",
   "webDir": "www",
   "android": { "allowMixedContent": false, "backgroundColor": "#2b2b2b" }
 }

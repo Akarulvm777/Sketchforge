@@ -4,7 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
-## 3.6: Text you can edit, adjustment layers, camera, PDF and more
+## 3.6: Inkvessa — text you can edit, adjustment layers, camera, PDF and more
+- New name: Nexilune is now **Inkvessa** — a name nobody else uses, so searching "Inkvessa" finds the app. Your files, settings and tools stay as they are.
+- Website download buttons point to the right files again.
 - iPad and phones: each thing has its own button: 🖌 Brush, 🎨 Colour, 🗂 Layers and 🧭 View open only their own panel. Quick size and opacity sliders on the side of the canvas.
 - Editable text: every text is its own text layer. Click it again with the Text tool to change the words; size, font, colour and balloon in Tool Property change it at once.
 - Adjustment layers (Layer menu): Hue / Saturation, Brightness & contrast, Levels, Tone curve, Colour balance, Gradient map, Posterize, Threshold and Invert change everything below without touching it. Double-click to change them any time; erase parts to limit them.

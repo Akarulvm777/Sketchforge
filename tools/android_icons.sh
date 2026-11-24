@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Replaces the default Android launcher icons with Nexilune's icon (needs ImageMagick 6 "convert" or 7 "magick").
+# Replaces the default Android launcher icons with Inkvessa's icon (needs ImageMagick 6 "convert" or 7 "magick").
 set -e
 IM=convert; command -v convert >/dev/null || IM=magick
 RES=android/app/src/main/res

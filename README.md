@@ -1,6 +1,6 @@
-# Nexilune
+# Inkvessa
 
-**Nexilune is a free 2D drawing and animation app.** Paint illustrations and comics, then bring them to life with
+**Inkvessa is a free 2D drawing and animation app.** Paint illustrations and comics, then bring them to life with
 frame-by-frame or cut-out animation, all in one workspace. It runs on Windows, Mac, Linux, Android, and in any browser
 (iPad and iPhone included).
 
@@ -8,7 +8,7 @@ Its layout will feel familiar to people who know professional illustration and a
 original.
 
 > [!WARNING]
-> **Nexilune is an experimental, vibe-coded personal project.** It is built with an AI coding assistant and tested
+> **Inkvessa is an experimental, vibe-coded personal project.** It is built with an AI coding assistant and tested
 > mostly by automated tests, not by a team.
 >
 > - **Linux and macOS builds are untested** on real machines: they are built automatically and may not work.
@@ -38,7 +38,7 @@ Download the latest version from the [website](https://akarulvm777.github.io/Ske
 
 | Platform | File |
 |---|---|
-| Windows | `Nexilune-Setup-<version>.exe` |
+| Windows | `Inkvessa-Setup-<version>.exe` |
 | Mac | `…-mac-arm64.dmg` (Apple Silicon) or `…-mac-x64.dmg` (Intel) |
 | Linux | `…-linux-x86_64.AppImage` |
 | Android | `…-android.apk` |

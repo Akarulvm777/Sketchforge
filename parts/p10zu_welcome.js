@@ -1,4 +1,4 @@
-/* ---------- Welcome animation: the Nexilune mascot says "Welcome!" ----------
+/* ---------- Welcome animation: the Inkvessa mascot says "Welcome!" ----------
    On the very first start and at the first start of each new version, before the tour card / What's new. Tap to skip;
    it ends by itself after a few seconds. Help › Play the welcome animation shows it again. Key sketchforge.welcome.v1 =
    the last version welcomed ('never' = off; the test harness uses it). */
@@ -14,9 +14,9 @@ function sfWelcome(force) {
     const update = !force && !!seen && seen !== APP_VERSION;
     const w = document.createElement('div'); w.id = 'sfWelcome';
     const word = 'Welcome!';
-    w.innerHTML = `<div class="wl-card"><img class="wl-mascot" src="mascot.gif" alt="The Nexilune mascot waving">
+    w.innerHTML = `<div class="wl-card"><img class="wl-mascot" src="mascot.gif" alt="The Inkvessa mascot waving">
       <h1 class="wl-word">${[...word].map((ch, i) => `<span style="animation-delay:${0.45 + i * 0.07}s">${ch}</span>`).join('')}</h1>
-      <p class="wl-sub">${update ? `Nexilune ${APP_VERSION} is here` : 'to Nexilune — let’s draw something!'}</p>
+      <p class="wl-sub">${update ? `Inkvessa ${APP_VERSION} is here` : 'to Inkvessa — let’s draw something!'}</p>
       <p class="wl-tap">tap to continue</p></div>`;
     let closed = false;
     const close = () => { if (closed) return; closed = true; w.classList.add('wl-out'); setTimeout(() => { w.remove(); done(); }, 450); };

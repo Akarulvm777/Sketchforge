@@ -31,9 +31,9 @@ async function nativeSave(blob, name) {
   const P = window.Capacitor.Plugins || {}, FS = P.Filesystem, SH = P.Share;
   const data = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
   try {
-    await FS.writeFile({ path: 'Nexilune/' + name, data, directory: 'DOCUMENTS', recursive: true });
+    await FS.writeFile({ path: 'Inkvessa/' + name, data, directory: 'DOCUMENTS', recursive: true });
     const ios = window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'ios';
-    toast(ios ? 'Saved: Files › On My iPad › Nexilune › Nexilune › ' + name : 'Saved to Documents/Sketchforge/' + name, 4000);
+    toast(ios ? 'Saved: Files › On My iPad › Inkvessa › Inkvessa › ' + name : 'Saved to Documents/Sketchforge/' + name, 4000);
   } catch (e) {
     try {
       const r = await FS.writeFile({ path: name, data, directory: 'CACHE' });

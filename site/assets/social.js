@@ -1,4 +1,4 @@
-/* Nexilune website: the shared social parts of Community (reviews & ideas), Shared (art / tools) and Profile pages.
+/* Inkvessa website: the shared social parts of Community (reviews & ideas), Shared (art / tools) and Profile pages.
    Data (supabase/setup.sql, sections 5–7): shared_items (+ origin 'own' / 'other', credit, reshare_of), comments
    (item_id null = review / idea), reactions (👍 = 1 / 👎 = -1, one per person and post), profiles (name, picture, bio,
    website). Files: the public "shared" bucket, <uid>/… . Browsing needs no account; posting, reacting, resharing and

@@ -23,7 +23,7 @@ const T = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', 
   await pg.evaluate(() => { localStorage.setItem('sketchforge.welcome.v1', '2.4.1'); localStorage.setItem('sketchforge.lastver', '2.4.1'); });
   await pg.reload(); await pg.waitForTimeout(1500);
   const up = await pg.evaluate(() => { const el = document.querySelector('#sfWelcome'); return el && el.textContent; });
-  check('first start of a new version: welcome with the new version', up && new RegExp('Nexilune ' + (await pg.evaluate(() => APP_VERSION)).replace(/\./g, '\\.') + ' is here').test(up));
+  check('first start of a new version: welcome with the new version', up && new RegExp('Inkvessa ' + (await pg.evaluate(() => APP_VERSION)).replace(/\./g, '\\.') + ' is here').test(up));
   check('…and What\'s new waits for it', !(await pg.isVisible('#whatsNew')));
   await pg.mouse.click(600, 400); await pg.waitForTimeout(2000);
   check('tap skips it, then What\'s new opens', !(await pg.$('#sfWelcome')) && await pg.isVisible('#whatsNew'));

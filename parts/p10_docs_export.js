@@ -201,7 +201,7 @@ async function saveDocument() {
 async function openDocumentFile(file) {
   try {
     const doc = JSON.parse(await file.text());
-    if (doc.format !== 'sketchforge') throw new Error('Not a Nexilune file');
+    if (doc.format !== 'sketchforge') throw new Error('Not a Inkvessa file');
     if (typeof docPrepareNew === 'function') docPrepareNew(); // opens in a new tab (p10o_multidoc)
     stop();
     const w = doc.w, h = doc.h;
