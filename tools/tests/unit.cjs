@@ -82,6 +82,14 @@ const TESTS = {
     const k = o => keyCombo({ ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...o });
     return k({ key: 'k' }) === 'K' && k({ key: 'K', shiftKey: true }) === 'Shift+K' && k({ key: 'z', ctrlKey: true }) === 'Ctrl+Z' && k({ key: 'F5', altKey: true }) === 'Alt+F5' && k({ key: '?', shiftKey: true }) === '?' && k({ key: 'Shift', shiftKey: true }) === null && k({ key: ' ' }) === 'Space' || 'combos';
   },
+  'PDF writer (pdfBuild): pages, sizes, cross-reference table': () => {
+    const u = pdfBuild([{ jpeg: new Uint8Array([255, 216, 255, 217]), w: 2, h: 3, wPt: 100, hPt: 150 }, { jpeg: new Uint8Array([255, 216, 255, 217]), w: 2, h: 3, wPt: 100, hPt: 150 }], 'T');
+    const t = new TextDecoder('latin1').decode(u);
+    if (!t.startsWith('%PDF-1.4') || !t.includes('/Count 2') || !t.includes('/MediaBox [0 0 100 150]') || !t.trim().endsWith('%%EOF')) return 'structure';
+    const xref = +/startxref\n(\d+)/.exec(t)[1]; if (!t.slice(xref).startsWith('xref')) return 'startxref';
+    const offs = t.slice(xref).split('\n').slice(3).filter(l => / 00000 n /.test(l)).map(l => +l.slice(0, 10));
+    return offs.every((o, i) => t.slice(o).startsWith((i + 1) + ' 0 obj')) || 'offsets';
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

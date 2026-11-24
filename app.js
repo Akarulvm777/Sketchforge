@@ -6178,6 +6178,97 @@ function installPagesPanel() {
   pagesPanelSync();
 }
 
+/* ---------- comic pages out: PDF, page images, print (3.6) ----------
+   File › 📖 Export pages…: every page (frame) of the file, or a range, as one PDF (each page a picture at the file's
+   print size: pixels / dpi; 144 dpi when the file has none), as numbered PNG files in a ZIP, or printed (🖨: the
+   pages go to the browser / system print window, one per sheet). Draft and reference layers are left out, like
+   in every export. pdfBuild is a small PDF writer (JPEG pictures, DCTDecode) — no library. */
+/* pure: a PDF from JPEG pages [{ jpeg: Uint8Array, w, h (pixels), wPt, hPt (page size in points) }] */
+function pdfBuild(pages, title = 'Comic') {
+  const enc = new TextEncoder(), parts = [], offs = []; let n = 0;
+  const add = b => { const u = typeof b === 'string' ? enc.encode(b) : b; parts.push(u); n += u.length; };
+  const obj = (id, body) => { offs[id] = n; add(`${id} 0 obj\n`); for (const b of [].concat(body)) add(b); add('\nendobj\n'); };
+  add('%PDF-1.4\n'); add(new Uint8Array([37, 226, 227, 207, 211, 10])); // second line: binary marker
+  const N = pages.length, kids = pages.map((_, i) => `${3 + i * 3} 0 R`).join(' ');
+  obj(1, `<< /Type /Catalog /Pages 2 0 R >>`);
+  obj(2, `<< /Type /Pages /Count ${N} /Kids [${kids}] >>`);
+  pages.forEach((p, i) => {
+    const pg = 3 + i * 3, im = pg + 1, ct = pg + 2, w = +p.wPt.toFixed(2), h = +p.hPt.toFixed(2);
+    obj(pg, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Resources << /XObject << /Im${i} ${im} 0 R >> >> /Contents ${ct} 0 R >>`);
+    obj(im, [`<< /Type /XObject /Subtype /Image /Width ${p.w} /Height ${p.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${p.jpeg.length} >>\nstream\n`, p.jpeg, '\nendstream']);
+    const cs = `q ${w} 0 0 ${h} 0 0 cm /Im${i} Do Q`;
+    obj(ct, `<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
+  });
+  const infoId = 3 + N * 3; obj(infoId, `<< /Title (${String(title).replace(/[()\\]/g, '')}) /Producer (Nexilune) >>`);
+  const xref = n, count = infoId + 1;
+  add(`xref\n0 ${count}\n0000000000 65535 f \n` + offs.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join(''));
+  add(`trailer\n<< /Size ${count} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  const out = new Uint8Array(n); let p = 0; for (const u of parts) { out.set(u, p); p += u.length; }
+  return out;
+}
+/* a page as a white-backed picture (draft / reference layers left out) */
+function pagePicture(f) { const c = compositeFrame(f, {}), o = makeCanvas(c.width, c.height), g = o.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, o.width, o.height); g.drawImage(c, 0, 0); return o; }
+const blobOf = (cv, type, q) => new Promise(res => cv.toBlob(res, type, q));
+async function exportPages(fmt, from, to) {
+  const name = state.name || 'comic', dpi = state.dpi || 144, list = [];
+  for (let f = from; f <= to; f++) list.push(f);
+  if (!list.length) return;
+  toast(`Preparing ${list.length} page${list.length > 1 ? 's' : ''}…`);
+  if (fmt === 'pdf') {
+    const pages = [];
+    for (const f of list) { const cv = pagePicture(f); pages.push({ jpeg: new Uint8Array(await (await blobOf(cv, 'image/jpeg', 0.92)).arrayBuffer()), w: cv.width, h: cv.height, wPt: cv.width / dpi * 72, hPt: cv.height / dpi * 72 }); await new Promise(r => setTimeout(r, 0)); }
+    download(new Blob([pdfBuild(pages, name)], { type: 'application/pdf' }), name + '.pdf');
+  } else if (fmt === 'png') {
+    const files = [];
+    for (const f of list) files.push({ name: `${name} p${String(f + 1).padStart(3, '0')}.png`, data: new Uint8Array(await (await blobOf(pagePicture(f), 'image/png')).arrayBuffer()) });
+    download(new Blob([makeZip(files)], { type: 'application/zip' }), name + ' pages.zip');
+  } else if (fmt === 'print') {
+    const urls = []; for (const f of list) urls.push(URL.createObjectURL(await blobOf(pagePicture(f), 'image/png')));
+    const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0'; document.body.appendChild(fr);
+    const wIn = state.w / dpi, hIn = state.h / dpi;
+    fr.contentDocument.open();
+    fr.contentDocument.write(`<!doctype html><html><head><title>${escHtml(name)}</title><style>@page{size:${wIn}in ${hIn}in;margin:0}html,body{margin:0}img{display:block;width:${wIn}in;height:${hIn}in;page-break-after:always;object-fit:contain}</style></head><body>${urls.map(u => `<img src="${u}">`).join('')}</body></html>`);
+    fr.contentDocument.close();
+    await Promise.all([...fr.contentDocument.images].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+    fr.contentWindow.focus(); fr.contentWindow.print();
+    setTimeout(() => { fr.remove(); urls.forEach(u => URL.revokeObjectURL(u)); }, 60000);
+    return;
+  }
+  toast(`Exported ${list.length} page${list.length > 1 ? 's' : ''}`);
+}
+function exportPagesDialog(fmt0) {
+  const d = document.createElement('dialog'); d.className = 'csdlg'; d.id = 'pagesOutDlg';
+  const N = state.frameCount;
+  d.innerHTML = `<form method="dialog"><h2>📖 Export pages</h2>
+    <label class="select"><span>As</span><select class="pfmt"><option value="pdf">One PDF (for print / sharing)</option><option value="png">Picture files, one per page (ZIP)</option><option value="print">Print 🖨</option></select></label>
+    <label class="select"><span>Pages</span><select class="prange"><option value="all">All ${N} page${N > 1 ? 's' : ''}</option><option value="cur">This page (${state.frame + 1})</option><option value="some">From … to …</option></select></label>
+    <div class="psome" hidden><label class="slider"><span>From</span><input type="number" class="pfrom" min="1" max="${N}" value="1"></label><label class="slider"><span>To</span><input type="number" class="pto" min="1" max="${N}" value="${N}"></label></div>
+    <p class="muted small">Size: ${state.w} × ${state.h} px at ${state.dpi || 144} dpi = ${(state.w / (state.dpi || 144) * 25.4).toFixed(0)} × ${(state.h / (state.dpi || 144) * 25.4).toFixed(0)} mm. Draft and reference layers (guides…) are left out.</p>
+    <div class="dialog-actions"><button type="button" data-a="cancel">Cancel</button><button type="button" data-a="go" class="primary">Export</button></div></form>`;
+  document.body.appendChild(d);
+  const fmt = d.querySelector('.pfmt'), range = d.querySelector('.prange'); if (fmt0) fmt.value = fmt0;
+  range.onchange = () => { d.querySelector('.psome').hidden = range.value !== 'some'; };
+  d.querySelector('[data-a=cancel]').onclick = () => d.remove();
+  d.querySelector('[data-a=go]').onclick = () => {
+    let a = 0, b = N - 1;
+    if (range.value === 'cur') a = b = state.frame;
+    if (range.value === 'some') { a = clamp(+d.querySelector('.pfrom').value - 1, 0, N - 1); b = clamp(+d.querySelector('.pto').value - 1, a, N - 1); }
+    const f = fmt.value; d.remove(); exportPages(f, a, b);
+  };
+  d.showModal();
+}
+function installComicExport() {
+  CMD.exportPages = () => exportPagesDialog();
+  CMD.exportPDF = () => exportPagesDialog('pdf');
+  CMD.printPages = () => exportPagesDialog('print');
+  const F = MENUS.find(m => m[0] === 'File');
+  if (F && !F[1].some(x => Array.isArray(x) && x[1] === 'exportPages')) {
+    const i = F[1].findIndex(x => Array.isArray(x) && x[1] === 'exportPSD');
+    F[1].splice(i < 0 ? F[1].length : i + 1, 0, ['📖 Export pages (PDF / pictures)…', 'exportPages'], ['🖨 Print…', 'printPages', 'Ctrl+P']);
+  }
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p' && !e.shiftKey && !e.altKey) { e.preventDefault(); exportPagesDialog('print'); } });
+}
+
 /* ---------- Opening Photoshop (.psd / .psb) and Clip Studio (.clip) files ----------
    PSD/PSB: RGB, grayscale or CMYK, 8 or 16 bit; raw, RLE and ZIP channels; layers with position, opacity,
    fill, visibility, blend mode, clipping; layer masks are baked into the pixels; groups are flattened
@@ -15775,6 +15866,7 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'export pdf print comic manga pages book printer export pages images imprimer exporter pdf', t: 'Export or print your comic pages', x: 'File › Export pages: every page (or some) as one PDF at the print size of the file, or as PNG pictures in a ZIP, or 🖨 Print (Ctrl+P). Guides and other draft layers are left out.', a: [['cmd', 'exportPages', 'Export pages'], ['cmd', 'printPages', 'Print']] },
   { q: 'keyboard shortcut custom change key hotkey bind my own keys raccourci clavier personnaliser', t: 'Make your own keyboard shortcuts', x: 'Help › Keyboard shortcuts: find any command or tool, press Set, then the keys you want (Ctrl / Alt / Shift + a key, or a single key). Your keys win over the built-in ones and show in the menus. ✕ removes one, Reset all my keys starts again.', a: [['cmd', 'keyShortcuts', 'Keyboard shortcuts']] },
   { q: 'reference picture image photo window sub view model sheet next to canvas référence image fenêtre', t: 'Reference window', x: 'Window › Reference window: keep reference pictures next to the canvas. ＋ Add (or drop / paste a picture), wheel or ＋ − to zoom, drag to look around, ⇋ to flip, 💧 (or Alt+click) to pick a colour. The pictures stay for next time.', a: [['cmd', 'refWin', 'Reference window']] },
   { q: 'layer effect border outline stroke around drop shadow glow sticker contour effet de calque bordure ombre', t: 'Layer effects: border, shadow, glow', x: 'Layer › Layer effects…: a Border (outline around everything on the layer), a Drop shadow or an Outer glow. They are settings, not pixels: keep drawing and they follow your new strokes. Remove effects takes them away.', a: [['cmd', 'layerFx', 'Layer effects']] },
@@ -17889,6 +17981,9 @@ Layer effects (border, shadow, glow)|เอฟเฟกต์เลเยอร�
 Reference window (show / hide)|หน้าต่างภาพอ้างอิง (แสดง / ซ่อน)|Fenêtre de référence (afficher / masquer)|Ventana de referencia (mostrar / ocultar)|Janela de referência (mostrar / ocultar)|Referenzfenster (ein / aus)|資料ウィンドウ（表示 / 非表示）|参考窗口（显示 / 隐藏）|참고 창 (보이기 / 숨기기)
 Reference|ภาพอ้างอิง|Référence|Referencia|Referência|Referenz|資料|参考|참고
 Keyboard shortcuts (make your own)|ทางลัดแป้นพิมพ์ (ตั้งเอง)|Raccourcis clavier (personnalisés)|Atajos de teclado (personalizados)|Atalhos de teclado (personalizados)|Tastenkürzel (eigene)|キーボードショートカット（カスタム）|键盘快捷键（自定义）|키보드 단축키 (직접 설정)
+Export pages (PDF / pictures)|ส่งออกหน้า (PDF / รูปภาพ)|Exporter les pages (PDF / images)|Exportar páginas (PDF / imágenes)|Exportar páginas (PDF / imagens)|Seiten exportieren (PDF / Bilder)|ページを書き出す（PDF / 画像）|导出页面（PDF / 图像）|페이지 내보내기 (PDF / 이미지)
+Print|พิมพ์|Imprimer|Imprimir|Imprimir|Drucken|印刷|打印|인쇄
+Export pages|ส่งออกหน้า|Exporter les pages|Exportar páginas|Exportar páginas|Seiten exportieren|ページを書き出す|导出页面|페이지 내보내기
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
@@ -18323,7 +18418,7 @@ function init() {
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
     installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installComicExport, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset
