@@ -103,6 +103,12 @@ const TESTS = {
     const m = camMatrix({ x: 100, y: 50, z: 2, rot: 0 }, 400, 100), p = [m[0] * 100 + m[2] * 50 + m[4], m[1] * 100 + m[3] * 50 + m[5]];
     return p[0] === 200 && p[1] === 50 && m[0] === 2 || 'matrix ' + p;
   },
+  'brush textures (texMore, texAdjust)': () => {
+    for (const [id] of TEX_MORE) { const v = texMore(id, 64); if (!v || v.length !== 4096) return 'missing ' + id; let mn = 1, mx = 0; for (const x of v) { mn = Math.min(mn, x); mx = Math.max(mx, x); } if (mx - mn < 0.2 || mn < 0 || mx > 1) return 'flat ' + id + ' ' + mn + '..' + mx; }
+    const a = texAdjust(new Float32Array([0.25, 0.75]), 0, 0, true); if (a[0] !== 0.75 || a[1] !== 0.25) return 'invert';
+    const c = texAdjust(new Float32Array([0.25, 0.75]), 50, 0, false); if (!(c[0] === 0 && c[1] === 1)) return 'contrast ' + [...c];
+    const b = texAdjust(new Float32Array([0.5]), 0, 20, false); return Math.abs(b[0] - 0.7) < 1e-6 || 'bright ' + b[0];
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
