@@ -84,7 +84,7 @@ jobs:
         if: needs.gate.outputs.e2e == 'true'
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick
-          pip install -q Pillow==12.3.0 psd-tools==1.26.1   # the versions the tests are written against
+          pip install -q Pillow==12.3.0 psd-tools==1.26.1 pypdf==6.17.0   # the versions the tests are written against
       - name: Full browser suite (tools/e2e)
         if: needs.gate.outputs.e2e == 'true'
         run: bash tools/e2e/run_all.sh /tmp/sf-e2e
