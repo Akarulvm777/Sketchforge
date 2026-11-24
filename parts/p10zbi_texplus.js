@@ -86,7 +86,7 @@ function installTexPlus() {
   // brush editor: the new textures and settings
   const at = BE_TEX.findIndex(x => x[0] === 'image'); BE_TEX.splice(at < 0 ? BE_TEX.length : at, 0, ...TEX_MORE);
   const sec = BE_FORM.find(x => x[0] === 'Texture');
-  if (sec && !sec[1].some(f => f[0] === 'texMode')) sec[1].push(['texMode', 'Texture on', 'select', [['', 'The whole stroke'], ['dab', 'Each dab (stamp)']]], ['texPress', 'Press harder = less grain (each dab)', 'range', 0, 1, 0.01, '%']);
+  if (sec && !sec[1].some(f => f[0] === 'texMode')) sec[1].push(['texMode', 'Texture on', 'select', [['', 'The whole stroke'], ['dab', 'Each dab (stamp)']]], ['texPress', 'Press harder = less grain', 'range', 0, 1, 0.01, '%']);
   for (const k of ['texMode', 'texPress']) BE_MANAGED.add(k);
   // each stroke: its own copy of the settings gets the adjusted texture / the per-dab texture
   const pg0 = paperGrain; paperGrain = function (s) {
@@ -99,9 +99,10 @@ function installTexPlus() {
   };
   const d0 = drawOne; drawOne = function (st) {
     const s = st.s;
-    if (!s.texDab || s.tex) return d0.apply(this, arguments);
-    s.tex = s.texDab; s.texAmt = s.texAmtDab * (1 - (s.texPress || 0) * clamp(st.lp ?? 0.5, 0, 1));
-    try { return d0.apply(this, arguments); } finally { delete s.tex; }
+    if (!s.texDab) return d0.apply(this, arguments);
+    const keep = s.tex, keepSt = st.tex; // a second texture (p10zbj) may be on the whole stroke meanwhile
+    s.tex = s.texDab; st.tex = false; s.texAmt = s.texAmtDab * (1 - (s.texPress || 0) * clamp(st.lp ?? 0.5, 0, 1));
+    try { return d0.apply(this, arguments); } finally { s.tex = keep; st.tex = keepSt; if (keep === undefined) delete s.tex; }
   };
   // Tool Property: the texture list, its picture and the new settings
   hookAfter('refreshProps', () => {
@@ -124,7 +125,7 @@ function installTexPlus() {
       checkbox(box, 'Invert the texture', !!s.texInv, v => { s.texInv = v; redraw(); });
     }
     checkbox(box, 'On each dab (like a stamp / sponge)', s.texMode === 'dab', v => { s.texMode = v ? 'dab' : ''; refreshProps(); });
-    if (s.texMode === 'dab') slider(box, 'Press harder = less grain', 0, 100, 1, (s.texPress || 0) * 100, v => v + '%', v => { s.texPress = v / 100; });
+    slider(box, 'Press harder = less grain', 0, 100, 1, (s.texPress || 0) * 100, v => v + '%', v => { s.texPress = v / 100; }); // whole stroke: p10zbj
     anchor.after(box); redraw();
   }, 15);
 }

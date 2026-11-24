@@ -109,6 +109,13 @@ const TESTS = {
     const c = texAdjust(new Float32Array([0.25, 0.75]), 50, 0, false); if (!(c[0] === 0 && c[1] === 1)) return 'contrast ' + [...c];
     const b = texAdjust(new Float32Array([0.5]), 0, 20, false); return Math.abs(b[0] - 0.7) < 1e-6 || 'bright ' + b[0];
   },
+  'texture pressure / size link (tdAlpha, tdStamp, tdLinkScale)': () => {
+    if (tdAlpha(0.2, 0, 1) !== 0.2 || tdAlpha(0.2, 1, 1) !== 1 || Math.abs(tdAlpha(0.2, 0.5, 0.5) - 0.4) > 1e-9) return 'alpha';
+    const m = new Float32Array(100); tdStamp(m, 10, 10, 5, 5, 2, 0.4); tdStamp(m, 10, 10, 5, 5, 1, 0.9); tdStamp(m, 10, 10, 5, 5, 3, 0.2);
+    if (Math.abs(m[55] - 0.9) > 1e-6 || Math.abs(m[57] - 0.4) > 1e-6 || Math.abs(m[58] - 0.2) > 1e-6 || m[0] !== 0) return 'stamp ' + [m[55], m[57], m[58], m[0]];
+    tdStamp(m, 10, 10, -5, -5, 2, 1); // outside: nothing, no error
+    return tdLinkScale(1, 40, 20) === 2 && tdLinkScale(2, 10, 20) === 1 && tdLinkScale(1, 10, 0) === 1 || 'link';
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

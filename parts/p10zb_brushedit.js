@@ -207,7 +207,7 @@ async function openBrushEditor(id) {
   if (editing) dlg.querySelector('[data-a=copy]').onclick = () => { f.name = (f.name || 'My brush') + ' copy'; save(true); };
   dlg.querySelector('[data-a=cancel]').onclick = finish;
   dlg.querySelector('[data-a=export]').onclick = () => { const { report, ...def } = beMerge(base, beToDef(f)); download(new Blob([JSON.stringify({ format: 'sketchforge-brush', version: 1, def })], { type: 'application/json' }), (def.name || 'brush').replace(/[^\w-]+/g, '_') + '.sfbrush'); };
-  dlg.querySelector('[data-a=import]').onclick = () => pickFile('.sfbrush,.json', async fl => { try { const j = JSON.parse(await readFile(fl, true)); if (!j.def) throw 0; finish(); await importSfBrush(j.def); } catch (e) { toast('Not a Inkvessa brush file'); } });
+  dlg.querySelector('[data-a=import]').onclick = () => pickFile('.sfbrush,.json', async fl => { try { const j = JSON.parse(await readFile(fl, true)); if (!j.def) throw 0; finish(); await importSfBrush(j.def); } catch (e) { toast('Not an Inkvessa brush file'); } });
   dlg.addEventListener('cancel', e => { e.preventDefault(); finish(); });
   document.body.appendChild(dlg); dlg.showModal();
   await loadTips();
@@ -225,7 +225,7 @@ function installBrushEditor() {
   const bar = $('#subtoolBar');
   if (bar && !bar.querySelector('[data-ic=sliders]')) {
     const b = document.createElement('button'); b.dataset.ic = 'sliders'; b.innerHTML = icon('sliders'); b.title = 'Brush editor: create a brush, or change every setting of this one';
-    b.onclick = () => popMenu(b.getBoundingClientRect().left, b.getBoundingClientRect().top - 90, [['Edit this brush (all settings)…', () => openBrushEditor(state.tool), kindOf(state.tool) !== 'brush'], ['Create a new brush…', () => openBrushEditor(null)], ['Open a brush file (.sfbrush)…', () => pickFile('.sfbrush,.json', async fl => { try { const j = JSON.parse(await readFile(fl, true)); await importSfBrush(j.def); } catch (e) { toast('Not a Inkvessa brush file'); } })]]);
+    b.onclick = () => popMenu(b.getBoundingClientRect().left, b.getBoundingClientRect().top - 90, [['Edit this brush (all settings)…', () => openBrushEditor(state.tool), kindOf(state.tool) !== 'brush'], ['Create a new brush…', () => openBrushEditor(null)], ['Open a brush file (.sfbrush)…', () => pickFile('.sfbrush,.json', async fl => { try { const j = JSON.parse(await readFile(fl, true)); await importSfBrush(j.def); } catch (e) { toast('Not an Inkvessa brush file'); } })]]);
     const ref = bar.querySelector('[data-ic=copy]'); bar.insertBefore(b, ref || bar.firstChild);
   }
   // Tool Property: a button to every setting of the current brush

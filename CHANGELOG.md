@@ -4,6 +4,12 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.7: Brush textures with more control
+- Press harder = less grain now works for every textured brush: a light touch keeps the grain, pressing fills it in (before: only "on each dab").
+- Texture grows with the brush size (tick it in Tool Property › Texture): a big brush gets a big grain.
+- Second texture: mix two textures on one brush (for example Canvas weave + Fine noise), with its own strength and scale.
+- Live preview: Tool Property shows a sample stroke with the texture, and it changes as you move the settings.
+
 ## 3.6: Inkvessa — text you can edit, adjustment layers, camera, PDF and more
 - New name: Nexilune is now **Inkvessa** — a name nobody else uses, so searching "Inkvessa" finds the app. Your files, settings and tools stay as they are.
 - Website download buttons point to the right files again.
