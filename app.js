@@ -3716,7 +3716,7 @@ async function buildDocObject(src, opts = {}) {
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       faceParts: l.faceParts && l.faceParts.length ? l.faceParts : undefined,
-      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, textLayer: l.textLayer || undefined, adjust: l.adjust || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
+      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, textLayer: l.textLayer || undefined, adjust: l.adjust || undefined, fx: l.fx || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
       swaps: l.swaps && l.swaps.length ? l.swaps.map(s => ({ id: s.id, name: s.name, data: enc(s.cel) })) : undefined,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined, text: c._text || undefined,
@@ -3788,7 +3788,7 @@ async function openDocumentFile(file) {
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
       if (ld.faceParts) l.faceParts = ld.faceParts;
-      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.textLayer) l.textLayer = true; if (ld.adjust) { l.adjust = ld.adjust; l.blend = 'adjust'; } if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
+      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.textLayer) l.textLayer = true; if (ld.adjust) { l.adjust = ld.adjust; l.blend = 'adjust'; } if (ld.fx) l.fx = ld.fx; if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
       Object.assign(l, { visible: ld.visible !== false, opacity: ld.opacity ?? 1, blend: ld.blend || 'normal', locked: !!ld.locked, paper: !!ld.paper, px: ld.px ?? null, py: ld.py ?? null, clip: !!ld.clip, alock: !!ld.alock, ref: !!ld.ref, draft: !!ld.draft });
       if (ld.mask) {
         const m = newMaskLayer(); m.cels = new Map();
@@ -8776,6 +8776,94 @@ function installAdjust() {
     const row = e.target.closest && e.target.closest('[data-lid]'); if (!row) return;
     const l = state.layers.find(x => String(x.id) === row.dataset.lid); if (isAdjLayer(l)) { e.stopPropagation(); e.preventDefault(); state.activeId = l.id; adjDialog(l); }
   }, true);
+}
+
+/* ---------- layer effects (3.6) ----------
+   Layer › Layer effects…: Border (an outline around everything on the layer, like Clip Studio's border effect), Drop
+   shadow and Outer glow. Kept as settings (l.fx = { border: { on, w, color }, shadow: { on, dx, dy, blur, color,
+   alpha }, glow: { on, size, color, alpha } }): the pixels are never changed, the effects follow every later stroke.
+   Shown on the stage in place of the layer's canvas (refreshStage hook; the plain cel while you draw on it) and used
+   by compositeFrame (exports, previews, thumbnails) through frameParams, like the hair bones of p10wde_chain.
+   fxRender caches per cel version and settings. Saved: layers[].fx. */
+const FX_DEFAULT = () => ({ border: { on: false, w: 6, color: '#ffffff' }, shadow: { on: false, dx: 8, dy: 8, blur: 8, color: '#000000', alpha: 0.5 }, glow: { on: false, size: 16, color: '#ffd84a', alpha: 0.8 } });
+const fxOn = l => !!(l && l.fx && (l.fx.border.on || l.fx.shadow.on || l.fx.glow.on));
+let fxExport = false;
+/* pure: offsets that cover a disc of radius r (for the outline: the layer drawn at each one) */
+function fxRing(r) {
+  const out = [], n = Math.max(8, Math.min(48, Math.round(r * 2.2)));
+  for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; out.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  if (r > 3) for (let k = 0; k < n; k++) { const a = (k + 0.5) / n * Math.PI * 2; out.push([Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55]); }
+  return out;
+}
+function fxSilhouette(cel, color) { // the layer's shape in one colour
+  const s = makeCanvas(cel.width, cel.height), g = s.getContext('2d');
+  g.drawImage(cel, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, s.width, s.height);
+  return s;
+}
+function fxRender(l, cel) {
+  if (!fxOn(l) || !cel) return cel;
+  const key = JSON.stringify(l.fx) + '|' + (cel._sv || 0) + '|' + cel.width;
+  if (cel._fx && cel._fxKey === key) return cel._fx;
+  const out = makeCanvas(cel.width, cel.height), g = out.getContext('2d'), F = l.fx;
+  if (F.glow.on) { g.save(); g.globalAlpha = F.glow.alpha; g.filter = `blur(${F.glow.size / 2}px)`; const s = fxSilhouette(cel, F.glow.color); g.drawImage(s, 0, 0); g.drawImage(s, 0, 0); g.restore(); }
+  if (F.shadow.on) { g.save(); g.globalAlpha = F.shadow.alpha; if (F.shadow.blur > 0) g.filter = `blur(${F.shadow.blur / 2}px)`; g.drawImage(fxSilhouette(cel, F.shadow.color), F.shadow.dx, F.shadow.dy); g.restore(); }
+  if (F.border.on && F.border.w > 0) { const s = fxSilhouette(cel, F.border.color); for (const [dx, dy] of fxRing(F.border.w)) g.drawImage(s, dx, dy); }
+  g.drawImage(cel, 0, 0);
+  out._ink = true; cel._fx = out; cel._fxKey = key;
+  return out;
+}
+const fxEditing = l => typeof stroke !== 'undefined' && stroke && activeLayer() === l;
+function fxDialog() {
+  const l = activeLayer(); if (!l || l.vref) { toast('Choose a layer first'); return; }
+  if ($('#fxDialog')) $('#fxDialog').remove();
+  const before = JSON.stringify(l.fx || null);
+  if (!l.fx) l.fx = FX_DEFAULT();
+  const d = document.createElement('dialog'); d.className = 'adjdlg'; d.id = 'fxDialog';
+  d.innerHTML = `<form method="dialog"><h3>✨ Layer effects — ${escHtml(l.name)}</h3><div class="fxbody"></div>
+    <p class="muted small">Kept as settings: draw on the layer and the effects follow. Your pixels are not changed.</p>
+    <div class="dialog-actions"><button type="button" data-a="off">Remove effects</button><span style="flex:1"></span><button type="button" data-a="cancel">Cancel</button><button type="button" data-a="ok" class="primary">OK</button></div></form>`;
+  const body = d.querySelector('.fxbody'), F = l.fx;
+  const live = () => { markDirty(); refreshStage(); if (typeof renderLayers === 'function') renderLayers(); };
+  const color = (parent, label, obj, k) => { const row = document.createElement('label'); row.className = 'select'; row.innerHTML = `<span>${label}</span>`; const c = document.createElement('input'); c.type = 'color'; c.value = obj[k]; c.oninput = () => { obj[k] = c.value; live(); }; row.appendChild(c); parent.appendChild(row); };
+  const sec = (title, obj, build) => { const box = document.createElement('div'); box.className = 'fxsec'; body.appendChild(box); checkbox(box, title, obj.on, v => { obj.on = v; live(); }); build(box); };
+  sec('Border (outline)', F.border, b => { slider(b, 'Width', 1, 40, 1, F.border.w, v => v + ' px', v => { F.border.w = v; live(); }); color(b, 'Colour', F.border, 'color'); });
+  sec('Drop shadow', F.shadow, b => { slider(b, 'Right', -60, 60, 1, F.shadow.dx, v => v + ' px', v => { F.shadow.dx = v; live(); }); slider(b, 'Down', -60, 60, 1, F.shadow.dy, v => v + ' px', v => { F.shadow.dy = v; live(); }); slider(b, 'Softness', 0, 40, 1, F.shadow.blur, v => v + ' px', v => { F.shadow.blur = v; live(); }); slider(b, 'Opacity', 0, 100, 1, F.shadow.alpha * 100, v => v + '%', v => { F.shadow.alpha = v / 100; live(); }); color(b, 'Colour', F.shadow, 'color'); });
+  sec('Outer glow', F.glow, b => { slider(b, 'Size', 2, 80, 1, F.glow.size, v => v + ' px', v => { F.glow.size = v; live(); }); slider(b, 'Opacity', 0, 100, 1, F.glow.alpha * 100, v => v + '%', v => { F.glow.alpha = v / 100; live(); }); color(b, 'Colour', F.glow, 'color'); });
+  document.body.appendChild(d); d.show(); live();
+  const finish = after => {
+    if (after !== before) { const a = after, b = before; pushHistory({ undo() { l.fx = b === 'null' ? null : JSON.parse(b); live(); }, redo() { l.fx = a === 'null' ? null : JSON.parse(a); live(); }, bytes: 0 }); markDirty(); }
+    d.remove(); live();
+  };
+  d.querySelector('[data-a=ok]').onclick = () => { if (!fxOn(l)) l.fx = null; finish(JSON.stringify(l.fx || null)); };
+  d.querySelector('[data-a=off]').onclick = () => { l.fx = null; finish('null'); };
+  d.querySelector('[data-a=cancel]').onclick = () => { l.fx = before === 'null' ? null : JSON.parse(before); d.remove(); live(); };
+}
+function installLayerFx() {
+  CMD.layerFx = fxDialog;
+  const L = MENUS.find(m => m[0] === 'Layer');
+  if (L && !L[1].some(x => Array.isArray(x) && x[1] === 'layerFx')) { const i = L[1].findIndex(x => Array.isArray(x) && x[1] === 'adjSettings'); L[1].splice(i < 0 ? L[1].length : i + 1, 0, ['✨ Layer effects (border, shadow, glow)…', 'layerFx']); }
+  // on screen: the layer with its effects in place of the plain canvas (not while drawing on it, nor with a custom blend / bent drawing)
+  hookAfter('refreshStage', () => {
+    state.layers.forEach(l => {
+      const c = l.canvas, rm = () => { if (l._fxView && l._fxView.parentNode) l._fxView.remove(); };
+      if (!c || !fxOn(l) || l.vref || !l.visible || fxEditing(l) || isCustomBlend(l.blend) || l.clip || c.style.display === 'none') { rm(); return; }
+      const src = fxRender(l, c);
+      let v = l._fxView; if (!v) v = l._fxView = makeCanvas(1, 1);
+      if (v.width !== src.width || v.height !== src.height) { v.width = src.width; v.height = src.height; }
+      if (v._src !== src) { const g = v.getContext('2d'); g.clearRect(0, 0, v.width, v.height); g.drawImage(src, 0, 0); v._src = src; }
+      v.style.cssText = c.style.cssText; v.style.pointerEvents = 'none'; c.style.display = 'none';
+      if (v.parentNode !== stage) stage.insertBefore(v, c.nextSibling);
+    });
+  }, 5);
+  // exports and previews
+  const fp0 = frameParams;
+  frameParams = function (l, f) {
+    const fp = fp0.apply(this, arguments);
+    if (!fxExport || !fp || !fxOn(l) || l.clip) return fp;
+    return { ...fp, cel: fxRender(l, fp.cel) };
+  };
+  const cf0 = compositeFrame;
+  compositeFrame = function () { const was = fxExport; fxExport = true; try { return cf0.apply(this, arguments); } finally { fxExport = was; } };
 }
 
 /* ---------- Symmetry: one-click mirror drawing (toolbar button + popup + View menu) ----------
@@ -15494,6 +15582,7 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'layer effect border outline stroke around drop shadow glow sticker contour effet de calque bordure ombre', t: 'Layer effects: border, shadow, glow', x: 'Layer › Layer effects…: a Border (outline around everything on the layer), a Drop shadow or an Outer glow. They are settings, not pixels: keep drawing and they follow your new strokes. Remove effects takes them away.', a: [['cmd', 'layerFx', 'Layer effects']] },
   { q: 'adjustment layer non destructive hue saturation levels curve colour balance gradient map later change invert calque de réglage', t: 'Adjustment layers', x: 'Layer › New adjustment layer (Hue / Saturation, Levels, Tone curve, Colour balance, Gradient map, Posterize, Threshold, Invert…): it changes every layer below without touching them. Double-click it to change the settings any time. Erase parts of it to keep those parts unchanged; its opacity is the strength.', a: [['cmd', 'adj_hsb', 'New Hue / Saturation layer'], ['cmd', 'adjSettings', 'Adjustment settings']] },
   { q: 'edit text change text typo fix words text layer modify texte modifier', t: 'Change a text', x: 'Each text is its own text layer. Pick the Text tool and click the text: the words come back in the text box, change them and press Update text. While a text layer is selected, size, font, colour and balloon in Tool Property change it at once. Layer › Rasterize text makes it a normal picture to paint on.', a: [['tool', 'text', 'Text tool'], ['cmd', 'editText', 'Edit text']] },
   { q: 'clip studio clip file open layers import my clip files csp animation cels ouvrir fichier clip calques', t: 'Open Clip Studio files (.clip)', x: 'File › Open (or drop the file on the canvas): your .clip opens with its layers — names, order, folders, hidden layers, opacity, blend modes, clipping and masks. Animation folders become animated layers with every drawing on its frame, and the sound comes too. Vector and text layers come in as pictures.', a: [['cmd', 'open', 'Open a file']] },
@@ -17601,6 +17690,7 @@ Shading pens|ปากกาแรเงา|Plumes d'ombrage|Plumas de sombreado
 Bone|กระดูก|Os|Hueso|Osso|Knochen|ボーン|骨骼|뼈
 Adjustment settings|ตั้งค่าเลเยอร์ปรับแต่ง|Réglages du calque de réglage|Ajustes de la capa de ajuste|Configurações da camada de ajuste|Einstellungen der Einstellungsebene|色調補正の設定|调整图层设置|보정 레이어 설정
 Adjustment|ปรับแต่ง|Réglage|Ajuste|Ajuste|Einstellung|色調補正|调整|보정
+Layer effects (border, shadow, glow)|เอฟเฟกต์เลเยอร์ (ขอบ เงา เรืองแสง)|Effets de calque (bordure, ombre, lueur)|Efectos de capa (borde, sombra, brillo)|Efeitos de camada (borda, sombra, brilho)|Ebeneneffekte (Rand, Schatten, Leuchten)|レイヤー効果（フチ、影、光彩）|图层效果（描边、阴影、发光）|레이어 효과 (테두리, 그림자, 광채)
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
@@ -18035,7 +18125,7 @@ function init() {
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
     installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installLayerFx, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset

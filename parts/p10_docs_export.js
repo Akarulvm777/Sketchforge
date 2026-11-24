@@ -156,7 +156,7 @@ async function buildDocObject(src, opts = {}) {
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       faceParts: l.faceParts && l.faceParts.length ? l.faceParts : undefined,
-      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, textLayer: l.textLayer || undefined, adjust: l.adjust || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
+      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, textLayer: l.textLayer || undefined, adjust: l.adjust || undefined, fx: l.fx || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
       swaps: l.swaps && l.swaps.length ? l.swaps.map(s => ({ id: s.id, name: s.name, data: enc(s.cel) })) : undefined,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
         k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined, text: c._text || undefined,
@@ -228,7 +228,7 @@ async function openDocumentFile(file) {
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
       if (ld.faceParts) l.faceParts = ld.faceParts;
-      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.textLayer) l.textLayer = true; if (ld.adjust) { l.adjust = ld.adjust; l.blend = 'adjust'; } if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
+      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.textLayer) l.textLayer = true; if (ld.adjust) { l.adjust = ld.adjust; l.blend = 'adjust'; } if (ld.fx) l.fx = ld.fx; if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
       Object.assign(l, { visible: ld.visible !== false, opacity: ld.opacity ?? 1, blend: ld.blend || 'normal', locked: !!ld.locked, paper: !!ld.paper, px: ld.px ?? null, py: ld.py ?? null, clip: !!ld.clip, alock: !!ld.alock, ref: !!ld.ref, draft: !!ld.draft });
       if (ld.mask) {
         const m = newMaskLayer(); m.cels = new Map();

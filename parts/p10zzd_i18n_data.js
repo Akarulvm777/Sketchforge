@@ -394,6 +394,7 @@ Shading pens|ปากกาแรเงา|Plumes d'ombrage|Plumas de sombreado
 Bone|กระดูก|Os|Hueso|Osso|Knochen|ボーン|骨骼|뼈
 Adjustment settings|ตั้งค่าเลเยอร์ปรับแต่ง|Réglages du calque de réglage|Ajustes de la capa de ajuste|Configurações da camada de ajuste|Einstellungen der Einstellungsebene|色調補正の設定|调整图层设置|보정 레이어 설정
 Adjustment|ปรับแต่ง|Réglage|Ajuste|Ajuste|Einstellung|色調補正|调整|보정
+Layer effects (border, shadow, glow)|เอฟเฟกต์เลเยอร์ (ขอบ เงา เรืองแสง)|Effets de calque (bordure, ombre, lueur)|Efectos de capa (borde, sombra, brillo)|Efeitos de camada (borda, sombra, brilho)|Ebeneneffekte (Rand, Schatten, Leuchten)|レイヤー効果（フチ、影、光彩）|图层效果（描边、阴影、发光）|레이어 효과 (테두리, 그림자, 광채)
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트

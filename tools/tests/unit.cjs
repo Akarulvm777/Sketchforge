@@ -76,6 +76,7 @@ const TESTS = {
     const th = adjApply(new Uint8ClampedArray([200, 200, 200, 255, 20, 20, 20, 255]), adjDefaults('threshold')); if (th.join() !== '255,255,255,255,0,0,0,255') return 'threshold ' + th.join();
     const po = adjLUT({ kind: 'posterize', n: 2 }); return (po[100] === 0 && po[200] === 255) || 'posterize';
   },
+  'layer border offsets (fxRing)': () => { const r = fxRing(10); return r.length >= 16 && r.every(([x, y]) => Math.hypot(x, y) <= 10.001) && r.some(([x, y]) => Math.hypot(x, y) > 9.99) || 'ring ' + r.length; },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
