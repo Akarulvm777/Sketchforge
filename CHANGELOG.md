@@ -9,6 +9,7 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 - Texture grows with the brush size (tick it in Tool Property › Texture): a big brush gets a big grain.
 - Second texture: mix two textures on one brush (for example Canvas weave + Fine noise), with its own strength and scale.
 - Live preview: Tool Property shows a sample stroke with the texture, and it changes as you move the settings.
+- 8 new textures: pastel paper, dry brush streaks, watercolour granulation, soft clouds, stipple dots, hatching, burlap and concrete.
 
 ## 3.6: Inkvessa — text you can edit, adjustment layers, camera, PDF and more
 - New name: Nexilune is now **Inkvessa** — a name nobody else uses, so searching "Inkvessa" finds the app. Your files, settings and tools stay as they are.
