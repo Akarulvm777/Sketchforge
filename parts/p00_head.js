@@ -221,8 +221,11 @@ function makeCanvas(w, h) {
   return c;
 }
 function crop(src, b) {
-  const c = makeCanvas(b.w, b.h);
-  c.getContext('2d').drawImage(src, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  const c = makeCanvas(b.w, b.h), g = c.getContext('2d');
+  g.drawImage(src, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+  // draw the copy now: until then the browser keeps a snapshot of the whole source, and the next change to the source
+  // (the stroke committed into a page-size layer) copies the full page first (~0.4 s per stroke on big pages, phones)
+  if (src.width * src.height > 1.5e6) g.getImageData(0, 0, 1, 1);
   return c;
 }
 function clampBox(x0, y0, x1, y1) {
