@@ -288,7 +288,8 @@ const HOOKABLE = {
   markDirty: [() => markDirty, f => { markDirty = f; }],
   saveDocument: [() => saveDocument, f => { saveDocument = f; }],
   render3D: [() => render3D, f => { render3D = f; }],
-  setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }]
+  setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }],
+  syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }]
 };
 function hookAfter(name, fn, order = 0) {
   let h = HOOKS[name];
@@ -658,7 +659,8 @@ const BLEND_FN = {
 const GLOW_BLEND = new Set(['glow-dodge', 'add-glow']); // the source's transparency strengthens / weakens the effect itself
 /* blends canvas src (same size as g's canvas, layer opacity already applied) into g with a custom mode;
    r = { x, y, w, h }: only that area (src then holds just that area, at 0,0, when r.local) */
-function blendCustom(g, src, mode, r) {
+function blendCustom(g, src, mode, r, layer) {
+  if (mode === 'adjust') return adjustBlend(g, src, r, layer); // adjustment layers (p10se): the backdrop is changed, not blended
   const W = g.canvas.width, Hh = g.canvas.height;
   if (!W || !Hh) return;
   const x = r ? r.x : 0, y = r ? r.y : 0, w = r ? r.w : W, h = r ? r.h : Hh;
@@ -706,7 +708,7 @@ function customBlendView(l, i) {
   const key = cbBelowKey(i), belowOk = l._belowKey === key && l._below && l._below.width === state.w;
   if (!belowOk) { l._below = compositeFrame(state.frame, { until: i, view: true }); l._belowKey = key; }
   const fp = frameParams(l, state.frame);
-  const st = fp ? `${l.visible}${l.opacity}${l.blend}${l.draft}${l.clip ? 1 : 0}${l.mask ? 'm' + ((l.mask.cels.get(0) || {})._sv || 0) : ''}|${fp.key},${fp.p.x},${fp.p.y},${fp.p.rot},${fp.p.sx},${fp.p.sy},${fp.p.alpha}` : 'none';
+  const st = fp ? `${l.adjust ? JSON.stringify(l.adjust) : ''}${l.visible}${l.opacity}${l.blend}${l.draft}${l.clip ? 1 : 0}${l.mask ? 'm' + ((l.mask.cels.get(0) || {})._sv || 0) : ''}|${fp.key},${fp.p.x},${fp.p.y},${fp.p.rot},${fp.p.sx},${fp.p.sy},${fp.p.alpha}` : 'none';
   const self = st + '|' + (fp ? fp.cel._sv || 0 : 0);
   const styleIt = () => { const s = cv.style; s.display = l.visible ? 'block' : 'none'; s.opacity = '1'; s.mixBlendMode = 'normal'; s.transform = 'none'; s.zIndex = 10 + i * 2; s.position = 'absolute'; s.left = s.top = '0'; s.width = s.height = '100%'; return cv; };
   if (!full && belowOk && l._bvSelf === self) return styleIt(); // nothing below or here changed (e.g. a stroke on a layer above)
@@ -723,8 +725,8 @@ function customBlendView(l, i) {
     if (r) { // the layer's pixels of that area only
       const lc = makeCanvas(w, h), lg = lc.getContext('2d'); lg.globalAlpha = alpha; lg.translate(-x, -y);
       { const m = layerMat(l, state.frame); if (m) lg.transform(...m); } lg.drawImage(fp.cel, 0, 0);
-      blendCustom(g, lc, l.blend, { x, y, w, h, local: true });
-    } else blendCustom(g, layerPixels(l, i, state.frame, fp, alpha), l.blend);
+      blendCustom(g, lc, l.blend, { x, y, w, h, local: true }, l);
+    } else blendCustom(g, layerPixels(l, i, state.frame, fp, alpha), l.blend, null, l);
   }
   const s = cv.style;
   s.display = l.visible ? 'block' : 'none'; s.opacity = '1'; s.mixBlendMode = 'normal'; s.transform = 'none'; s.zIndex = 10 + i * 2;
@@ -1804,7 +1806,7 @@ function compositeFrame(f, opts = {}) {
     if (isCustomBlend(l.blend)) { // blended pixel by pixel (the browser has no such mode)
       const lc = makeCanvas(c.width, c.height), lg = lc.getContext('2d');
       lg.setTransform(g.getTransform()); lg.drawImage(layerPixels(l, i, f, fp, l.opacity * fp.p.alpha * (opts.view && l.draft ? 0.45 : 1)), 0, 0);
-      blendCustom(g, lc, l.blend);
+      blendCustom(g, lc, l.blend, null, l);
       return;
     }
     g.save();
@@ -1837,7 +1839,7 @@ function sampleColor(x, y) {
     if (isCustomBlend(l.blend)) { // the same blend as on screen, for this one pixel
       const t = makeCanvas(pickCtx.canvas.width, pickCtx.canvas.height), tg = t.getContext('2d');
       tg.globalAlpha = l.opacity * fp.p.alpha; tg.translate(-x, -y); { const m = layerMat(l, state.frame); if (m) tg.transform(...m); } tg.drawImage(fp.cel, 0, 0);
-      blendCustom(pickCtx, t, l.blend); continue;
+      blendCustom(pickCtx, t, l.blend, null, l); continue;
     }
     pickCtx.save();
     pickCtx.globalAlpha = l.opacity * fp.p.alpha;
@@ -3110,7 +3112,7 @@ function snapshotTimeline() {
     frameCount: state.frameCount, frame: state.frame, activeId: state.activeId,
     layers: state.layers.map(l => ({
       l, name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked,
-      paper: l.paper, paperTex: l.paperTex || null, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null, folder: l.folder || null, tag: l.tag || null,
+      paper: l.paper, paperTex: l.paperTex || null, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null, folder: l.folder || null, tag: l.tag || null, textLayer: !!l.textLayer,
       cels: Array.from(l.cels.entries()).map(([k, c]) => [k, c, c._xf ? { ...c._xf } : null])
     }))
   };
@@ -3120,7 +3122,7 @@ function applyTimeline(s) {
   state.activeId = s.activeId;
   state.layers = s.layers.map(e => {
     const l = e.l;
-    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null, folder: e.folder || null, tag: e.tag || null });
+    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null, folder: e.folder || null, tag: e.tag || null, textLayer: !!e.textLayer });
     l.cels = new Map(e.cels.map(([k, c, xf]) => { c._xf = xf ? { ...xf } : undefined; return [k, c]; }));
     return l;
   });
@@ -3192,7 +3194,7 @@ function layerMerge() {
       const a = celCanvas(lo, k), b = celCanvas(up, k);
       if (a) g.drawImage(a, 0, 0);
       if (b) {
-        if (isCustomBlend(up.blend)) { const t = makeCel(true), tg = t.getContext('2d'); tg.globalAlpha = up.opacity; tg.drawImage(b, 0, 0); blendCustom(g, t, up.blend); }
+        if (isCustomBlend(up.blend)) { const t = makeCel(true), tg = t.getContext('2d'); tg.globalAlpha = up.opacity; tg.drawImage(b, 0, 0); blendCustom(g, t, up.blend, null, up); }
         else { g.globalAlpha = up.opacity; g.globalCompositeOperation = canvasBlend(up.blend); g.drawImage(b, 0, 0); }
       }
       out.set(k, c);
@@ -3714,10 +3716,10 @@ async function buildDocObject(src, opts = {}) {
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       faceParts: l.faceParts && l.faceParts.length ? l.faceParts : undefined,
-      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
+      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, textLayer: l.textLayer || undefined, adjust: l.adjust || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
       swaps: l.swaps && l.swaps.length ? l.swaps.map(s => ({ id: s.id, name: s.name, data: enc(s.cel) })) : undefined,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
-        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined,
+        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined, text: c._text || undefined,
         data: c._ink === false ? null : enc(c)
       }))
     }))
@@ -3779,13 +3781,14 @@ async function openDocumentFile(file) {
         if (cd.xf) c._xf = { ...IDENT, ...cd.xf };
         if (cd.swap) c._swap = cd.swap;
         if (cd.vec) c._vec = cd.vec;
+        if (cd.text) c._text = cd.text;
         if (cd.face && faceRests[cd.face.r]) { c._face = { rest: faceRests[cd.face.r], v: cd.face.v || {} }; if (cd.face.auto) c._face.auto = true; c._sv = 1; c._face.sv = 1; }
         if (cd.pup && pupRests[cd.pup.r]) c._pup = { rest: pupRests[cd.pup.r], pins: cd.pup.pins, cur: cd.pup.cur };
         l.cels.set(cd.k, c);
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
       if (ld.faceParts) l.faceParts = ld.faceParts;
-      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
+      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.textLayer) l.textLayer = true; if (ld.adjust) { l.adjust = ld.adjust; l.blend = 'adjust'; } if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
       Object.assign(l, { visible: ld.visible !== false, opacity: ld.opacity ?? 1, blend: ld.blend || 'normal', locked: !!ld.locked, paper: !!ld.paper, px: ld.px ?? null, py: ld.py ?? null, clip: !!ld.clip, alock: !!ld.alock, ref: !!ld.ref, draft: !!ld.draft });
       if (ld.mask) {
         const m = newMaskLayer(); m.cels = new Map();
@@ -8411,22 +8414,34 @@ function balloonAround(box, kind, size) {
   if (kind !== 'round') { h = Math.max(h, w * (kind === 'spike' ? 0.62 : 0.45)); w = Math.max(w, h * 0.9); } // never a thin flat balloon
   return { x: box.x + box.w / 2 - w / 2, y: box.y + box.h / 2 - h / 2, w, h };
 }
-function drawText(txt, at) {
-  const layer = canPaint(); if (!layer || !txt.trim()) return;
-  const t = acquireCel(layer), lm = localMapper(layer), [x, y] = lm.map(at.x, at.y);
-  const size = state.fontSize, dir = state.textDir || 'h', sp = state.textSpacing || 1.25;
-  const font = `${state.italic ? 'italic ' : ''}${state.bold ? 'bold ' : ''}${size}px ${state.font}`;
-  const tc = makeCanvas(state.w, state.h), tg = tc.getContext('2d'); tg.font = font;
-  const L = textLayout(txt.split('\n'), size, dir, sp, state.align, s => tg.measureText(s).width);
-  const box = { x: L.box.x + x, y: L.box.y + y, w: L.box.w, h: L.box.h };
+/* everything needed to draw a text again later (editable text layers, p10rd): position in layer pixels + style */
+function textSpecFrom(txt, x, y) {
+  return { txt, x, y, size: state.fontSize, font: state.font, bold: !!state.bold, italic: !!state.italic, color: state.color, dir: state.textDir || 'h',
+    spacing: state.textSpacing || 1.25, align: state.align, balloon: state.textBalloon || '', tail: state.textTail ?? 120, lw: Math.max(1, pro.lw * 0.6) };
+}
+/* draws a text spec on g; returns the box it covers (text, balloon and tail) */
+function paintText(g, S) {
+  const font = `${S.italic ? 'italic ' : ''}${S.bold ? 'bold ' : ''}${S.size}px ${S.font}`;
+  g.save(); g.font = font;
+  const L = textLayout(S.txt.split('\n'), S.size, S.dir, S.spacing, S.align, s => g.measureText(s).width);
+  const box = { x: L.box.x + S.x, y: L.box.y + S.y, w: L.box.w, h: L.box.h };
   let bb = { ...box };
-  if (state.textBalloon) {
-    const b = balloonAround(box, state.textBalloon, size);
-    drawBalloon(tg, state.textBalloon, b, { lw: Math.max(1, pro.lw * 0.6), tail: true, tailAng: state.textTail ?? 120, tailLen: 0.45, fillColor: '#ffffff' });
+  if (S.balloon) {
+    const b = balloonAround(box, S.balloon, S.size);
+    drawBalloon(g, S.balloon, b, { lw: S.lw || 3, tail: true, tailAng: S.tail ?? 120, tailLen: 0.45, fillColor: '#ffffff' });
     const reach = Math.max(b.w, b.h) * 0.8; bb = { x: b.x - reach * 0.5, y: b.y - reach * 0.5, w: b.w + reach, h: b.h + reach };
   }
-  tg.font = font; tg.fillStyle = state.color; tg.textBaseline = 'top';
-  for (const it of L.items) { tg.textAlign = it.center ? 'center' : 'left'; tg.fillText(it.ch, x + it.x, y + it.y); }
+  g.font = font; g.fillStyle = S.color; g.textBaseline = 'top';
+  for (const it of L.items) { g.textAlign = it.center ? 'center' : 'left'; g.fillText(it.ch, S.x + it.x, S.y + it.y); }
+  g.restore();
+  return { bb, box };
+}
+function drawText(txt, at) {
+  if (state.textLayer !== false && typeof textLayerPlace === 'function') return textLayerPlace(txt, at); // editable text layer (p10rd)
+  const layer = canPaint(); if (!layer || !txt.trim()) return;
+  const t = acquireCel(layer), lm = localMapper(layer), [x, y] = lm.map(at.x, at.y);
+  const tc = makeCanvas(state.w, state.h), tg = tc.getContext('2d');
+  const { bb } = paintText(tg, textSpecFrom(txt, x, y));
   const b = clampBox(bb.x - 6, bb.y - 6, bb.x + bb.w + 6, bb.y + bb.h + 6);
   if (!b) { releaseCel(t); return; }
   const before = crop(t.cel, b);
@@ -8441,7 +8456,8 @@ function installText() {
   $('#textForm').addEventListener('submit', e => {
     e.preventDefault(); e.stopImmediatePropagation();
     const txt = $('#textInput').value; $('#textDialog').close();
-    if (txt.trim() && textPos) drawText(txt, textPos);
+    if (typeof textEditing !== 'undefined' && textEditing) drawText(txt, textPos); // editing a text layer (p10rd): empty = delete it
+    else if (txt.trim() && textPos) drawText(txt, textPos);
   }, true);
   hookAfter('refreshProps', () => {
     if (kindOf(state.tool) !== 'text') return;
@@ -8458,6 +8474,127 @@ function installText() {
     if (state.textBalloon) slider(body, 'Tail direction', 0, 359, 5, state.textTail, v => v + '°', v => state.textTail = v);
     hint(body, state.textBalloon ? 'The balloon fits the text by itself, drawn under it on the same layer.' : 'Choose a balloon to put one around the text automatically.');
   });
+}
+
+/* ---------- editable text layers (3.6) ----------
+   Each text placed with the Text tool goes on its own text layer (like Clip Studio): the cel keeps what was typed and
+   its style (cel._text = textSpecFrom(…), p10rc) and its pixels are drawn from it (textCel). Clicking the text again
+   with the Text tool reopens it in the text box with its style loaded in Tool Property: Update text redraws it, an
+   empty text deletes the layer. Size, colour, font, balloon… changed in Tool Property while a text layer is active
+   apply to it at once. A text layer can be moved / transformed like any layer; brushes, fill, filters… are refused
+   (Layer › Rasterize text turns it into a normal layer). An edit replaces the cel: one undo step (timelineOp), and undo
+   brings the old text back. Tool Property › "Editable text layer" off = old behaviour (pixels on the current layer).
+   Saved: cels[].text, layers[].textLayer. */
+let textEditing = null; // the text layer being edited, while the text box is open
+const isTextLayer = l => !!(l && l.textLayer);
+function textCel(spec) {
+  const c = makeCel(true); c._text = { ...spec };
+  paintText(c.getContext('2d'), spec);
+  return c;
+}
+const textNameOf = txt => (txt.replace(/\s+/g, ' ').trim().slice(0, 24) || 'Text') + (txt.trim().length > 24 ? '…' : '');
+/* pure: does a point fall in the text box (with some margin)? */
+function textHit(box, x, y, pad = 8) { return !!box && x >= box.x - pad && x <= box.x + box.w + pad && y >= box.y - pad && y <= box.y + box.h + pad; }
+function textBoxOf(spec) { const g = makeCanvas(1, 1).getContext('2d'); return paintTextBox(g, spec); }
+function paintTextBox(g, S) { // the text's own box (not the balloon), in layer pixels
+  g.font = `${S.italic ? 'italic ' : ''}${S.bold ? 'bold ' : ''}${S.size}px ${S.font}`;
+  const L = textLayout(S.txt.split('\n'), S.size, S.dir, S.spacing, S.align, s => g.measureText(s).width);
+  return { x: L.box.x + S.x, y: L.box.y + S.y, w: L.box.w, h: L.box.h };
+}
+function textLayerPlace(txt, at) {
+  if (textEditing) return textLayerUpdate(textEditing, txt);
+  if (!txt.trim()) return;
+  timelineOp(() => {
+    const spec = textSpecFrom(txt, at.x, at.y);
+    const l = createLayer(textNameOf(txt)); l.textLayer = true;
+    l.cels = new Map([[state.frame, textCel(spec)]]);
+    if (state.frame > 0) l.cels.set(0, makeCel(false)); // the text starts on the frame it was placed on
+    const i = state.layers.findIndex(x => x.id === state.activeId);
+    insertLayerAt(l, i < 0 ? state.layers.length : i + 1);
+  });
+  addRecent(state.color);
+}
+function textLayerUpdate(l, txt, specChanges) {
+  const k = keyAt(l, state.frame), old = k == null ? null : l.cels.get(k);
+  if (!old || !old._text) return;
+  if (txt != null && !txt.trim()) { timelineOp(() => { removeLayerObj(l); }); toast('Text removed'); return; }
+  timelineOp(() => {
+    const spec = { ...old._text, ...(specChanges || {}), ...(txt != null ? { txt } : {}) };
+    const c = textCel(spec); if (old._xf) c._xf = { ...old._xf };
+    l.cels.set(k, c); l.name = textNameOf(spec.txt);
+  });
+}
+/* the text layer under a document point (active layer first, then from the top) */
+function textLayerAt(x, y) {
+  const list = [activeLayer(), ...state.layers.slice().reverse()].filter(isTextLayer);
+  for (const l of list) {
+    if (!l.visible) continue;
+    const c = celCanvas(l, state.frame); if (!c || !c._text) continue;
+    const [lx, ly] = localMapper(l).map(x, y);
+    if (textHit(textBoxOf(c._text), lx, ly)) return l;
+  }
+  return null;
+}
+/* load a text's style into the tool, so Tool Property shows it */
+function textLoadStyle(S) {
+  Object.assign(state, { fontSize: S.size, font: S.font, bold: S.bold, italic: S.italic, textDir: S.dir, textSpacing: S.spacing, align: S.align, textBalloon: S.balloon, textTail: S.tail });
+  if (typeof setColor === 'function') setColor(S.color); else state.color = S.color;
+}
+function textEditOpen(l) {
+  const c = celCanvas(l, state.frame); if (!c || !c._text) return false;
+  textEditing = l; state.activeId = l.id; textLoadStyle(c._text);
+  const dlg = $('#textDialog'); $('#textInput').value = c._text.txt;
+  $('#textOk').textContent = 'Update text';
+  refreshAll();
+  if (typeof dlg.showModal === 'function') { dlg.showModal(); const f = () => $('#textInput').focus(); f(); setTimeout(f, 0); setTimeout(f, 120); }
+  return true;
+}
+function textRasterize() {
+  const l = activeLayer(); if (!isTextLayer(l)) { toast('Choose a text layer first'); return; }
+  timelineOp(() => { l.textLayer = false; for (const [k, c] of l.cels) if (c._text) { const n = copyCel(c, true); delete n._text; l.cels.set(k, n); } });
+  toast('The text is now a normal picture layer');
+}
+function installTextLayers() {
+  if (state.textLayer == null) state.textLayer = true;
+  // Text tool on an existing text → edit it
+  const tc0 = textClick; textClick = function (e) {
+    const d = toDoc(e), l = textLayerAt(d.x, d.y);
+    if (l && textEditOpen(l)) return;
+    textEditing = null; $('#textOk').textContent = 'Place text';
+    return tc0.apply(this, arguments);
+  };
+  $('#textDialog').addEventListener('close', () => { textEditing = null; $('#textOk').textContent = 'Place text'; });
+  // Tool Property changes apply to the active text layer
+  const live = () => {
+    const l = activeLayer(); if (!isTextLayer(l) || kindOf(state.tool) !== 'text' || $('#textDialog').open) return;
+    const c = celCanvas(l, state.frame); if (!c || !c._text) return;
+    const S = c._text, now = textSpecFrom(S.txt, S.x, S.y);
+    if (['size', 'font', 'bold', 'italic', 'color', 'dir', 'spacing', 'align', 'balloon', 'tail'].some(k => now[k] !== S[k])) textLayerUpdate(l, null, { ...now, x: S.x, y: S.y, lw: S.lw });
+  };
+  let liveT = 0; const soon = () => { clearTimeout(liveT); liveT = setTimeout(live, 120); };
+  document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#propBody')) soon(); }, true);
+  document.addEventListener('change', e => { if (e.target.closest && e.target.closest('#propBody')) soon(); }, true);
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#propBody')) soon(); }, true);
+  const sc0 = setColor; setColor = function () { const out = sc0.apply(this, arguments); soon(); return out; };
+  hookAfter('refreshProps', () => {
+    if (kindOf(state.tool) !== 'text') return;
+    const body = $('#propBody'); if (!body) return;
+    checkbox(body, 'Editable text layer (click the text again to change it)', state.textLayer !== false, v => { state.textLayer = v; });
+    const l = activeLayer();
+    if (isTextLayer(l)) hint(body, 'Text layer selected: changes here apply to it. Click the text to change the words.');
+  });
+  // brushes, fill, filters… would be lost at the next text edit
+  const cp0 = canPaint; canPaint = function () {
+    const l = activeLayer();
+    if (isTextLayer(l) && !(l.maskEdit && l.mask) && kindOf(state.tool) !== 'text') { toast('This is a text layer: click it with the Text tool to change it, or Layer › Rasterize text to paint on it'); return null; }
+    return cp0.apply(this, arguments);
+  };
+  if (typeof effectDialog === 'function') { const fx0 = effectDialog; effectDialog = function () { if (isTextLayer(activeLayer())) { toast('Filters work on picture layers: Layer › Rasterize text first'); return; } return fx0.apply(this, arguments); }; }
+  const cc0 = copyCel; copyCel = function (src) { const c = cc0.apply(this, arguments); if (src && src._text) c._text = { ...src._text }; return c; };
+  CMD.editText = () => { const l = activeLayer(); if (!isTextLayer(l) || !textEditOpen(l)) toast('Choose a text layer first'); };
+  CMD.rasterizeText = textRasterize;
+  const L = MENUS.find(m => m[0] === 'Layer');
+  if (L && !L[1].some(x => Array.isArray(x) && x[1] === 'editText')) L[1].push('-', ['✎ Edit text…', 'editText'], ['Rasterize text (make it a picture)', 'rasterizeText']);
 }
 
 /* ---------- layer masks ----------
@@ -8516,6 +8653,129 @@ function installMasks() {
   const L = MENUS.find(m => m[0] === 'Layer')[1];
   L.push('-', ['Add layer mask', 'maskAdd'], ['Mask: hide outside selection', 'maskHideOut'], ['Mask: hide selection', 'maskHideIn'],
     ['Edit mask / edit layer', 'maskEdit'], ['Invert mask', 'maskInvert'], ['Apply mask to layer', 'maskApply'], ['Delete mask', 'maskDel']);
+}
+
+/* ---------- adjustment layers (3.6) ----------
+   Layer › New adjustment layer: Hue / Saturation / Brightness, Brightness & Contrast, Levels, Tone curve, Colour
+   balance, Gradient map, Posterize, Threshold, Invert. An adjustment layer changes everything below it without
+   touching their pixels, and its settings can be changed at any time (double-click it, or Layer › Adjustment
+   settings…). Its own pixels are a mask: full white = everywhere; erase parts to limit where it applies; layer
+   opacity = strength. It uses the custom blend path of p02b: l.blend = 'adjust', l.adjust = { kind, …settings };
+   blendCustom(g, mask, 'adjust', r, layer) changes the backdrop where the mask is (on screen, exports, eyedropper,
+   merge). Saved: layers[].adjust. */
+const ADJ_KINDS = {
+  hsb: { name: 'Hue / Saturation / Brightness', icon: '🌈', fields: [['hue', 'Hue', -180, 180, 0], ['sat', 'Saturation', -100, 100, 0], ['bri', 'Brightness', -100, 100, 0]] },
+  bc: { name: 'Brightness & Contrast', icon: '☀', fields: [['bri', 'Brightness', -100, 100, 0], ['con', 'Contrast', -100, 100, 0]] },
+  levels: { name: 'Levels', icon: '📊', fields: [['lo', 'Shadows (input)', 0, 254, 0], ['hi', 'Highlights (input)', 1, 255, 255], ['gamma', 'Midtones (gamma ×100)', 20, 300, 100], ['olo', 'Output black', 0, 255, 0], ['ohi', 'Output white', 0, 255, 255]] },
+  curve: { name: 'Tone curve', icon: '〰', fields: [['sh', 'Shadows', -100, 100, 0], ['mid', 'Midtones', -100, 100, 0], ['hi', 'Highlights', -100, 100, 0]] },
+  balance: { name: 'Colour balance', icon: '⚖', fields: [['cr', 'Cyan ↔ Red', -100, 100, 0], ['mg', 'Magenta ↔ Green', -100, 100, 0], ['yb', 'Yellow ↔ Blue', -100, 100, 0]] },
+  gradmap: { name: 'Gradient map', icon: '🎨', colors: [['c0', 'Shadows colour', '#1b1340'], ['c1', 'Highlights colour', '#ffe2a8']], fields: [['mix', 'Strength', 0, 100, 100]] },
+  posterize: { name: 'Posterize', icon: '▦', fields: [['n', 'Levels', 2, 32, 5]] },
+  threshold: { name: 'Threshold (black & white)', icon: '◐', fields: [['t', 'Threshold', 1, 254, 128]] },
+  invert: { name: 'Invert', icon: '◑', fields: [] }
+};
+const adjDefaults = kind => { const K = ADJ_KINDS[kind], o = { kind }; for (const f of K.fields) o[f[0]] = f[4]; for (const c of K.colors || []) o[c[0]] = c[2]; return o; };
+/* pure: a 256-entry table per channel for the kinds that are per-channel (levels, curve, bc, invert, posterize, threshold) */
+function adjLUT(a) {
+  const L = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v++) {
+    let o = v;
+    if (a.kind === 'levels') { const t = clamp((v - a.lo) / Math.max(1, a.hi - a.lo), 0, 1); o = a.olo + (a.ohi - a.olo) * Math.pow(t, 100 / Math.max(1, a.gamma)); }
+    else if (a.kind === 'bc') { const k = (259 * (a.con * 2.55 + 255)) / (255 * (259 - a.con * 2.55)); o = k * (v + a.bri * 1.28 - 128) + 128; }
+    else if (a.kind === 'invert') o = 255 - v;
+    else if (a.kind === 'posterize') { const k = 255 / (a.n - 1); o = Math.round(v / k) * k; }
+    L[v] = o;
+  }
+  if (a.kind === 'curve') {
+    const id = [[0, 0], [64, 64 + a.sh * 0.7], [128, 128 + a.mid * 0.7], [192, 192 + a.hi * 0.7], [255, 255]].map(q => [q[0], clamp(q[1], 0, 255)]);
+    id[1][1] = Math.min(id[1][1], id[2][1] - 1); id[3][1] = Math.max(id[3][1], id[2][1] + 1);
+    return curveLUT(id);
+  }
+  return L;
+}
+/* pure: the adjusted colour of RGBA pixels d (in place); only where the alpha is > 0 */
+function adjApply(d, a) {
+  if (a.kind === 'hsb') return fx2Hsb(d, a.hue, a.sat, a.bri, false);
+  if (a.kind === 'threshold') { for (let i = 0; i < d.length; i += 4) { const v = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] >= a.t ? 255 : 0; d[i] = d[i + 1] = d[i + 2] = v; } return d; }
+  if (a.kind === 'balance') {
+    for (let i = 0; i < d.length; i += 4) { const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255, w = 4 * l * (1 - l) * 0.7; d[i] = clamp(d[i] + a.cr * w, 0, 255); d[i + 1] = clamp(d[i + 1] - a.mg * w, 0, 255); d[i + 2] = clamp(d[i + 2] + a.yb * w, 0, 255); }
+    return d;
+  }
+  if (a.kind === 'gradmap') {
+    const A = fx2Rgb(a.c0), B = fx2Rgb(a.c1), m = a.mix / 100;
+    for (let i = 0; i < d.length; i += 4) { const t = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; for (let j = 0; j < 3; j++) d[i + j] = d[i + j] * (1 - m) + (A[j] + (B[j] - A[j]) * t) * m; }
+    return d;
+  }
+  const L = adjLUT(a);
+  for (let i = 0; i < d.length; i += 4) { d[i] = L[d[i]]; d[i + 1] = L[d[i + 1]]; d[i + 2] = L[d[i + 2]]; }
+  return d;
+}
+/* the custom "blend" of an adjustment layer: the backdrop g, changed where the layer's mask is (alpha = strength) */
+function adjustBlend(g, mask, r, layer) {
+  const a = layer && layer.adjust; if (!a) return;
+  const W = g.canvas.width, H = g.canvas.height, x = r ? r.x : 0, y = r ? r.y : 0, w = r ? r.w : W, h = r ? r.h : H;
+  if (w <= 0 || h <= 0) return;
+  const D = g.getImageData(x, y, w, h), d = D.data, orig = d.slice(), m = mask.getContext('2d').getImageData(r && r.local ? 0 : x, r && r.local ? 0 : y, w, h).data;
+  adjApply(d, a);
+  for (let i = 0; i < d.length; i += 4) {
+    const k = m[i + 3] / 255;
+    if (k >= 1) { d[i + 3] = orig[i + 3]; continue; }
+    d[i] = orig[i] + (d[i] - orig[i]) * k; d[i + 1] = orig[i + 1] + (d[i + 1] - orig[i + 1]) * k; d[i + 2] = orig[i + 2] + (d[i + 2] - orig[i + 2]) * k; d[i + 3] = orig[i + 3];
+  }
+  g.putImageData(D, x, y);
+}
+const isAdjLayer = l => !!(l && l.adjust);
+function adjNew(kind) {
+  timelineOp(() => {
+    const l = createLayer(ADJ_KINDS[kind].icon + ' ' + ADJ_KINDS[kind].name, '#ffffff'); // white mask = everywhere
+    l.adjust = adjDefaults(kind); l.blend = 'adjust';
+    const i = state.layers.findIndex(x => x.id === state.activeId);
+    insertLayerAt(l, i < 0 ? state.layers.length : i + 1);
+  });
+  adjDialog(activeLayer(), true);
+}
+/* the settings window: live preview, OK keeps them (one undo step), Cancel goes back */
+function adjDialog(l, isNew) {
+  if (!isAdjLayer(l)) { toast('Choose an adjustment layer first'); return; }
+  const before = { ...l.adjust }, K = ADJ_KINDS[l.adjust.kind];
+  const d = document.createElement('dialog'); d.className = 'adjdlg'; d.id = 'adjDialog';
+  d.innerHTML = `<form method="dialog"><h3>${K.icon} ${escHtml(K.name)}</h3><div class="adjbody"></div>
+    <p class="muted small">Changes every layer below it. Erase parts of this layer to keep them unchanged; its opacity sets the strength.</p>
+    <div class="dialog-actions"><button type="button" data-a="cancel">Cancel</button><button type="button" data-a="ok" class="primary">OK</button></div></form>`;
+  const body = d.querySelector('.adjbody');
+  const live = () => { l._bvSelf = null; l._bvState = null; markDirty(); refreshStage(); };
+  for (const [k, label, min, max] of K.fields) slider(body, label, min, max, 1, l.adjust[k], v => String(v), v => { l.adjust[k] = v; live(); });
+  for (const [k, label] of K.colors || []) { const row = document.createElement('label'); row.className = 'select'; row.innerHTML = `<span>${escHtml(label)}</span>`; const c = document.createElement('input'); c.type = 'color'; c.value = l.adjust[k]; c.oninput = () => { l.adjust[k] = c.value; live(); }; row.appendChild(c); body.appendChild(row); }
+  if (!K.fields.length && !(K.colors || []).length) body.innerHTML = '<p>No settings: the colours below are inverted.</p>';
+  document.body.appendChild(d); d.show();
+  d.querySelector('[data-a=ok]').onclick = () => {
+    const after = { ...l.adjust };
+    if (!isNew && JSON.stringify(after) !== JSON.stringify(before)) pushHistory({ undo() { l.adjust = { ...before }; live(); }, redo() { l.adjust = { ...after }; live(); }, bytes: 0 });
+    d.remove();
+  };
+  d.querySelector('[data-a=cancel]').onclick = () => { l.adjust = { ...before }; live(); d.remove(); };
+}
+function installAdjust() {
+  BLEND_LABEL.adjust = 'Adjustment';
+  CMD.adjSettings = () => adjDialog(activeLayer());
+  const L = MENUS.find(m => m[0] === 'Layer');
+  if (L && !L[1].some(x => Array.isArray(x) && x[1] === 'adjSettings')) {
+    const i = L[1].findIndex(x => Array.isArray(x) && x[1] === 'layerAdd');
+    const items = Object.keys(ADJ_KINDS).map(k => { CMD['adj_' + k] = () => adjNew(k); return [`${ADJ_KINDS[k].icon} New adjustment layer: ${ADJ_KINDS[k].name}`, 'adj_' + k]; });
+    L[1].splice(i + 2, 0, '-', ...items, ['Adjustment settings…', 'adjSettings'], '-');
+  }
+  // Layer Property: an adjustment layer has settings instead of a blend mode
+  hookAfter('syncLayerControls', () => {
+    const sel = $('#layerBlend'); if (!sel) return;
+    let b = $('#adjBtn');
+    if (!b) { b = document.createElement('button'); b.type = 'button'; b.id = 'adjBtn'; b.textContent = 'Adjustment settings…'; b.onclick = () => adjDialog(activeLayer()); sel.after(b); }
+    const on = isAdjLayer(activeLayer()); sel.hidden = on; b.hidden = !on;
+  });
+  // double-click an adjustment layer in the Layer panel = its settings
+  document.addEventListener('dblclick', e => {
+    const row = e.target.closest && e.target.closest('[data-lid]'); if (!row) return;
+    const l = state.layers.find(x => String(x.id) === row.dataset.lid); if (isAdjLayer(l)) { e.stopPropagation(); e.preventDefault(); state.activeId = l.id; adjDialog(l); }
+  }, true);
 }
 
 /* ---------- Symmetry: one-click mirror drawing (toolbar button + popup + View menu) ----------
@@ -15076,8 +15336,10 @@ function tutShow() {
   const s = TUT.steps[TUT.i], o = $('#tutOverlay') || TUT.o, hole = o.querySelector('.tut-hole'), card = o.querySelector('.tut-card');
   try { if (s.pre) s.pre(); } catch (e) { console.warn('tutorial step', e); }
   tutHost();
+  let tries = 0;
   const place = () => {
     const el = tutFind(s.el), cpOpenNow = $('#cpDialog') && $('#cpDialog').open;
+    if (!el && s.el && tries++ < 12 && TUT.steps[TUT.i] === s) { setTimeout(place, 80); return; } // a window opened by pre() may still be appearing
     tutHost();
     if (el) {
       const r = el.getBoundingClientRect(), pad = 6;
@@ -15232,6 +15494,8 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'adjustment layer non destructive hue saturation levels curve colour balance gradient map later change invert calque de réglage', t: 'Adjustment layers', x: 'Layer › New adjustment layer (Hue / Saturation, Levels, Tone curve, Colour balance, Gradient map, Posterize, Threshold, Invert…): it changes every layer below without touching them. Double-click it to change the settings any time. Erase parts of it to keep those parts unchanged; its opacity is the strength.', a: [['cmd', 'adj_hsb', 'New Hue / Saturation layer'], ['cmd', 'adjSettings', 'Adjustment settings']] },
+  { q: 'edit text change text typo fix words text layer modify texte modifier', t: 'Change a text', x: 'Each text is its own text layer. Pick the Text tool and click the text: the words come back in the text box, change them and press Update text. While a text layer is selected, size, font, colour and balloon in Tool Property change it at once. Layer › Rasterize text makes it a normal picture to paint on.', a: [['tool', 'text', 'Text tool'], ['cmd', 'editText', 'Edit text']] },
   { q: 'clip studio clip file open layers import my clip files csp animation cels ouvrir fichier clip calques', t: 'Open Clip Studio files (.clip)', x: 'File › Open (or drop the file on the canvas): your .clip opens with its layers — names, order, folders, hidden layers, opacity, blend modes, clipping and masks. Animation folders become animated layers with every drawing on its frame, and the sound comes too. Vector and text layers come in as pictures.', a: [['cmd', 'open', 'Open a file']] },
   { q: 'language langue idioma sprache thai ภาษา français español 日本語 中文 한국어 translate translation', t: 'Change the language', x: 'Nexilune follows the language of your system. Help › 🌐 Language… (or View › 🌐 Language…) to choose another: English, ไทย, Français, Español, Português, Deutsch, 日本語, 中文, 한국어.', a: [['cmd', 'language', 'Language']] },
   { q: 'import tools window progress percent studying sut what is it doing importer outils', t: 'The import window', x: 'When you import Clip Studio tools (.sut), a window shows each tool being studied, with a percentage: reading the file, its images, its settings, where it goes, a test stroke and the preview. Nothing is downloaded. Hide keeps it working in the background.', a: [['cmd', 'addSut', 'Import tools']] },
@@ -17335,6 +17599,12 @@ Liquify|ลิควิฟาย|Fluidité|Licuar|Liquefazer|Verflüssigen|ゆ�
 Manga tone|โทนมังงะ|Trame manga|Trama de manga|Retícula de mangá|Manga-Raster|マンガトーン|漫画网点|만화 톤
 Shading pens|ปากกาแรเงา|Plumes d'ombrage|Plumas de sombreado|Canetas de sombreamento|Schattierstifte|陰影ペン|阴影笔|음영 펜
 Bone|กระดูก|Os|Hueso|Osso|Knochen|ボーン|骨骼|뼈
+Adjustment settings|ตั้งค่าเลเยอร์ปรับแต่ง|Réglages du calque de réglage|Ajustes de la capa de ajuste|Configurações da camada de ajuste|Einstellungen der Einstellungsebene|色調補正の設定|调整图层设置|보정 레이어 설정
+Adjustment|ปรับแต่ง|Réglage|Ajuste|Ajuste|Einstellung|色調補正|调整|보정
+Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
+Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
+Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
+Place text|วางข้อความ|Placer le texte|Colocar texto|Colocar texto|Text einfügen|テキストを配置|放置文字|텍스트 배치
 Frame border|ขอบช่อง|Bord de case|Borde de viñeta|Borda de quadro|Panelrahmen|コマ枠|分格框|칸 테두리`;
 
 /* ---------- languages (3.3) ----------
@@ -17765,7 +18035,7 @@ function init() {
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
     installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installText, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset

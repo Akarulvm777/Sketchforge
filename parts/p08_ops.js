@@ -4,7 +4,7 @@ function snapshotTimeline() {
     frameCount: state.frameCount, frame: state.frame, activeId: state.activeId,
     layers: state.layers.map(l => ({
       l, name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked,
-      paper: l.paper, paperTex: l.paperTex || null, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null, folder: l.folder || null, tag: l.tag || null,
+      paper: l.paper, paperTex: l.paperTex || null, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft, mask: l.mask, maskEdit: l.maskEdit, vref: l.vref || null, parent: l.parent || null, folder: l.folder || null, tag: l.tag || null, textLayer: !!l.textLayer,
       cels: Array.from(l.cels.entries()).map(([k, c]) => [k, c, c._xf ? { ...c._xf } : null])
     }))
   };
@@ -14,7 +14,7 @@ function applyTimeline(s) {
   state.activeId = s.activeId;
   state.layers = s.layers.map(e => {
     const l = e.l;
-    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null, folder: e.folder || null, tag: e.tag || null });
+    Object.assign(l, { name: e.name, visible: e.visible, opacity: e.opacity, blend: e.blend, locked: e.locked, paper: e.paper, px: e.px, py: e.py, clip: !!e.clip, alock: !!e.alock, ref: !!e.ref, draft: !!e.draft, mask: e.mask || null, maskEdit: !!e.maskEdit, vref: e.vref || null, parent: e.parent || null, folder: e.folder || null, tag: e.tag || null, textLayer: !!e.textLayer });
     l.cels = new Map(e.cels.map(([k, c, xf]) => { c._xf = xf ? { ...xf } : undefined; return [k, c]; }));
     return l;
   });
@@ -86,7 +86,7 @@ function layerMerge() {
       const a = celCanvas(lo, k), b = celCanvas(up, k);
       if (a) g.drawImage(a, 0, 0);
       if (b) {
-        if (isCustomBlend(up.blend)) { const t = makeCel(true), tg = t.getContext('2d'); tg.globalAlpha = up.opacity; tg.drawImage(b, 0, 0); blendCustom(g, t, up.blend); }
+        if (isCustomBlend(up.blend)) { const t = makeCel(true), tg = t.getContext('2d'); tg.globalAlpha = up.opacity; tg.drawImage(b, 0, 0); blendCustom(g, t, up.blend, null, up); }
         else { g.globalAlpha = up.opacity; g.globalCompositeOperation = canvasBlend(up.blend); g.drawImage(b, 0, 0); }
       }
       out.set(k, c);

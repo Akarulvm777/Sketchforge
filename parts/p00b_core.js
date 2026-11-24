@@ -19,7 +19,8 @@ const HOOKABLE = {
   markDirty: [() => markDirty, f => { markDirty = f; }],
   saveDocument: [() => saveDocument, f => { saveDocument = f; }],
   render3D: [() => render3D, f => { render3D = f; }],
-  setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }]
+  setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }],
+  syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }]
 };
 function hookAfter(name, fn, order = 0) {
   let h = HOOKS[name];

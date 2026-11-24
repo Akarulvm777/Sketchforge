@@ -239,8 +239,10 @@ function tutShow() {
   const s = TUT.steps[TUT.i], o = $('#tutOverlay') || TUT.o, hole = o.querySelector('.tut-hole'), card = o.querySelector('.tut-card');
   try { if (s.pre) s.pre(); } catch (e) { console.warn('tutorial step', e); }
   tutHost();
+  let tries = 0;
   const place = () => {
     const el = tutFind(s.el), cpOpenNow = $('#cpDialog') && $('#cpDialog').open;
+    if (!el && s.el && tries++ < 12 && TUT.steps[TUT.i] === s) { setTimeout(place, 80); return; } // a window opened by pre() may still be appearing
     tutHost();
     if (el) {
       const r = el.getBoundingClientRect(), pad = 6;

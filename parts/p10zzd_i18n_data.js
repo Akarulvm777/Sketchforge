@@ -392,4 +392,10 @@ Liquify|ลิควิฟาย|Fluidité|Licuar|Liquefazer|Verflüssigen|ゆ�
 Manga tone|โทนมังงะ|Trame manga|Trama de manga|Retícula de mangá|Manga-Raster|マンガトーン|漫画网点|만화 톤
 Shading pens|ปากกาแรเงา|Plumes d'ombrage|Plumas de sombreado|Canetas de sombreamento|Schattierstifte|陰影ペン|阴影笔|음영 펜
 Bone|กระดูก|Os|Hueso|Osso|Knochen|ボーン|骨骼|뼈
+Adjustment settings|ตั้งค่าเลเยอร์ปรับแต่ง|Réglages du calque de réglage|Ajustes de la capa de ajuste|Configurações da camada de ajuste|Einstellungen der Einstellungsebene|色調補正の設定|调整图层设置|보정 레이어 설정
+Adjustment|ปรับแต่ง|Réglage|Ajuste|Ajuste|Einstellung|色調補正|调整|보정
+Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
+Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
+Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
+Place text|วางข้อความ|Placer le texte|Colocar texto|Colocar texto|Text einfügen|テキストを配置|放置文字|텍스트 배치
 Frame border|ขอบช่อง|Bord de case|Borde de viñeta|Borda de quadro|Panelrahmen|コマ枠|分格框|칸 테두리`;

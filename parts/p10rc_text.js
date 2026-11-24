@@ -34,22 +34,34 @@ function balloonAround(box, kind, size) {
   if (kind !== 'round') { h = Math.max(h, w * (kind === 'spike' ? 0.62 : 0.45)); w = Math.max(w, h * 0.9); } // never a thin flat balloon
   return { x: box.x + box.w / 2 - w / 2, y: box.y + box.h / 2 - h / 2, w, h };
 }
-function drawText(txt, at) {
-  const layer = canPaint(); if (!layer || !txt.trim()) return;
-  const t = acquireCel(layer), lm = localMapper(layer), [x, y] = lm.map(at.x, at.y);
-  const size = state.fontSize, dir = state.textDir || 'h', sp = state.textSpacing || 1.25;
-  const font = `${state.italic ? 'italic ' : ''}${state.bold ? 'bold ' : ''}${size}px ${state.font}`;
-  const tc = makeCanvas(state.w, state.h), tg = tc.getContext('2d'); tg.font = font;
-  const L = textLayout(txt.split('\n'), size, dir, sp, state.align, s => tg.measureText(s).width);
-  const box = { x: L.box.x + x, y: L.box.y + y, w: L.box.w, h: L.box.h };
+/* everything needed to draw a text again later (editable text layers, p10rd): position in layer pixels + style */
+function textSpecFrom(txt, x, y) {
+  return { txt, x, y, size: state.fontSize, font: state.font, bold: !!state.bold, italic: !!state.italic, color: state.color, dir: state.textDir || 'h',
+    spacing: state.textSpacing || 1.25, align: state.align, balloon: state.textBalloon || '', tail: state.textTail ?? 120, lw: Math.max(1, pro.lw * 0.6) };
+}
+/* draws a text spec on g; returns the box it covers (text, balloon and tail) */
+function paintText(g, S) {
+  const font = `${S.italic ? 'italic ' : ''}${S.bold ? 'bold ' : ''}${S.size}px ${S.font}`;
+  g.save(); g.font = font;
+  const L = textLayout(S.txt.split('\n'), S.size, S.dir, S.spacing, S.align, s => g.measureText(s).width);
+  const box = { x: L.box.x + S.x, y: L.box.y + S.y, w: L.box.w, h: L.box.h };
   let bb = { ...box };
-  if (state.textBalloon) {
-    const b = balloonAround(box, state.textBalloon, size);
-    drawBalloon(tg, state.textBalloon, b, { lw: Math.max(1, pro.lw * 0.6), tail: true, tailAng: state.textTail ?? 120, tailLen: 0.45, fillColor: '#ffffff' });
+  if (S.balloon) {
+    const b = balloonAround(box, S.balloon, S.size);
+    drawBalloon(g, S.balloon, b, { lw: S.lw || 3, tail: true, tailAng: S.tail ?? 120, tailLen: 0.45, fillColor: '#ffffff' });
     const reach = Math.max(b.w, b.h) * 0.8; bb = { x: b.x - reach * 0.5, y: b.y - reach * 0.5, w: b.w + reach, h: b.h + reach };
   }
-  tg.font = font; tg.fillStyle = state.color; tg.textBaseline = 'top';
-  for (const it of L.items) { tg.textAlign = it.center ? 'center' : 'left'; tg.fillText(it.ch, x + it.x, y + it.y); }
+  g.font = font; g.fillStyle = S.color; g.textBaseline = 'top';
+  for (const it of L.items) { g.textAlign = it.center ? 'center' : 'left'; g.fillText(it.ch, S.x + it.x, S.y + it.y); }
+  g.restore();
+  return { bb, box };
+}
+function drawText(txt, at) {
+  if (state.textLayer !== false && typeof textLayerPlace === 'function') return textLayerPlace(txt, at); // editable text layer (p10rd)
+  const layer = canPaint(); if (!layer || !txt.trim()) return;
+  const t = acquireCel(layer), lm = localMapper(layer), [x, y] = lm.map(at.x, at.y);
+  const tc = makeCanvas(state.w, state.h), tg = tc.getContext('2d');
+  const { bb } = paintText(tg, textSpecFrom(txt, x, y));
   const b = clampBox(bb.x - 6, bb.y - 6, bb.x + bb.w + 6, bb.y + bb.h + 6);
   if (!b) { releaseCel(t); return; }
   const before = crop(t.cel, b);
@@ -64,7 +76,8 @@ function installText() {
   $('#textForm').addEventListener('submit', e => {
     e.preventDefault(); e.stopImmediatePropagation();
     const txt = $('#textInput').value; $('#textDialog').close();
-    if (txt.trim() && textPos) drawText(txt, textPos);
+    if (typeof textEditing !== 'undefined' && textEditing) drawText(txt, textPos); // editing a text layer (p10rd): empty = delete it
+    else if (txt.trim() && textPos) drawText(txt, textPos);
   }, true);
   hookAfter('refreshProps', () => {
     if (kindOf(state.tool) !== 'text') return;

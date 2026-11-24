@@ -69,6 +69,13 @@ const TESTS = {
     const rec = [0, 0, 0, 19, ...nm, ...body], blk = new Uint8Array([0, 0, 0, rec.length + 4, ...rec, 0, 0, 0, 11]);
     const b = clipBlocks(blk); return b.length === 1 && b[0].idx === 7 && b[0].z.length === 2 && b[0].z[0] === 9 || 'blocks ' + JSON.stringify(b);
   },
+  'text layer click (textHit)': () => textHit({ x: 10, y: 10, w: 100, h: 40 }, 50, 30) && textHit({ x: 10, y: 10, w: 100, h: 40 }, 4, 6) && !textHit({ x: 10, y: 10, w: 100, h: 40 }, 200, 30) && !textHit(null, 1, 1),
+  'adjustment layers (adjLUT, adjApply)': () => {
+    const inv = adjApply(new Uint8ClampedArray([10, 200, 30, 255]), adjDefaults('invert')); if (inv.join() !== '245,55,225,255') return 'invert ' + inv.join();
+    const lv = adjLUT({ ...adjDefaults('levels'), lo: 50, hi: 200 }); if (lv[50] !== 0 || lv[200] !== 255 || lv[125] < 120 || lv[125] > 135) return 'levels ' + [lv[50], lv[125], lv[200]];
+    const th = adjApply(new Uint8ClampedArray([200, 200, 200, 255, 20, 20, 20, 255]), adjDefaults('threshold')); if (th.join() !== '255,255,255,255,0,0,0,255') return 'threshold ' + th.join();
+    const po = adjLUT({ kind: 'posterize', n: 2 }); return (po[100] === 0 && po[200] === 255) || 'posterize';
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
