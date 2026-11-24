@@ -54,10 +54,46 @@ function buftFlush() {
     g.drawImage(bufCanvas, ax, ay, bx - ax, by - ay, ax - X, ay - Y, bx - ax, by - ay);
   }
 }
+/* erasers on big pages: they change the layer itself at every move (eraseRegion), so the whole page-size layer was
+   sent to the screen again each time. Now the touched parts of the layer move into 512 px tiles laid over it (the
+   mixing brushes' overlay, mirOverlay): each tile is taken out of the layer once, erased in place, and put back at
+   the end of the stroke (before the undo step is made); a cancelled stroke just drops them. */
+function etTile(st, tx, ty) {
+  const k = tx + ',' + ty; let c = st._et.get(k);
+  if (c) return c;
+  const cel = st.t.ctx.canvas, X = tx * BUFT_T, Y = ty * BUFT_T, w = Math.min(BUFT_T, cel.width - X), h = Math.min(BUFT_T, cel.height - Y);
+  c = makeCanvas(w, h); c._x = X; c._y = Y;
+  c.style.cssText = `position:absolute;left:${X}px;top:${Y}px;width:${w}px;height:${h}px`;
+  c.getContext('2d').drawImage(cel, X, Y, w, h, 0, 0, w, h);
+  st._etOv.el.appendChild(c); st.t.ctx.clearRect(X, Y, w, h);
+  st._et.set(k, c); return c;
+}
+function etFinish(st, cancel) {
+  if (!st || !st._et) return;
+  if (!cancel) for (const c of st._et.values()) { st.t.ctx.clearRect(c._x, c._y, c.width, c.height); st.t.ctx.drawImage(c, c._x, c._y); }
+  if (st._etOv) { st._etOv.el.remove(); if (MIR_OV === st._etOv) MIR_OV = null; }
+  st._et = null; st._etOv = null; st.mirOv = undefined;
+}
 function installBufTiles() {
+  const er0 = eraseRegion; eraseRegion = function (st, b) {
+    if (!st._et) return er0.apply(this, arguments);
+    const cel = st.t.ctx.canvas;
+    for (const [tx, ty] of buftTiles(b.x, b.y, b.w, b.h, cel.width, cel.height)) {
+      const tg = etTile(st, tx, ty).getContext('2d'); tg.save(); tg.setTransform(1, 0, 0, 1, -tx * BUFT_T, -ty * BUFT_T);
+      try { er0.call(this, Object.assign(Object.create(st), { t: { ctx: tg } }), b); } finally { tg.restore(); }
+    }
+  };
+  const cb0 = clearBuffers; clearBuffers = function (st) {
+    if (st && st._et) etFinish(st, st._etCancel);
+    return cb0.apply(this, arguments);
+  };
   const bs0 = beginStroke; beginStroke = function () {
     const out = bs0.apply(this, arguments);
     if (buftWanted(stroke)) { buftStart(stroke); buftMark(stroke.box); }
+    else if (BUFT.on && stroke && stroke.erase && !stroke.direct && stroke.t && stroke.t.ctx.canvas.width * stroke.t.ctx.canvas.height >= BUFT_MIN) {
+      const ov = typeof mirOverlay === 'function' ? mirOverlay(stroke) : null; // the layer's place, transform, opacity and blend
+      if (ov) { stroke._etOv = ov; stroke._et = new Map(); bufCanvas.style.display = 'none'; stroke._bufHid = true; }
+    }
     return out;
   };
   const am0 = afterMove; afterMove = function (st) {
@@ -69,9 +105,13 @@ function installBufTiles() {
     }
     return out;
   };
-  const es0 = endStroke; endStroke = function () {
-    const st = stroke;
-    try { return es0.apply(this, arguments); } finally { if (st && st === BUFT.st) buftStop(); }
+  const es0 = endStroke; endStroke = function (cancel) {
+    const st = stroke; if (st) st._etCancel = !!cancel;
+    try { return es0.apply(this, arguments); } finally {
+      if (st && st === BUFT.st) buftStop();
+      if (st && st._et) etFinish(st, !!cancel); // safety: a stroke that ended without clearBuffers
+      if (st && st._bufHid) bufCanvas.style.display = '';
+    }
   };
   // the buffer's place / opacity / blend can change during a stroke (prepBuffer): keep the tiles in step
   const pb0 = prepBuffer; prepBuffer = function () {
