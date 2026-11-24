@@ -20,7 +20,8 @@ const HOOKABLE = {
   saveDocument: [() => saveDocument, f => { saveDocument = f; }],
   render3D: [() => render3D, f => { render3D = f; }],
   setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }],
-  syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }]
+  syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }],
+  buildMenus: [() => buildMenus, f => { buildMenus = f; }]
 };
 function hookAfter(name, fn, order = 0) {
   let h = HOOKS[name];

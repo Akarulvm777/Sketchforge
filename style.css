@@ -1309,3 +1309,12 @@ body.hub-open #menubar { z-index: 9002; }
 .refbar button { padding: 2px 7px; }
 .refview { flex: 1; width: 100%; min-height: 0; background: #1a1a1a; touch-action: none; cursor: grab; }
 .refempty { position: absolute; left: 0; right: 0; top: 50%; text-align: center; pointer-events: none; padding: 0 16px; }
+/* keyboard shortcuts editor (p10zbh) */
+.keysdlg { width: min(620px, calc(100vw - 32px)); }
+.keysearch { width: 100%; margin: 6px 0; }
+.keylist { max-height: min(60vh, 520px); overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.keyrow { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; }
+.keyrow:hover { background: rgba(128,128,128,.12); }
+.keyrow .kname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.keyrow kbd, .mi kbd.mine { font-size: 11px; }
+.keyrow kbd.mine, .mi kbd.mine { color: var(--accent, #e0a06a); }

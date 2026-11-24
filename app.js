@@ -289,7 +289,8 @@ const HOOKABLE = {
   saveDocument: [() => saveDocument, f => { saveDocument = f; }],
   render3D: [() => render3D, f => { render3D = f; }],
   setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }],
-  syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }]
+  syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }],
+  buildMenus: [() => buildMenus, f => { buildMenus = f; }]
 };
 function hookAfter(name, fn, order = 0) {
   let h = HOOKS[name];
@@ -14697,6 +14698,97 @@ function installRefWin() {
   if (W && !W[1].some(x => Array.isArray(x) && x[1] === 'refWin')) W[1].splice(1, 0, ['🖼 Reference window (show / hide)', 'refWin']);
 }
 
+/* ---------- your own keyboard shortcuts (3.6) ----------
+   Help › ⌨ Keyboard shortcuts…: every menu command and every tool can get a key (or Ctrl / Alt / Shift + key).
+   Click Set, press the keys, done. Your shortcuts win over the built-in ones (a keydown listener in capture runs
+   them first) and show in the menus. Saved in prefs keys.v1 = { 'Ctrl+Shift+K': 'cmd:<id>' | 'tool:<id>' }. */
+const KEYS = { map: {}, wait: null };
+/* pure: the name of a key press ('Ctrl+Shift+K', 'Alt+F5', 'B'); null for a lone modifier */
+function keyCombo(e) {
+  const k = e.key; if (!k || ['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock'].includes(k)) return null;
+  const name = k === ' ' ? 'Space' : k.length === 1 ? k.toUpperCase() : k;
+  return [e.ctrlKey || e.metaKey ? 'Ctrl' : '', e.altKey ? 'Alt' : '', e.shiftKey && k.length > 1 || e.shiftKey && /[A-Z]/i.test(k) ? 'Shift' : '', name].filter(Boolean).join('+');
+}
+/* every action that can get a shortcut: menu commands (label, id, built-in key) and tools */
+function keyActions() {
+  const out = [], seen = new Set();
+  for (const [menu, items] of MENUS) for (const it of items) if (Array.isArray(it) && it[1] && !seen.has('cmd:' + it[1])) { seen.add('cmd:' + it[1]); out.push({ id: 'cmd:' + it[1], label: it[0].replace(/…$/, ''), where: menu, builtin: it[2] || '' }); }
+  for (const g of GROUPS) for (const t of g.subs || []) if (TOOLDEF[t] && !seen.has('tool:' + t)) { seen.add('tool:' + t); out.push({ id: 'tool:' + t, label: TOOLDEF[t].name, where: 'Tool · ' + (g.name || g.id), builtin: '' }); }
+  return out;
+}
+const keyOf = id => Object.keys(KEYS.map).find(k => KEYS.map[k] === id) || '';
+function keyRun(id) {
+  const [kind, name] = [id.slice(0, id.indexOf(':')), id.slice(id.indexOf(':') + 1)];
+  if (kind === 'tool' && TOOLDEF[name]) { const g = GROUPS.find(x => (x.subs || []).includes(name)); if (g) selectGroup(g.id); selectTool(name); return true; }
+  if (kind === 'cmd' && typeof CMD[name] === 'function') { CMD[name](); return true; }
+  return false;
+}
+function keySet(combo, id) { // one key → one action
+  for (const k of Object.keys(KEYS.map)) if (KEYS.map[k] === id) delete KEYS.map[k];
+  if (combo) KEYS.map[combo] = id;
+  prefs.setJson('keys.v1', KEYS.map); keyMenus();
+}
+function keyMenus() { // the menus show your keys
+  document.querySelectorAll('#menus .mi[data-cmd]').forEach(mi => {
+    const k = keyOf('cmd:' + mi.dataset.cmd); let kb = mi.querySelector('kbd');
+    if (k) { if (!kb) { kb = document.createElement('kbd'); mi.appendChild(kb); } if (!kb.dataset.orig) kb.dataset.orig = kb.textContent || '-'; kb.textContent = k; kb.classList.add('mine'); }
+    else if (kb && kb.dataset.orig) { if (kb.dataset.orig === '-') kb.remove(); else { kb.textContent = kb.dataset.orig; kb.classList.remove('mine'); delete kb.dataset.orig; } }
+  });
+}
+function keyDialog() {
+  let d = $('#keysDlg'); if (d) d.remove();
+  d = document.createElement('dialog'); d.id = 'keysDlg'; d.className = 'keysdlg';
+  d.innerHTML = `<form method="dialog"><h2>⌨ Keyboard shortcuts</h2>
+    <p class="muted small">Find a command or a tool, press <b>Set</b>, then press the keys you want (Esc = cancel, Backspace = no key). Your keys win over the built-in ones.</p>
+    <input type="search" class="keysearch" placeholder="Search a command or tool…"><div class="keylist"></div>
+    <div class="dialog-actions"><button type="button" data-a="reset">Reset all my keys</button><span style="flex:1"></span><button type="submit" class="primary">Done</button></div></form>`;
+  document.body.appendChild(d);
+  const list = d.querySelector('.keylist'), search = d.querySelector('.keysearch'), acts = keyActions();
+  const render = () => {
+    const q = search.value.trim().toLowerCase();
+    list.innerHTML = '';
+    for (const a of acts) {
+      if (q && !(a.label + ' ' + a.where).toLowerCase().includes(q)) continue;
+      const mine = keyOf(a.id), row = document.createElement('div'); row.className = 'keyrow';
+      row.innerHTML = `<span class="kname">${escHtml(a.label)}<small class="muted"> · ${escHtml(a.where)}</small></span><kbd class="${mine ? 'mine' : ''}">${escHtml(mine || a.builtin || '—')}</kbd><button type="button">${KEYS.wait === a.id ? 'Press keys…' : 'Set'}</button>${mine ? '<button type="button" class="kclear" title="Remove my key">✕</button>' : ''}`;
+      const set = row.querySelector('button'); set.onclick = () => { KEYS.wait = a.id; render(); };
+      if (KEYS.wait === a.id) setTimeout(() => set.focus(), 0); // the keys pressed next go to this row
+      const c = row.querySelector('.kclear'); if (c) c.onclick = () => { keySet('', a.id); render(); };
+      list.appendChild(row);
+    }
+  };
+  search.oninput = render;
+  d.addEventListener('keydown', e => {
+    if (!KEYS.wait) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.key === 'Escape') { KEYS.wait = null; render(); return; }
+    if (e.key === 'Backspace' || e.key === 'Delete') { keySet('', KEYS.wait); KEYS.wait = null; render(); return; }
+    const combo = keyCombo(e); if (!combo) return;
+    const prev = KEYS.map[combo];
+    keySet(combo, KEYS.wait);
+    if (prev && prev !== KEYS.wait) { const p = acts.find(a => a.id === prev); toast(`${combo} moved from "${p ? p.label : prev}"`); }
+    KEYS.wait = null; render();
+  }, true);
+  d.querySelector('[data-a=reset]').onclick = () => { KEYS.map = {}; prefs.setJson('keys.v1', {}); keyMenus(); render(); };
+  d.addEventListener('close', () => { KEYS.wait = null; d.remove(); });
+  render(); d.showModal(); search.focus();
+}
+function installKeys() {
+  KEYS.map = prefs.json('keys.v1', {}) || {};
+  CMD.keyShortcuts = keyDialog;
+  const H = MENUS.find(m => m[0] === 'Help');
+  if (H && !H[1].some(x => Array.isArray(x) && x[1] === 'keyShortcuts')) H[1].splice(1, 0, ['⌨ Keyboard shortcuts (make your own)…', 'keyShortcuts']);
+  // your keys first (capture), so they win over the built-in ones
+  document.addEventListener('keydown', e => {
+    if (e.repeat || !Object.keys(KEYS.map).length) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable || document.querySelector('dialog[open]')) return;
+    const id = KEYS.map[keyCombo(e)];
+    if (id && keyRun(id)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  hookAfter('buildMenus', keyMenus);
+}
+
 /* ---------- Colour sets (favourite colours) and colour history ----------
    As many named sets as you like (Basic, Skin, Hair…): add the main colour, tap to use, right-click / long-press or
    "Remove colours" to take one out. History = the last colours you painted with, kept between sessions. */
@@ -15683,6 +15775,7 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'keyboard shortcut custom change key hotkey bind my own keys raccourci clavier personnaliser', t: 'Make your own keyboard shortcuts', x: 'Help › Keyboard shortcuts: find any command or tool, press Set, then the keys you want (Ctrl / Alt / Shift + a key, or a single key). Your keys win over the built-in ones and show in the menus. ✕ removes one, Reset all my keys starts again.', a: [['cmd', 'keyShortcuts', 'Keyboard shortcuts']] },
   { q: 'reference picture image photo window sub view model sheet next to canvas référence image fenêtre', t: 'Reference window', x: 'Window › Reference window: keep reference pictures next to the canvas. ＋ Add (or drop / paste a picture), wheel or ＋ − to zoom, drag to look around, ⇋ to flip, 💧 (or Alt+click) to pick a colour. The pictures stay for next time.', a: [['cmd', 'refWin', 'Reference window']] },
   { q: 'layer effect border outline stroke around drop shadow glow sticker contour effet de calque bordure ombre', t: 'Layer effects: border, shadow, glow', x: 'Layer › Layer effects…: a Border (outline around everything on the layer), a Drop shadow or an Outer glow. They are settings, not pixels: keep drawing and they follow your new strokes. Remove effects takes them away.', a: [['cmd', 'layerFx', 'Layer effects']] },
   { q: 'adjustment layer non destructive hue saturation levels curve colour balance gradient map later change invert calque de réglage', t: 'Adjustment layers', x: 'Layer › New adjustment layer (Hue / Saturation, Levels, Tone curve, Colour balance, Gradient map, Posterize, Threshold, Invert…): it changes every layer below without touching them. Double-click it to change the settings any time. Erase parts of it to keep those parts unchanged; its opacity is the strength.', a: [['cmd', 'adj_hsb', 'New Hue / Saturation layer'], ['cmd', 'adjSettings', 'Adjustment settings']] },
@@ -17795,6 +17888,7 @@ Adjustment|ปรับแต่ง|Réglage|Ajuste|Ajuste|Einstellung|色調補
 Layer effects (border, shadow, glow)|เอฟเฟกต์เลเยอร์ (ขอบ เงา เรืองแสง)|Effets de calque (bordure, ombre, lueur)|Efectos de capa (borde, sombra, brillo)|Efeitos de camada (borda, sombra, brilho)|Ebeneneffekte (Rand, Schatten, Leuchten)|レイヤー効果（フチ、影、光彩）|图层效果（描边、阴影、发光）|레이어 효과 (테두리, 그림자, 광채)
 Reference window (show / hide)|หน้าต่างภาพอ้างอิง (แสดง / ซ่อน)|Fenêtre de référence (afficher / masquer)|Ventana de referencia (mostrar / ocultar)|Janela de referência (mostrar / ocultar)|Referenzfenster (ein / aus)|資料ウィンドウ（表示 / 非表示）|参考窗口（显示 / 隐藏）|참고 창 (보이기 / 숨기기)
 Reference|ภาพอ้างอิง|Référence|Referencia|Referência|Referenz|資料|参考|참고
+Keyboard shortcuts (make your own)|ทางลัดแป้นพิมพ์ (ตั้งเอง)|Raccourcis clavier (personnalisés)|Atajos de teclado (personalizados)|Atalhos de teclado (personalizados)|Tastenkürzel (eigene)|キーボードショートカット（カスタム）|键盘快捷键（自定义）|키보드 단축키 (직접 설정)
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
@@ -18229,7 +18323,7 @@ function init() {
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
     installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset
