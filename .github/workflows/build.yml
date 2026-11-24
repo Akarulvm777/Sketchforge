@@ -21,6 +21,10 @@ on:
         description: Write the CHANGELOG.md notes into every existing GitHub Release
         type: boolean
         default: false
+      site_only:
+        description: Publish only the website (GitHub Pages) from this branch, no installers or release
+        type: boolean
+        default: false
 permissions:
   contents: write
   pages: write
@@ -32,6 +36,7 @@ jobs:
       build: ${{ steps.g.outputs.build }}
       release: ${{ steps.g.outputs.release }}
       e2e: ${{ steps.g.outputs.e2e }}
+      site: ${{ steps.g.outputs.site }}
     steps:
       - uses: actions/checkout@v4
       - id: g
@@ -40,17 +45,20 @@ jobs:
           EV: ${{ github.event_name }}
           REF: ${{ github.ref }}
           FIX: ${{ inputs.fix_notes }}
+          SITE: ${{ inputs.site_only }}
         run: |
           subject="$(printf '%s' "$MSG" | head -n1)"
           ver=$(node -p "require('./package.json').version")
           build=false; release=false; e2e=false
           if [[ "$subject" == *"[build]"* ]]; then build=true; fi
-          if [ "$EV" = workflow_dispatch ] && [ "$FIX" != true ]; then build=true; fi
+          site=false
+          if [ "$EV" = workflow_dispatch ] && [ "$SITE" = true ]; then site=true; # website only (e.g. a search-engine tag): no installers
+          elif [ "$EV" = workflow_dispatch ] && [ "$FIX" != true ]; then build=true; fi
           # a new version on master = a release (the tag is made by the release job)
           if [ "$EV" = push ] && [ "$REF" = refs/heads/master ] && ! git ls-remote --exit-code --tags origin "refs/tags/v$ver" >/dev/null; then release=true; build=true; fi
           if [ "$EV" = pull_request ] || [ "$REF" = refs/heads/master ] || [ "$REF" = refs/heads/prerelease ] || [ "$release" = true ]; then e2e=true; fi
           echo "version $ver: build=$build release=$release e2e=$e2e"
-          echo "build=$build" >> "$GITHUB_OUTPUT"; echo "release=$release" >> "$GITHUB_OUTPUT"; echo "e2e=$e2e" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"; echo "release=$release" >> "$GITHUB_OUTPUT"; echo "e2e=$e2e" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"
   test:
     # nothing is built or released unless the tests pass
     needs: gate
@@ -252,7 +260,7 @@ jobs:
           gh release upload "$V" out/*.ipa --clobber
   web:
     needs: [gate, test]
-    if: needs.gate.outputs.build == 'true' && needs.test.result == 'success'
+    if: (needs.gate.outputs.build == 'true' || needs.gate.outputs.site == 'true') && needs.test.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -274,7 +282,7 @@ jobs:
     # browsers / iPad (/app/) and version.json, which every installed app checks for updates. Published on releases.
     # does not wait for the installers (a missing macOS machine must not hold the website back)
     needs: [gate, web]
-    if: needs.gate.outputs.release == 'true'
+    if: needs.gate.outputs.release == 'true' || needs.gate.outputs.site == 'true'
     runs-on: ubuntu-latest
     environment: { name: github-pages, url: '${{ steps.deploy.outputs.page_url }}' }
     steps:
