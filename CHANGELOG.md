@@ -6,7 +6,7 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 
 ## 3.8: Inkvessa Draw — new name and logo
 - New name: **Inkvessa Draw**.
-- New logo: a big "I" shaped like a pen next to a cute little "D" with a face, in the same neon colours.
+- New logo: a big "I" shaped like a pen, a tilted "D" with two big eyes and a sparkle stroke, in the same neon colours.
 - Faster drawing on big pages (phones, iPad): the line being drawn is shown in small pieces instead of re-sending the whole page to the screen at every pen movement, and lifting the pen is quicker.
 
 ## 3.7: Brush textures with more control
