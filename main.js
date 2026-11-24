@@ -66,7 +66,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#2b2b2b',
-    title: 'Nexilune',
+    title: 'Inkvessa',
     icon: path.join(__dirname, 'icon-512.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
   });

@@ -1,9 +1,9 @@
 {
   "name": "sketchforge",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "Layered drawing and frame-by-frame animation studio for desktop, phone and tablet.",
   "main": "main.js",
-  "author": "Nexilune",
+  "author": "Inkvessa",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "app.sketchforge.studio",
-    "productName": "Nexilune",
+    "productName": "Inkvessa",
     "files": [
       "main.js",
       "index.html",
@@ -85,7 +85,7 @@
       "icon": "icon-512.png",
       "category": "Graphics"
     },
-    "artifactName": "Nexilune-${version}-${os}-${arch}.${ext}",
+    "artifactName": "Inkvessa-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -97,16 +97,16 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Nexilune",
-      "artifactName": "Nexilune-Setup-${version}.${ext}"
+      "shortcutName": "Inkvessa",
+      "artifactName": "Inkvessa-Setup-${version}.${ext}"
     },
     "dmg": {
-      "artifactName": "Nexilune-${version}-mac-${arch}.${ext}"
+      "artifactName": "Inkvessa-${version}-mac-${arch}.${ext}"
     },
     "fileAssociations": [
       {
         "ext": "sketchforge",
-        "name": "Nexilune drawing",
+        "name": "Inkvessa drawing",
         "role": "Editor"
       }
     ]

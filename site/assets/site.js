@@ -1,4 +1,4 @@
-/* Nexilune website: download links (from version.json), sign-in, account page, app sign-in hand-over, community. */
+/* Inkvessa website: download links (from version.json), sign-in, account page, app sign-in hand-over, community. */
 (function () {
   const SB = window.SFSB, $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
@@ -99,7 +99,7 @@
     if (fromHash) { sessionStorage.setItem('sf-link-code', fromHash); history.replaceState(null, '', location.pathname + location.search); }
     const code = sessionStorage.getItem('sf-link-code');
     if (!SB || !SB.ready) { msg.textContent = 'Online features are not switched on yet.'; prov.hidden = true; return; }
-    if (!code) { msg.textContent = 'Open this page from the Nexilune app (☁ Account › Sign in).'; prov.hidden = true; return; }
+    if (!code) { msg.textContent = 'Open this page from the Inkvessa app (☁ Account › Sign in).'; prov.hidden = true; return; }
     const back = location.origin + location.pathname;
     prov.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { location.href = SB.authorizeUrl(b.dataset.p, back); });
     if (/access_token=/.test(location.hash)) {
@@ -109,7 +109,7 @@
         history.replaceState(null, '', location.pathname);
         await SB.handOver(code, s);
         sessionStorage.removeItem('sf-link-code');
-        $('#linkBox').innerHTML = `<h1>✓ You're signed in</h1><p>Hi ${esc((s.user && (s.user.user_metadata || {}).full_name) || '')}! Go back to the Nexilune app — it signs in by itself in a few seconds.</p><p class="small muted">You can close this tab.</p>`;
+        $('#linkBox').innerHTML = `<h1>✓ You're signed in</h1><p>Hi ${esc((s.user && (s.user.user_metadata || {}).full_name) || '')}! Go back to the Inkvessa app — it signs in by itself in a few seconds.</p><p class="small muted">You can close this tab.</p>`;
       } catch (e) { msg.textContent = 'Sign-in failed: ' + e.message; prov.hidden = false; }
     } else {
       const p = new URLSearchParams(location.search).get('p');

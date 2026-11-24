@@ -2,7 +2,7 @@ const H = require('./harness.cjs');
 const fs = require('fs');
 (async () => {
   const root = process.argv[2], out = process.argv[3];
-  const { pg, ctx, errors, done } = await H.open(root, 8768, undefined, ['--auto-accept-this-tab-capture', '--use-fake-ui-for-media-stream', '--auto-select-desktop-capture-source=Nexilune']);
+  const { pg, ctx, errors, done } = await H.open(root, 8768, undefined, ['--auto-accept-this-tab-capture', '--use-fake-ui-for-media-stream', '--auto-select-desktop-capture-source=Inkvessa']);
   const ok = []; const check = (n, c) => { ok.push(!!c); console.log((c ? 'ok   ' : 'FAIL ') + n); };
   const SF = fn => pg.evaluate(fn);
   const frames = async () => { await pg.evaluate(() => window.__sketchforge.tlIdle()); return pg.evaluate(() => window.__sketchforge.TL.frames.length); };

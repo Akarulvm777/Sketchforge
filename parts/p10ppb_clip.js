@@ -210,7 +210,7 @@ async function readClip(u8, onStep) {
         report.frames += keys.filter(k => k[1]).length; report.layers++;
         continue;
       }
-      if (isFolder(L)) { // nested folders join their top folder (Nexilune folders are one level)
+      if (isFolder(L)) { // nested folders join their top folder (Inkvessa folders are one level)
         await walk(L.MainId, { ref: folder ? folder.ref : { name }, visible: !hidden, opacity });
         continue;
       }

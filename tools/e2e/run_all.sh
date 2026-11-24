@@ -3,7 +3,7 @@
 OUT=${1:-/tmp/sf-e2e}; HERE=$(cd "$(dirname "$0")" && pwd); ROOT=$(dirname "$(dirname "$HERE")")
 [ -f "$OUT/clip.webm" ] || bash "$HERE/make_fixtures.sh" "$OUT"
 fail=0
-for t in boottest welcometest blendtest ipadpentest apptest mobiletest sesstest autosavetest draftstest tuttest tooltuttest foxtest bonetest physicstest chaintest layertest suttest studiotest installtest animtest swaptest lipsynctest facetest m3dtest vrmtest gizmotest m3canvastest twotonetest mangatest hubtest smartfilltest persptest vectortest advtest tunetest speedtest helptest cloudtest smoothtest tonetest cpimgtest whatsnewtest lighttest holdtest importtest fxtest symtest cptest tltest mdtest vidtest psdtest pentest reusetest rigtest puptest textest comictexttest langtest cliptest toolsweep; do
+for t in boottest welcometest blendtest ipadpentest apptest mobiletest sesstest autosavetest draftstest tuttest tooltuttest foxtest bonetest physicstest chaintest layertest suttest studiotest installtest animtest swaptest lipsynctest facetest m3dtest vrmtest gizmotest m3canvastest twotonetest mangatest hubtest smartfilltest persptest vectortest advtest tunetest speedtest helptest cloudtest smoothtest tonetest cpimgtest whatsnewtest lighttest holdtest importtest fxtest symtest cptest tltest mdtest vidtest psdtest pentest reusetest rigtest puptest textest comictexttest langtest cliptest textlayertest adjusttest layerfxtest refwintest keystest comicexporttest rulers2test cameratest texplustest toolsweep; do
   full=$(cd "$HERE" && node "$t.cjs" "$ROOT" "$OUT" 2>&1); r=$(printf '%s\n' "$full" | tail -1); echo "$t: $r"
   case "$r" in *PASS) ;; *) fail=1; printf '%s\n' "$full" | grep -v '^ok ' | sed 's/^/    | /' | tail -40;; esac
 done

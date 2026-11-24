@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import changelog
 
 INSTALL = """## Install
-- **Windows**: `Sketchforge-Setup-….exe`, run it (Windows may say "unknown publisher": More info → Run anyway).
-- **Mac**: `…-mac-arm64.dmg` for Apple Silicon (M1/M2/M3…), `…-mac-x64.dmg` for Intel. Drag Nexilune to Applications, then right-click → Open the first time (the app is not notarised).
+- **Windows**: `Inkvessa-Setup-….exe`, run it (Windows may say "unknown publisher": More info → Run anyway).
+- **Mac**: `…-mac-arm64.dmg` for Apple Silicon (M1/M2/M3…), `…-mac-x64.dmg` for Intel. Drag Inkvessa to Applications, then right-click → Open the first time (the app is not notarised).
 - **Android**: open the `.apk` on the phone / tablet (allow "install unknown apps" when asked).
 - **Linux**: the `.AppImage` (make it executable, then run it).
 - **iPad / iPhone**: the web app (website link, Safari → Share → Add to Home Screen). Test app: `…-ios-unsigned.ipa` (added a few minutes later), installed with AltStore or Sideloadly (works 7 days, then install again).

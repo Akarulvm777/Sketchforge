@@ -28,7 +28,7 @@ function updCard(html, buttons) {
 async function updSaveFirst() { try { if (typeof sessionSave === 'function') await sessionSave(); } catch (e) { /* ignore */ } }
 const notesHtml = j => j && j.notes ? `<div class="muted small upd-notes">${String(j.notes).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</div>` : '';
 /* called by the desktop shell (main.js) once the new files are downloaded */
-window.sfUpdateReady = (v, notes) => updCard(`<b>⬆ Nexilune ${v} is ready</b>${notesHtml({ notes })}<span class="muted small">Your work is kept and reopened.</span>`,
+window.sfUpdateReady = (v, notes) => updCard(`<b>⬆ Inkvessa ${v} is ready</b>${notesHtml({ notes })}<span class="muted small">Your work is kept and reopened.</span>`,
   [['Later'], ['Use it now', async () => { await updSaveFirst(); location.reload(); }, true]]);
 async function androidLiveUpdate(j) {
   const FS = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
@@ -45,7 +45,7 @@ async function androidLiveUpdate(j) {
   const { uri } = await FS.getUri({ path: `web/${v}/index.html`, directory: 'DATA' });
   const url = window.Capacitor.convertFileSrc(uri);
   try { localStorage.setItem(UPD_KEY, JSON.stringify({ version: v, url })); } catch (e) { /* ignore */ }
-  updCard(`<b>⬆ Nexilune ${v} is ready</b>${notesHtml(j)}<span class="muted small">Your work is kept and reopened.</span>`,
+  updCard(`<b>⬆ Inkvessa ${v} is ready</b>${notesHtml(j)}<span class="muted small">Your work is kept and reopened.</span>`,
     [['Later'], ['Use it now', async () => { await updSaveFirst(); location.replace(url); }, true]]);
 }
 /* opens an installer link in the browser (Android: the system browser downloads the .apk; Windows: the .exe) */
@@ -56,7 +56,7 @@ function openDownload(url) {
 }
 async function checkForUpdate(manual) {
   const site = siteUrl();
-  if (!site) { if (manual) toast('Updates come from the Nexilune website, which is not set up in this copy yet.'); return; }
+  if (!site) { if (manual) toast('Updates come from the Inkvessa website, which is not set up in this copy yet.'); return; }
   let j;
   try { const r = await fetch(site + '/version.json', { cache: 'no-store' }); j = await r.json(); }
   catch (e) { if (manual) toast('Could not reach the update server (offline?)'); return; }
@@ -65,21 +65,21 @@ async function checkForUpdate(manual) {
   const need = j.shell && j.shell[sh.platform];
   const dl = j.downloads && (sh.platform === 'android' ? j.downloads.android : sh.platform === 'ios' ? j.downloads.ios : sh.platform === 'desktop' ? (/Mac/.test(navigator.platform) ? (j.downloads.macArm || j.downloads.mac) : /Linux/.test(navigator.platform) ? j.downloads.linux : j.downloads.windows) : null);
   if (need && verGt(need, sh.version) && sh.platform !== 'web') {
-    updCard(`<b>⬆ Nexilune ${j.version} is available</b>${notesHtml(j)}Tap <b>Download update</b>, then open the file and install it <b>over this one</b> — no need to uninstall: your drawings and settings stay.`,
+    updCard(`<b>⬆ Inkvessa ${j.version} is available</b>${notesHtml(j)}Tap <b>Download update</b>, then open the file and install it <b>over this one</b> — no need to uninstall: your drawings and settings stay.`,
       [['Later'], ['Download update', () => openDownload(dl || site + '/#download'), true]]);
     return;
   }
   if (sh.platform === 'web') {
-    updCard(`<b>⬆ Nexilune ${j.version} is available</b>${notesHtml(j)}`, [['Later'], ['Reload now', async () => { await updSaveFirst(); location.reload(); }, true]]);
+    updCard(`<b>⬆ Inkvessa ${j.version} is available</b>${notesHtml(j)}`, [['Later'], ['Reload now', async () => { await updSaveFirst(); location.reload(); }, true]]);
   } else if (sh.platform === 'android' || sh.platform === 'ios') { // the iPad app (.ipa) updates its files the same way
     try { await androidLiveUpdate(j); } catch (e) { console.warn('update', e); if (manual) toast('Update failed: ' + e.message); }
-  } else if (manual) toast('Downloading Nexilune ' + j.version + ' in the background…');
+  } else if (manual) toast('Downloading Inkvessa ' + j.version + ' in the background…');
 }
 /* What's new: shown once, the first time a new version starts (notes from the README, injected by build.py) */
 function whatsNew(force) {
   let last = null; try { last = localStorage.getItem('sketchforge.lastver'); localStorage.setItem('sketchforge.lastver', APP_VERSION); } catch (e) { /* ignore */ }
   if (!force && (!last || !verGt(APP_VERSION, last))) return; // first install: the welcome tour covers it
-  if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Nexilune ' + APP_VERSION); return; }
+  if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Inkvessa ' + APP_VERSION); return; }
   let d = $('#whatsNew'); if (d) d.remove();
   d = document.createElement('dialog'); d.id = 'whatsNew'; d.className = 'csdlg wndlg';
   // the current update first, then every earlier one (newest first) with its date and time, in one scrolling list
@@ -88,7 +88,7 @@ function whatsNew(force) {
     ? `<li><span class="wnfix">Fixed</span> ${escHtml(i.replace(/^Fixed:\s*/i, ''))}</li>` : `<li>${escHtml(i)}</li>`).join('')}</ul></section>`).join('');
   const H = typeof APP_HISTORY !== 'undefined' ? APP_HISTORY : [], mm = APP_VERSION.split('.').slice(0, 2).join('.');
   const cur = H.find(h => h.v === mm), older = H.filter(h => h !== cur);
-  d.innerHTML = `<form method="dialog"><h5>🎉 Nexilune ${APP_VERSION}: what's new</h5>
+  d.innerHTML = `<form method="dialog"><h5>🎉 Inkvessa ${APP_VERSION}: what's new</h5>
     ${last && !force ? `<p class="muted small" style="margin:0 0 8px">Updated from ${escHtml(last)}. Your drawings and settings were kept.</p>` : ''}
     <div class="wnlist">
       <div class="wnhead"><span class="wnnew">New</span> <b>${escHtml(APP_VERSION)}</b>${cur && cur.last ? ` <span class="muted small">· ${escHtml(when(cur.last))}</span>` : ''}</div>
@@ -108,13 +108,13 @@ function installUpdater() {
   } catch (e) { /* ignore */ }
   try { // first start after installing the app again: settings were reset by index.html, the work is kept
     const fresh = localStorage.getItem('sketchforge.freshinstall');
-    if (fresh) { localStorage.removeItem('sketchforge.freshinstall'); setTimeout(() => toast(`Nexilune ${fresh} installed: settings are back to default, your work is kept.`, 6000), 1800); }
+    if (fresh) { localStorage.removeItem('sketchforge.freshinstall'); setTimeout(() => toast(`Inkvessa ${fresh} installed: settings are back to default, your work is kept.`, 6000), 1800); }
   } catch (e) { /* ignore */ }
   CMD.checkUpdate = () => checkForUpdate(true);
   CMD.whatsNew = () => whatsNew(true);
-  CMD.about = () => toast(`Nexilune ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
+  CMD.about = () => toast(`Inkvessa ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
   const H = MENUS.find(m => m[0] === 'Help')[1];
-  H.push('-', ["What's new in this version", 'whatsNew'], ['Check for updates', 'checkUpdate'], ['About Nexilune', 'about']);
+  H.push('-', ["What's new in this version", 'whatsNew'], ['Check for updates', 'checkUpdate'], ['About Inkvessa', 'about']);
   if (location.hash !== '#sf-child') setTimeout(() => welcomeGate.then(() => whatsNew(false)), 1200); // after the mascot's welcome
   if (location.hash !== '#sf-child' && !isElectron()) setTimeout(() => checkForUpdate(false), 6000);
 }

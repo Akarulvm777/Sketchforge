@@ -81,7 +81,7 @@ function pressureOf(e) {
     penSamples++; if (Math.abs(raw - 0.5) > 0.001 && raw > 0) { penFlat = false; realPressureSeen = true; }
     if (!penWarned && penSamples > 40 && penFlat) {
       penWarned = true;
-      toast(IS_IOS ? 'Your Apple Pencil sends no pressure here: open Nexilune in Safari (not inside another app), update iPadOS, and turn off Settings › Apple Pencil › Scribble. Test it: View › Pen pressure & touch.'
+      toast(IS_IOS ? 'Your Apple Pencil sends no pressure here: open Inkvessa in Safari (not inside another app), update iPadOS, and turn off Settings › Apple Pencil › Scribble. Test it: View › Pen pressure & touch.'
         : 'Your pen sends no pressure data: turn on Windows Ink in your tablet driver (Wacom, XP-Pen, Huion…), then restart. Help: View › Pen pressure & touch.', 8000);
     }
     return shapePressure(raw > 0 ? Math.max(raw, 0.03) : 0.03);
@@ -856,7 +856,7 @@ function compositeFrame(f, opts = {}) {
     if (isCustomBlend(l.blend)) { // blended pixel by pixel (the browser has no such mode)
       const lc = makeCanvas(c.width, c.height), lg = lc.getContext('2d');
       lg.setTransform(g.getTransform()); lg.drawImage(layerPixels(l, i, f, fp, l.opacity * fp.p.alpha * (opts.view && l.draft ? 0.45 : 1)), 0, 0);
-      blendCustom(g, lc, l.blend);
+      blendCustom(g, lc, l.blend, null, l);
       return;
     }
     g.save();
@@ -889,7 +889,7 @@ function sampleColor(x, y) {
     if (isCustomBlend(l.blend)) { // the same blend as on screen, for this one pixel
       const t = makeCanvas(pickCtx.canvas.width, pickCtx.canvas.height), tg = t.getContext('2d');
       tg.globalAlpha = l.opacity * fp.p.alpha; tg.translate(-x, -y); { const m = layerMat(l, state.frame); if (m) tg.transform(...m); } tg.drawImage(fp.cel, 0, 0);
-      blendCustom(pickCtx, t, l.blend); continue;
+      blendCustom(pickCtx, t, l.blend, null, l); continue;
     }
     pickCtx.save();
     pickCtx.globalAlpha = l.opacity * fp.p.alpha;

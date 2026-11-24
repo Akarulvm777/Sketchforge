@@ -4,6 +4,20 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.6: Inkvessa — text you can edit, adjustment layers, camera, PDF and more
+- New name: Nexilune is now **Inkvessa** — a name nobody else uses, so searching "Inkvessa" finds the app. Your files, settings and tools stay as they are.
+- Website download buttons point to the right files again.
+- iPad and phones: each thing has its own button: 🖌 Brush, 🎨 Colour, 🗂 Layers and 🧭 View open only their own panel. Quick size and opacity sliders on the side of the canvas.
+- Editable text: every text is its own text layer. Click it again with the Text tool to change the words; size, font, colour and balloon in Tool Property change it at once.
+- Adjustment layers (Layer menu): Hue / Saturation, Brightness & contrast, Levels, Tone curve, Colour balance, Gradient map, Posterize, Threshold and Invert change everything below without touching it. Double-click to change them any time; erase parts to limit them.
+- Animation camera (Animation › Camera): pan, zoom and rotate keys that glide between frames. Watch playback through it; videos, GIFs and pictures are framed by it.
+- Comic pages out (File › Export pages, Ctrl+P): one PDF at print size, PNG pages in a ZIP, or print.
+- Your own keyboard shortcuts for every command and tool (Help › Keyboard shortcuts).
+- Layer effects: border (outline), drop shadow and outer glow that follow your drawing.
+- Reference window (Window menu): keep reference pictures next to the canvas, zoom, flip, pick colours from them.
+- Curve ruler and concentric ruler.
+- Brush textures: 8 new textures (linen, cold-press, sponge, crackle, sand, wood, kraft fibres, fine noise), contrast / brightness / invert / rotation for every texture, texture on each dab with "press harder = less grain", and a texture preview.
+
 ## 3.5: Open your Clip Studio files with their layers
 - Clip Studio files (.clip) now open with all their layers: names, order, folders, hidden layers, opacity, blend modes (Multiply, Overlay…), clipping, masks and "Layer color". Before, they opened as one flat picture.
 - Animations too: every animation folder becomes an animated layer with each drawing on its frame, at the same frame rate, and the background sound comes with it.

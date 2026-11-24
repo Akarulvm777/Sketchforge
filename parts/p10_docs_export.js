@@ -11,7 +11,7 @@ function newDocument(w, h, frames, fps, transparent, name) {
   if (typeof docPrepareNew === 'function') docPrepareNew(); // opens a new tab (p10o_multidoc)
   stop();
   stroke = null; active = null;
-  Object.assign(state, { name: name || 'Untitled', w, h, frameCount: frames, fps, frame: 0, layers: [], projectType: 'illust' }); // New › Manga / comic and New manga page set 'comic' right after
+  Object.assign(state, { name: name || 'Untitled', w, h, frameCount: frames, fps, frame: 0, layers: [], projectType: 'illust', camera: null }); // New › Manga / comic and New manga page set 'comic' right after
   state.onion = { on: false, before: 2, after: 1 };
   resizeDocCanvases();
   layerSeq = 1; layerCounter = 1;
@@ -147,7 +147,7 @@ async function buildDocObject(src, opts = {}) {
   const folderList = []; for (const l of st.layers) if (l.folder && !folderList.includes(l.folder)) folderList.push(l.folder);
   const doc = {
     format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
-    frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode, projectType: st.projectType || undefined, dpi: st.dpi || undefined,
+    frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode, projectType: st.projectType || undefined, dpi: st.dpi || undefined, camera: st.camera && st.camera.keys && st.camera.keys.length ? st.camera : undefined,
     layerCounter: src.lc,
     layers: st.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
@@ -156,10 +156,10 @@ async function buildDocObject(src, opts = {}) {
       tag: l.tag || null, folder: l.folder ? folderList.indexOf(l.folder) : -1,
       mask: l.mask ? { cels: Array.from(l.mask.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({ k, ink: c._ink !== false, data: c._ink === false ? null : enc(c) })) } : null,
       faceParts: l.faceParts && l.faceParts.length ? l.faceParts : undefined,
-      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
+      phys: l.phys || undefined, mainPart: l.mainPart || undefined, vector: l.vector || undefined, textLayer: l.textLayer || undefined, adjust: l.adjust || undefined, fx: l.fx || undefined, chain: l.chain && l.chain.pts.length ? l.chain : undefined,
       swaps: l.swaps && l.swaps.length ? l.swaps.map(s => ({ id: s.id, name: s.name, data: enc(s.cel) })) : undefined,
       cels: Array.from(l.cels.entries()).sort((a, b) => a[0] - b[0]).map(([k, c]) => ({
-        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined,
+        k, ink: c._ink !== false, xf: c._xf || null, swap: c._swap || undefined, vec: c._vec && c._vec.length ? c._vec : undefined, text: c._text || undefined,
         data: c._ink === false ? null : enc(c)
       }))
     }))
@@ -201,11 +201,11 @@ async function saveDocument() {
 async function openDocumentFile(file) {
   try {
     const doc = JSON.parse(await file.text());
-    if (doc.format !== 'sketchforge') throw new Error('Not a Nexilune file');
+    if (doc.format !== 'sketchforge') throw new Error('Not a Inkvessa file');
     if (typeof docPrepareNew === 'function') docPrepareNew(); // opens in a new tab (p10o_multidoc)
     stop();
     const w = doc.w, h = doc.h;
-    Object.assign(state, { name: doc.name || file.name.replace(/\.[^.]+$/, ''), w, h, frameCount: doc.frameCount || 1, fps: doc.fps || 12, frame: 0, loop: doc.loop !== false, layers: [], projectType: doc.projectType || (doc.mode === 'anim' ? 'anim' : 'illust') });
+    Object.assign(state, { name: doc.name || file.name.replace(/\.[^.]+$/, ''), w, h, frameCount: doc.frameCount || 1, fps: doc.fps || 12, frame: 0, loop: doc.loop !== false, layers: [], projectType: doc.projectType || (doc.mode === 'anim' ? 'anim' : 'illust'), camera: doc.camera || null });
     if (doc.dpi) state.dpi = doc.dpi;
     resizeDocCanvases();
     layerSeq = 1; layerCounter = doc.layerCounter || doc.layers.length;
@@ -221,13 +221,14 @@ async function openDocumentFile(file) {
         if (cd.xf) c._xf = { ...IDENT, ...cd.xf };
         if (cd.swap) c._swap = cd.swap;
         if (cd.vec) c._vec = cd.vec;
+        if (cd.text) c._text = cd.text;
         if (cd.face && faceRests[cd.face.r]) { c._face = { rest: faceRests[cd.face.r], v: cd.face.v || {} }; if (cd.face.auto) c._face.auto = true; c._sv = 1; c._face.sv = 1; }
         if (cd.pup && pupRests[cd.pup.r]) c._pup = { rest: pupRests[cd.pup.r], pins: cd.pup.pins, cur: cd.pup.cur };
         l.cels.set(cd.k, c);
       }
       if (!l.cels.size) l.cels.set(0, makeCel(false));
       if (ld.faceParts) l.faceParts = ld.faceParts;
-      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
+      if (ld.phys) l.phys = ld.phys; if (ld.mainPart) l.mainPart = true; if (ld.textLayer) l.textLayer = true; if (ld.adjust) { l.adjust = ld.adjust; l.blend = 'adjust'; } if (ld.fx) l.fx = ld.fx; if (ld.vector) { l.vector = true; for (const c of l.cels.values()) if (!c._vec) c._vec = []; } if (ld.chain) l.chain = ld.chain;
       Object.assign(l, { visible: ld.visible !== false, opacity: ld.opacity ?? 1, blend: ld.blend || 'normal', locked: !!ld.locked, paper: !!ld.paper, px: ld.px ?? null, py: ld.py ?? null, clip: !!ld.clip, alock: !!ld.alock, ref: !!ld.ref, draft: !!ld.draft });
       if (ld.mask) {
         const m = newMaskLayer(); m.cels = new Map();

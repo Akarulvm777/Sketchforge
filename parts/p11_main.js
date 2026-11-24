@@ -307,9 +307,9 @@ function init() {
   // Each starts on its own: one that fails is logged (window.__sfStartErrors) and the others still start.
   const STARTUP = [
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
-    installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
+    installMultiDoc, installSession, installAutoSave, installMobile, installTouchBar, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installText, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installRulers2, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installComicExport, installCamera, installTexPlus, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset
@@ -318,7 +318,7 @@ function init() {
     installPaperTexture, installStudio, installDrafts, installLanguages,                                                                 // last: they wrap the ones above
     buildMenus, buildToolbox, renderSwatches, restoreLayout
   ];
-  for (const f of STARTUP) { try { f(); } catch (e) { console.error('Nexilune: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
+  for (const f of STARTUP) { try { f(); } catch (e) { console.error('Inkvessa: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
   loadAddons().then(() => { buildMenus(); });
   setColor('#000000');
   setPlayIcon();

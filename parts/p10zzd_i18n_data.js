@@ -47,7 +47,7 @@ Binarization|ขาวดำสองระดับ|Binarisation|Binarización|
 Reverse gradient (invert)|กลับสี|Inverser (négatif)|Invertir|Inverter|Umkehren (Negativ)|階調の反転|反转渐变（反相）|계조 반전
 Auto-flat colours (one colour per area)|ลงสีพื้นอัตโนมัติ (หนึ่งสีต่อพื้นที่)|Aplats automatiques (une couleur par zone)|Colores planos automáticos (un color por zona)|Cores chapadas automáticas (uma cor por área)|Automatische Grundfarben (eine Farbe pro Fläche)|自動下塗り（領域ごとに1色）|自动平涂（每个区域一种颜色）|자동 밑색 (영역마다 한 색)
 Auto-flat colours|ลงสีพื้นอัตโนมัติ|Aplats automatiques|Colores planos automáticos|Cores chapadas automáticas|Automatische Grundfarben|自動下塗り|自动平涂|자동 밑색
-Reset Nexilune to defaults|รีเซ็ต Nexilune เป็นค่าเริ่มต้น|Réinitialiser Nexilune|Restablecer Nexilune|Redefinir o Nexilune|Nexilune zurücksetzen|Nexilune を初期設定に戻す|将 Nexilune 恢复默认|Nexilune 기본값으로 초기화
+Reset Inkvessa to defaults|รีเซ็ต Inkvessa เป็นค่าเริ่มต้น|Réinitialiser Inkvessa|Restablecer Inkvessa|Redefinir o Inkvessa|Inkvessa zurücksetzen|Inkvessa を初期設定に戻す|将 Inkvessa 恢复默认|Inkvessa 기본값으로 초기화
 Select|เลือก|Sélection|Selección|Seleção|Auswahl|選択範囲|选择|선택
 All|ทั้งหมด|Tout|Todo|Tudo|Alles|すべて|全部|전체
 Deselect|ยกเลิกการเลือก|Désélectionner|Deseleccionar|Desmarcar|Auswahl aufheben|選択を解除|取消选择|선택 해제
@@ -56,6 +56,10 @@ Expand selected area|ขยายส่วนที่เลือก|Agrandir l
 Shrink selected area|หดส่วนที่เลือก|Réduire la sélection|Contraer selección|Contrair seleção|Auswahl verkleinern|選択範囲を縮小|收缩选区|선택 영역 축소
 Blur border|เบลอขอบ|Adoucir le bord|Desenfocar borde|Suavizar borda|Rand weichzeichnen|境界をぼかす|模糊边缘|경계 흐리기
 Layer|เลเยอร์|Calque|Capa|Camada|Ebene|レイヤー|图层|레이어
+Layers|เลเยอร์|Calques|Capas|Camadas|Ebenen|レイヤー一覧|图层列表|레이어 목록
+Brush: tools and their settings|พู่กัน: เครื่องมือและการตั้งค่า|Pinceau : outils et réglages|Pincel: herramientas y ajustes|Pincel: ferramentas e ajustes|Pinsel: Werkzeuge und Einstellungen|ブラシ：ツールと設定|画笔：工具与设置|붓: 도구와 설정
+Brush size|ขนาดพู่กัน|Taille du pinceau|Tamaño del pincel|Tamanho do pincel|Pinselgröße|ブラシサイズ|画笔大小|붓 크기
+Brush opacity|ความทึบพู่กัน|Opacité du pinceau|Opacidad del pincel|Opacidade do pincel|Pinseldeckkraft|ブラシの不透明度|画笔不透明度|붓 불투명도
 New layer|เลเยอร์ใหม่|Nouveau calque|Nueva capa|Nova camada|Neue Ebene|新規レイヤー|新建图层|새 레이어
 New vector layer|เลเยอร์เวกเตอร์ใหม่|Nouveau calque vectoriel|Nueva capa vectorial|Nova camada vetorial|Neue Vektorebene|新規ベクターレイヤー|新建矢量图层|새 벡터 레이어
 Duplicate|ทำสำเนา|Dupliquer|Duplicar|Duplicar|Duplizieren|複製|复制|복제
@@ -273,7 +277,7 @@ Shortcuts & help|ทางลัดและความช่วยเหลื
 Play the welcome animation|เล่นแอนิเมชันต้อนรับ|Rejouer l'animation d'accueil|Ver la animación de bienvenida|Ver a animação de boas-vindas|Willkommensanimation abspielen|ようこそアニメーションを再生|播放欢迎动画|환영 애니메이션 재생
 What's new in this version|มีอะไรใหม่ในเวอร์ชันนี้|Nouveautés de cette version|Novedades de esta versión|Novidades desta versão|Neu in dieser Version|このバージョンの新機能|此版本的新功能|이 버전의 새 기능
 Check for updates|ตรวจหาอัปเดต|Rechercher des mises à jour|Buscar actualizaciones|Verificar atualizações|Nach Updates suchen|アップデートを確認|检查更新|업데이트 확인
-About Nexilune|เกี่ยวกับ Nexilune|À propos de Nexilune|Acerca de Nexilune|Sobre o Nexilune|Über Nexilune|Nexilune について|关于 Nexilune|Nexilune 정보
+About Inkvessa|เกี่ยวกับ Inkvessa|À propos de Inkvessa|Acerca de Inkvessa|Sobre o Inkvessa|Über Inkvessa|Inkvessa について|关于 Inkvessa|Inkvessa 정보
 Language|ภาษา|Langue|Idioma|Idioma|Sprache|言語|语言|언어
 Drawing|วาดภาพ|Dessin|Dibujo|Desenho|Zeichnen|イラスト|绘画|그리기
 Ask|ถาม|Aide|Preguntar|Perguntar|Fragen|質問|提问|질문
@@ -392,4 +396,22 @@ Liquify|ลิควิฟาย|Fluidité|Licuar|Liquefazer|Verflüssigen|ゆ�
 Manga tone|โทนมังงะ|Trame manga|Trama de manga|Retícula de mangá|Manga-Raster|マンガトーン|漫画网点|만화 톤
 Shading pens|ปากกาแรเงา|Plumes d'ombrage|Plumas de sombreado|Canetas de sombreamento|Schattierstifte|陰影ペン|阴影笔|음영 펜
 Bone|กระดูก|Os|Hueso|Osso|Knochen|ボーン|骨骼|뼈
+Adjustment settings|ตั้งค่าเลเยอร์ปรับแต่ง|Réglages du calque de réglage|Ajustes de la capa de ajuste|Configurações da camada de ajuste|Einstellungen der Einstellungsebene|色調補正の設定|调整图层设置|보정 레이어 설정
+Adjustment|ปรับแต่ง|Réglage|Ajuste|Ajuste|Einstellung|色調補正|调整|보정
+Layer effects (border, shadow, glow)|เอฟเฟกต์เลเยอร์ (ขอบ เงา เรืองแสง)|Effets de calque (bordure, ombre, lueur)|Efectos de capa (borde, sombra, brillo)|Efeitos de camada (borda, sombra, brilho)|Ebeneneffekte (Rand, Schatten, Leuchten)|レイヤー効果（フチ、影、光彩）|图层效果（描边、阴影、发光）|레이어 효과 (테두리, 그림자, 광채)
+Reference window (show / hide)|หน้าต่างภาพอ้างอิง (แสดง / ซ่อน)|Fenêtre de référence (afficher / masquer)|Ventana de referencia (mostrar / ocultar)|Janela de referência (mostrar / ocultar)|Referenzfenster (ein / aus)|資料ウィンドウ（表示 / 非表示）|参考窗口（显示 / 隐藏）|참고 창 (보이기 / 숨기기)
+Reference|ภาพอ้างอิง|Référence|Referencia|Referência|Referenz|資料|参考|참고
+Keyboard shortcuts (make your own)|ทางลัดแป้นพิมพ์ (ตั้งเอง)|Raccourcis clavier (personnalisés)|Atajos de teclado (personalizados)|Atalhos de teclado (personalizados)|Tastenkürzel (eigene)|キーボードショートカット（カスタム）|键盘快捷键（自定义）|키보드 단축키 (직접 설정)
+Export pages (PDF / pictures)|ส่งออกหน้า (PDF / รูปภาพ)|Exporter les pages (PDF / images)|Exportar páginas (PDF / imágenes)|Exportar páginas (PDF / imagens)|Seiten exportieren (PDF / Bilder)|ページを書き出す（PDF / 画像）|导出页面（PDF / 图像）|페이지 내보내기 (PDF / 이미지)
+Print|พิมพ์|Imprimer|Imprimir|Imprimir|Drucken|印刷|打印|인쇄
+Export pages|ส่งออกหน้า|Exporter les pages|Exportar páginas|Exportar páginas|Seiten exportieren|ページを書き出す|导出页面|페이지 내보내기
+Curve ruler|ไม้บรรทัดเส้นโค้ง|Règle courbe|Regla curva|Régua curva|Kurvenlineal|曲線定規|曲线尺|곡선 자
+Concentric ruler|ไม้บรรทัดวงกลมซ้อน|Règle concentrique|Regla concéntrica|Régua concêntrica|Konzentrisches Lineal|同心円定規|同心圆尺|동심원 자
+Camera (pan, zoom, rotate)|กล้อง (แพน ซูม หมุน)|Caméra (déplacer, zoomer, tourner)|Cámara (mover, zoom, girar)|Câmera (mover, zoom, girar)|Kamera (schwenken, zoomen, drehen)|カメラ（パン・ズーム・回転）|摄像机（平移、缩放、旋转）|카메라 (이동, 확대, 회전)
+Camera key from what I see|คีย์กล้องจากมุมที่เห็นตอนนี้|Clé de caméra depuis la vue actuelle|Clave de cámara desde lo que veo|Chave de câmera do que estou vendo|Kamera-Schlüssel aus der Ansicht|今の表示からカメラキー|从当前视图创建摄像机关键帧|지금 보이는 대로 카메라 키
+Camera|กล้อง|Caméra|Cámara|Câmera|Kamera|カメラ|摄像机|카메라
+Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
+Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
+Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
+Place text|วางข้อความ|Placer le texte|Colocar texto|Colocar texto|Text einfügen|テキストを配置|放置文字|텍스트 배치
 Frame border|ขอบช่อง|Bord de case|Borde de viñeta|Borda de quadro|Panelrahmen|コマ枠|分格框|칸 테두리`;

@@ -41,7 +41,7 @@ function docBlankGlobals() {
   if (aud.el) aud.el.pause();
   Object.assign(aud, { el: null, name: '', peaks: null, dur: 0, url: '', file: null });
   lightPins.length = 0;
-  state.playIn = state.playOut = null;
+  state.playIn = state.playOut = null; state.camera = null;
   dirty = false;
 }
 function docSettle() {

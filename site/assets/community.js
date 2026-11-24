@@ -1,4 +1,4 @@
-/* Nexilune website › Community: reviews & ideas (comments without item, optional 1–5 star rating), with links to
+/* Inkvessa website › Community: reviews & ideas (comments without item, optional 1–5 star rating), with links to
    the Shared page (art / tools) and the profile. Post cards and author links: assets/social.js. */
 (function () {
   const S = window.SFSocial, { SB, $ } = S;

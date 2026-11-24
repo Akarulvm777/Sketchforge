@@ -47,6 +47,8 @@ const TP_DRAW = {
   rl_persp: g => { const vx = 75, vy = 6; g.strokeStyle = TP_ACC; g.lineWidth = 1; for (const x of [0, 30, 120, 150]) { g.beginPath(); g.moveTo(vx, vy); g.lineTo(x, 30); g.stroke(); } g.beginPath(); g.arc(vx, vy, 2.5, 0, 7); g.fillStyle = TP_ACC; g.fill(); tpStroke(g, 1.6); g.strokeRect(52, 18, 46, 10); g.beginPath(); g.moveTo(52, 18); g.lineTo(64, 12); g.lineTo(86, 12); g.lineTo(98, 18); g.stroke(); },
   rl_sym: g => { g.setLineDash([3, 3]); g.strokeStyle = TP_ACC; g.lineWidth = 1; g.beginPath(); g.moveTo(75, 0); g.lineTo(75, 30); g.stroke(); g.setLineDash([]); tpStroke(g, 1.8); for (const s of [1, -1]) { g.beginPath(); g.moveTo(75 + s * 6, 6); g.bezierCurveTo(75 + s * 40, 2, 75 + s * 50, 26, 75 + s * 14, 26); g.stroke(); } },
   rl_ell: g => { g.setLineDash([3, 3]); g.strokeStyle = TP_ACC; g.lineWidth = 1; g.beginPath(); g.ellipse(75, 15, 50, 11, 0, 0, 7); g.stroke(); g.setLineDash([]); tpStroke(g, 2); g.beginPath(); g.ellipse(75, 15, 50, 11, 0, Math.PI * 0.1, Math.PI * 1.2); g.stroke(); },
+  rl_curve: g => { g.strokeStyle = TP_ACC; g.lineWidth = 1.5; g.beginPath(); g.moveTo(8, 24); g.bezierCurveTo(50, -6, 90, 36, 142, 6); g.stroke(); tpStroke(g, 2); g.beginPath(); g.moveTo(30, 17); g.bezierCurveTo(55, 6, 80, 18, 110, 14); g.stroke(); },
+  rl_conc: g => { g.strokeStyle = TP_ACC; g.lineWidth = 1; for (const k of [4, 8, 12]) { g.beginPath(); g.ellipse(75, 15, k * 3, k, 0, 0, 7); g.stroke(); } tpStroke(g, 2); g.beginPath(); g.ellipse(75, 15, 30, 10, 0, 0.3, 4.2); g.stroke(); },
   /* balloons */
   bl_ellipse: g => tpBalloon(g, 'ellipse'), bl_round: g => tpBalloon(g, 'round'), bl_cloud: g => tpBalloon(g, 'cloud'),
   bl_spike: g => tpBalloon(g, 'spike'), bl_thought: g => tpBalloon(g, 'thought'),

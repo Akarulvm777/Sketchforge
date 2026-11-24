@@ -5,7 +5,7 @@
 const H = require('./e2e/harness.cjs');
 const fs = require('fs'), path = require('path'), os = require('os'), { execFileSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
-const [id, outArg, titleText = 'Nexilune', endText = ''] = process.argv.slice(2);
+const [id, outArg, titleText = 'Inkvessa', endText = ''] = process.argv.slice(2);
 if (!id || !outArg) { console.error('usage: node tools/make_tut_video.cjs <tutorial id> <out.mp4> "<title>" "<end text>"'); process.exit(1); }
 const OUT = path.resolve(outArg);
 (async () => {
@@ -27,7 +27,7 @@ const OUT = path.resolve(outArg);
   const press = async (sel, wait) => { const b = await p.locator(sel).first().boundingBox().catch(() => null); if (!b) return false;
     await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 18 }); await p.waitForTimeout(250); await p.mouse.down(); await p.waitForTimeout(90); await p.mouse.up(); await p.waitForTimeout(wait); return true; };
   await p.mouse.move(1240, 690);
-  await title(titleText + '<small>Nexilune tutorial</small>', 3000);
+  await title(titleText + '<small>Inkvessa tutorial</small>', 3000);
   await p.evaluate(i => window.__sketchforge.CMD['tut_' + i](), id); await p.waitForTimeout(2500);
   for (let n = 0; n < 30; n++) {
     const info = await p.evaluate(() => { const c = document.querySelector('.tut-card'); return c ? { len: c.textContent.length, demo: !!c.querySelector('.tut-demo'), last: /Finish/.test((c.querySelector('.tut-next') || {}).textContent || '') } : null; });

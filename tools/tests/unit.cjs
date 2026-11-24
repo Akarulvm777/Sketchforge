@@ -69,6 +69,46 @@ const TESTS = {
     const rec = [0, 0, 0, 19, ...nm, ...body], blk = new Uint8Array([0, 0, 0, rec.length + 4, ...rec, 0, 0, 0, 11]);
     const b = clipBlocks(blk); return b.length === 1 && b[0].idx === 7 && b[0].z.length === 2 && b[0].z[0] === 9 || 'blocks ' + JSON.stringify(b);
   },
+  'text layer click (textHit)': () => textHit({ x: 10, y: 10, w: 100, h: 40 }, 50, 30) && textHit({ x: 10, y: 10, w: 100, h: 40 }, 4, 6) && !textHit({ x: 10, y: 10, w: 100, h: 40 }, 200, 30) && !textHit(null, 1, 1),
+  'adjustment layers (adjLUT, adjApply)': () => {
+    const inv = adjApply(new Uint8ClampedArray([10, 200, 30, 255]), adjDefaults('invert')); if (inv.join() !== '245,55,225,255') return 'invert ' + inv.join();
+    const lv = adjLUT({ ...adjDefaults('levels'), lo: 50, hi: 200 }); if (lv[50] !== 0 || lv[200] !== 255 || lv[125] < 120 || lv[125] > 135) return 'levels ' + [lv[50], lv[125], lv[200]];
+    const th = adjApply(new Uint8ClampedArray([200, 200, 200, 255, 20, 20, 20, 255]), adjDefaults('threshold')); if (th.join() !== '255,255,255,255,0,0,0,255') return 'threshold ' + th.join();
+    const po = adjLUT({ kind: 'posterize', n: 2 }); return (po[100] === 0 && po[200] === 255) || 'posterize';
+  },
+  'layer border offsets (fxRing)': () => { const r = fxRing(10); return r.length >= 16 && r.every(([x, y]) => Math.hypot(x, y) <= 10.001) && r.some(([x, y]) => Math.hypot(x, y) > 9.99) || 'ring ' + r.length; },
+  'reference window zoom keeps the point under the cursor (refZoomAt)': () => { const v = refZoomAt({ z: 1, x: 10, y: 20 }, 2, 110, 120); return v.z === 2 && (110 - v.x) / v.z === 100 && (120 - v.y) / v.z === 100 || JSON.stringify(v); },
+  'key names (keyCombo)': () => {
+    const k = o => keyCombo({ ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...o });
+    return k({ key: 'k' }) === 'K' && k({ key: 'K', shiftKey: true }) === 'Shift+K' && k({ key: 'z', ctrlKey: true }) === 'Ctrl+Z' && k({ key: 'F5', altKey: true }) === 'Alt+F5' && k({ key: '?', shiftKey: true }) === '?' && k({ key: 'Shift', shiftKey: true }) === null && k({ key: ' ' }) === 'Space' || 'combos';
+  },
+  'PDF writer (pdfBuild): pages, sizes, cross-reference table': () => {
+    const u = pdfBuild([{ jpeg: new Uint8Array([255, 216, 255, 217]), w: 2, h: 3, wPt: 100, hPt: 150 }, { jpeg: new Uint8Array([255, 216, 255, 217]), w: 2, h: 3, wPt: 100, hPt: 150 }], 'T');
+    const t = new TextDecoder('latin1').decode(u);
+    if (!t.startsWith('%PDF-1.4') || !t.includes('/Count 2') || !t.includes('/MediaBox [0 0 100 150]') || !t.trim().endsWith('%%EOF')) return 'structure';
+    const xref = +/startxref\n(\d+)/.exec(t)[1]; if (!t.slice(xref).startsWith('xref')) return 'startxref';
+    const offs = t.slice(xref).split('\n').slice(3).filter(l => / 00000 n /.test(l)).map(l => +l.slice(0, 10));
+    return offs.every((o, i) => t.slice(o).startsWith((i + 1) + ' 0 obj')) || 'offsets';
+  },
+  'curve and concentric rulers (curveSmooth, curveNearest, concApply)': () => {
+    const c = curveSmooth([[0, 0], [10, 0], [20, 0], [30, 0], [40, 0]], 5); if (c.length !== 9 || Math.abs(c[4][0] - 20) > 0.01) return 'smooth ' + JSON.stringify(c);
+    const n = curveNearest([[0, 0], [100, 0]], 30, 12); if (n.x !== 30 || n.y !== 0 || n.d !== 12) return 'nearest ' + JSON.stringify(n);
+    const C = { cx: 0, cy: 0, rx: 2, ry: 1 }, k = concScale(C, 4, 0), p = concApply(C, k, 0, 5);
+    return k === 2 && Math.abs(p.x) < 1e-9 && Math.abs(p.y - 2) < 1e-9 || 'conc ' + JSON.stringify(p);
+  },
+  'animation camera (camAt, camMatrix)': () => {
+    const cam = { keys: [[0, { x: 100, y: 50, z: 1, rot: 0 }], [10, { x: 300, y: 50, z: 4, rot: 90 }]] };
+    const a = camAt(cam, 5, 400, 100); if (Math.round(a.x) !== 200 || Math.abs(a.z - 2) > 1e-9 || a.rot !== 45) return 'mid ' + JSON.stringify(a);
+    if (camAt(cam, -3, 400, 100).x !== 100 || camAt(cam, 20, 400, 100).x !== 300 || camAt(null, 3, 400, 100).x !== 200) return 'ends';
+    const m = camMatrix({ x: 100, y: 50, z: 2, rot: 0 }, 400, 100), p = [m[0] * 100 + m[2] * 50 + m[4], m[1] * 100 + m[3] * 50 + m[5]];
+    return p[0] === 200 && p[1] === 50 && m[0] === 2 || 'matrix ' + p;
+  },
+  'brush textures (texMore, texAdjust)': () => {
+    for (const [id] of TEX_MORE) { const v = texMore(id, 64); if (!v || v.length !== 4096) return 'missing ' + id; let mn = 1, mx = 0; for (const x of v) { mn = Math.min(mn, x); mx = Math.max(mx, x); } if (mx - mn < 0.2 || mn < 0 || mx > 1) return 'flat ' + id + ' ' + mn + '..' + mx; }
+    const a = texAdjust(new Float32Array([0.25, 0.75]), 0, 0, true); if (a[0] !== 0.75 || a[1] !== 0.25) return 'invert';
+    const c = texAdjust(new Float32Array([0.25, 0.75]), 50, 0, false); if (!(c[0] === 0 && c[1] === 1)) return 'contrast ' + [...c];
+    const b = texAdjust(new Float32Array([0.5]), 0, 20, false); return Math.abs(b[0] - 0.7) < 1e-6 || 'bright ' + b[0];
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

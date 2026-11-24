@@ -33,7 +33,8 @@ const BLEND_FN = {
 const GLOW_BLEND = new Set(['glow-dodge', 'add-glow']); // the source's transparency strengthens / weakens the effect itself
 /* blends canvas src (same size as g's canvas, layer opacity already applied) into g with a custom mode;
    r = { x, y, w, h }: only that area (src then holds just that area, at 0,0, when r.local) */
-function blendCustom(g, src, mode, r) {
+function blendCustom(g, src, mode, r, layer) {
+  if (mode === 'adjust') return adjustBlend(g, src, r, layer); // adjustment layers (p10se): the backdrop is changed, not blended
   const W = g.canvas.width, Hh = g.canvas.height;
   if (!W || !Hh) return;
   const x = r ? r.x : 0, y = r ? r.y : 0, w = r ? r.w : W, h = r ? r.h : Hh;
@@ -81,7 +82,7 @@ function customBlendView(l, i) {
   const key = cbBelowKey(i), belowOk = l._belowKey === key && l._below && l._below.width === state.w;
   if (!belowOk) { l._below = compositeFrame(state.frame, { until: i, view: true }); l._belowKey = key; }
   const fp = frameParams(l, state.frame);
-  const st = fp ? `${l.visible}${l.opacity}${l.blend}${l.draft}${l.clip ? 1 : 0}${l.mask ? 'm' + ((l.mask.cels.get(0) || {})._sv || 0) : ''}|${fp.key},${fp.p.x},${fp.p.y},${fp.p.rot},${fp.p.sx},${fp.p.sy},${fp.p.alpha}` : 'none';
+  const st = fp ? `${l.adjust ? JSON.stringify(l.adjust) : ''}${l.visible}${l.opacity}${l.blend}${l.draft}${l.clip ? 1 : 0}${l.mask ? 'm' + ((l.mask.cels.get(0) || {})._sv || 0) : ''}|${fp.key},${fp.p.x},${fp.p.y},${fp.p.rot},${fp.p.sx},${fp.p.sy},${fp.p.alpha}` : 'none';
   const self = st + '|' + (fp ? fp.cel._sv || 0 : 0);
   const styleIt = () => { const s = cv.style; s.display = l.visible ? 'block' : 'none'; s.opacity = '1'; s.mixBlendMode = 'normal'; s.transform = 'none'; s.zIndex = 10 + i * 2; s.position = 'absolute'; s.left = s.top = '0'; s.width = s.height = '100%'; return cv; };
   if (!full && belowOk && l._bvSelf === self) return styleIt(); // nothing below or here changed (e.g. a stroke on a layer above)
@@ -98,8 +99,8 @@ function customBlendView(l, i) {
     if (r) { // the layer's pixels of that area only
       const lc = makeCanvas(w, h), lg = lc.getContext('2d'); lg.globalAlpha = alpha; lg.translate(-x, -y);
       { const m = layerMat(l, state.frame); if (m) lg.transform(...m); } lg.drawImage(fp.cel, 0, 0);
-      blendCustom(g, lc, l.blend, { x, y, w, h, local: true });
-    } else blendCustom(g, layerPixels(l, i, state.frame, fp, alpha), l.blend);
+      blendCustom(g, lc, l.blend, { x, y, w, h, local: true }, l);
+    } else blendCustom(g, layerPixels(l, i, state.frame, fp, alpha), l.blend, null, l);
   }
   const s = cv.style;
   s.display = l.visible ? 'block' : 'none'; s.opacity = '1'; s.mixBlendMode = 'normal'; s.transform = 'none'; s.zIndex = 10 + i * 2;
