@@ -318,7 +318,7 @@ jobs:
         run: python3 tools/release_notes.py > notes.md && cat notes.md
       - uses: softprops/action-gh-release@v2
         with:
-          name: Inkvessa ${{ steps.ver.outputs.v }}
+          name: Inkvessa Draw ${{ steps.ver.outputs.v }}
           tag_name: ${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
           make_latest: true
@@ -337,7 +337,7 @@ jobs:
         with:
           repository: ${{ steps.ver.outputs.repo }}
           token: ${{ secrets.RELEASES_TOKEN }}
-          name: Inkvessa ${{ steps.ver.outputs.v }}
+          name: Inkvessa Draw ${{ steps.ver.outputs.v }}
           tag_name: ${{ steps.ver.outputs.v }}
           make_latest: true
           files: |

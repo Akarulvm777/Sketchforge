@@ -7,12 +7,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Inkvessa">
+<meta name="apple-mobile-web-app-title" content="Inkvessa Draw">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Inkvessa 3.7.0</title>
+<title>Inkvessa Draw 3.8.0</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=3.7.0">
+<link rel="stylesheet" href="style.css?v=3.8.0">
 <script>/* Never a blank screen. 1) Old Safari (iPadOS / iOS before 15.4) has no <dialog>: a small stand-in so the app's
    windows work. 2) If the app cannot start, show why (to send to the developer) with "Repair & reload". Plain ES5. */
 (function () {
@@ -38,7 +38,7 @@
       var box = document.createElement('div');
       box.id = 'bootFail';
       box.setAttribute('style', 'position:fixed;inset:0;z-index:100000;background:#1c1d20;color:#eee;font:15px/1.5 -apple-system,system-ui,sans-serif;padding:24px;overflow:auto;-webkit-user-select:text;user-select:text');
-      box.innerHTML = '<h2 style="margin:0 0 8px">Inkvessa could not start on this device</h2><p>Tap <b>Repair &amp; reload</b> first (it clears the saved app files, not your drawings). If it still does not start, take a screenshot of this page and send it to the developer.</p>' +
+      box.innerHTML = '<h2 style="margin:0 0 8px">Inkvessa Draw could not start on this device</h2><p>Tap <b>Repair &amp; reload</b> first (it clears the saved app files, not your drawings). If it still does not start, take a screenshot of this page and send it to the developer.</p>' +
         '<p><button id="bootRepair" style="font-size:16px;padding:10px 16px;margin-right:8px">Repair &amp; reload</button><button id="bootReload" style="font-size:16px;padding:10px 16px">Reload</button></p>' +
         '<pre style="white-space:pre-wrap;background:#000;padding:12px;border-radius:8px;font-size:12px"></pre>';
       document.body.appendChild(box);
@@ -87,7 +87,7 @@
 <div id="app">
 
   <header id="menubar">
-    <img class="logo" src="icon-192.png" alt="Inkvessa" title="Inkvessa">
+    <img class="logo" src="icon-192.png" alt="Inkvessa Draw" title="Inkvessa Draw">
     <nav id="menus"></nav>
     <div class="grow"></div>
     <button id="btnDocks" class="only-narrow" data-cmd="toggleDocks" title="Show / hide panels">Panels</button>
@@ -249,7 +249,7 @@
     <span id="statusText"></span>
     <span class="grow"></span>
     <span id="statusPos" class="muted"></span>
-    <span id="statusView"></span><span class="muted" style="margin-left:12px">Inkvessa v3.7.0</span>
+    <span id="statusView"></span><span class="muted" style="margin-left:12px">Inkvessa Draw v3.8.0</span>
   </footer>
 </div>
 
@@ -356,8 +356,8 @@
   </form>
 </dialog>
 
-<script src="cloud-config.js?v=3.7.0"></script>
-<script src="cloud-lib.js?v=3.7.0"></script>
-<script src="app.js?v=3.7.0"></script>
+<script src="cloud-config.js?v=3.8.0"></script>
+<script src="cloud-lib.js?v=3.8.0"></script>
+<script src="app.js?v=3.8.0"></script>
 </body>
 </html>

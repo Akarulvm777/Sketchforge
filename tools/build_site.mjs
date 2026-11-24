@@ -32,7 +32,7 @@ for (const f of appFiles) {
   files.push({ path: f, size: fs.statSync(path.join(ROOT, f)).size });
 }
 // downloads
-const PN = pkg.build.productName; // the installers are named after the app (electron-builder artifactName, build.yml)
+const PN = cfg.fileName || pkg.build.productName; // the installers' file name (electron-builder artifactName, build.yml): no spaces
 const names = { windows: `${PN}-Setup-${V}.exe`, macArm: `${PN}-${V}-mac-arm64.dmg`, macIntel: `${PN}-${V}-mac-x64.dmg`,
   android: `${PN}-${V}-android.apk`, linux: `${PN}-${V}-linux-x86_64.AppImage`, ios: `${PN}-${V}-ios-unsigned.ipa` };
 if (cfg.mac === false) { delete names.macArm; delete names.macIntel; } // Mac build paused: no Mac links

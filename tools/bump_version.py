@@ -13,9 +13,9 @@ text, n = re.subn(r'("version"\s*:\s*")' + re.escape(old) + '"', r'\g<1>' + new 
 assert n == 1, 'package.json version not found'
 pkg.write_text(text, encoding='utf-8', newline='\n')
 idx = root / 'index.html'; h = idx.read_text(encoding='utf-8'); v = re.escape(old)
-h, a = re.subn(r'<title>Inkvessa ' + v + '</title>', f'<title>Inkvessa {new}</title>', h)
+h, a = re.subn(r'<title>Inkvessa Draw ' + v + '</title>', f'<title>Inkvessa Draw {new}</title>', h)
 h, b = re.subn(r'\?v=' + v + r'(["\'])', f'?v={new}\\1', h)
-h, c = re.subn(r'Inkvessa v' + v + '<', f'Inkvessa v{new}<', h)
+h, c = re.subn(r'Inkvessa Draw v' + v + '<', f'Inkvessa Draw v{new}<', h)
 assert a == 1 and b >= 2 and c == 1, (a, b, c)
 idx.write_text(h, encoding='utf-8', newline='\n')
 sw = root / 'sw.js'; t = sw.read_text(encoding='utf-8')

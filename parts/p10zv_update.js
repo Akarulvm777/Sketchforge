@@ -73,13 +73,13 @@ async function checkForUpdate(manual) {
     updCard(`<b>⬆ Inkvessa ${j.version} is available</b>${notesHtml(j)}`, [['Later'], ['Reload now', async () => { await updSaveFirst(); location.reload(); }, true]]);
   } else if (sh.platform === 'android' || sh.platform === 'ios') { // the iPad app (.ipa) updates its files the same way
     try { await androidLiveUpdate(j); } catch (e) { console.warn('update', e); if (manual) toast('Update failed: ' + e.message); }
-  } else if (manual) toast('Downloading Inkvessa ' + j.version + ' in the background…');
+  } else if (manual) toast('Downloading Inkvessa Draw ' + j.version + ' in the background…');
 }
 /* What's new: shown once, the first time a new version starts (notes from the README, injected by build.py) */
 function whatsNew(force) {
   let last = null; try { last = localStorage.getItem('sketchforge.lastver'); localStorage.setItem('sketchforge.lastver', APP_VERSION); } catch (e) { /* ignore */ }
   if (!force && (!last || !verGt(APP_VERSION, last))) return; // first install: the welcome tour covers it
-  if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Inkvessa ' + APP_VERSION); return; }
+  if (typeof APP_CHANGES === 'undefined' || !APP_CHANGES.length) { if (force) toast('Inkvessa Draw ' + APP_VERSION); return; }
   let d = $('#whatsNew'); if (d) d.remove();
   d = document.createElement('dialog'); d.id = 'whatsNew'; d.className = 'csdlg wndlg';
   // the current update first, then every earlier one (newest first) with its date and time, in one scrolling list
@@ -108,11 +108,11 @@ function installUpdater() {
   } catch (e) { /* ignore */ }
   try { // first start after installing the app again: settings were reset by index.html, the work is kept
     const fresh = localStorage.getItem('sketchforge.freshinstall');
-    if (fresh) { localStorage.removeItem('sketchforge.freshinstall'); setTimeout(() => toast(`Inkvessa ${fresh} installed: settings are back to default, your work is kept.`, 6000), 1800); }
+    if (fresh) { localStorage.removeItem('sketchforge.freshinstall'); setTimeout(() => toast(`Inkvessa Draw ${fresh} installed: settings are back to default, your work is kept.`, 6000), 1800); }
   } catch (e) { /* ignore */ }
   CMD.checkUpdate = () => checkForUpdate(true);
   CMD.whatsNew = () => whatsNew(true);
-  CMD.about = () => toast(`Inkvessa ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
+  CMD.about = () => toast(`Inkvessa Draw ${APP_VERSION}${isLiveCopy() ? ' (updated)' : ''} — ${shellInfo().platform}`, 4000);
   const H = MENUS.find(m => m[0] === 'Help')[1];
   H.push('-', ["What's new in this version", 'whatsNew'], ['Check for updates', 'checkUpdate'], ['About Inkvessa', 'about']);
   if (location.hash !== '#sf-child') setTimeout(() => welcomeGate.then(() => whatsNew(false)), 1200); // after the mascot's welcome
