@@ -8689,6 +8689,96 @@ function installTextLayers() {
   if (L && !L[1].some(x => Array.isArray(x) && x[1] === 'editText')) L[1].push('-', ['✎ Edit text…', 'editText'], ['Rasterize text (make it a picture)', 'rasterizeText']);
 }
 
+/* ---------- curve ruler and concentric ruler (3.6) ----------
+   Ruler group, two more rulers (like Clip Studio's):
+   - Curve ruler (rl_curve): draw the guide curve with the mouse / pen; it is smoothed and kept (ruler.curve =
+     { pts }). A stroke that starts near it slides along it (the nearest point of the curve).
+   - Concentric ruler (rl_conc): drag a box = the centre and the shape of the circles / ellipses (ruler.conc =
+     { cx, cy, rx, ry }). Every stroke goes round the centre on the ellipse through its first point (any size), so
+     rings, eyes, tree rings and planets are easy.
+   Both hook rulerStart / rulerApply / drawRulers / proProps like p10rb_persp, and are cleared by Clear rulers. */
+/* pure: a smooth, evenly spaced copy of a freehand path (moving average then resampling every `step`) */
+function curveSmooth(pts, step = 6, win = 4) {
+  if (pts.length < 2) return pts.slice();
+  const sm = pts.map((p, i) => { let x = 0, y = 0, n = 0; for (let k = Math.max(0, i - win); k <= Math.min(pts.length - 1, i + win); k++) { x += pts[k][0]; y += pts[k][1]; n++; } return [x / n, y / n]; });
+  sm[0] = pts[0].slice(); sm[sm.length - 1] = pts[pts.length - 1].slice();
+  const out = [sm[0]]; let carry = 0;
+  for (let i = 1; i < sm.length; i++) {
+    const [x0, y0] = sm[i - 1], [x1, y1] = sm[i], L = Math.hypot(x1 - x0, y1 - y0); let t = step - carry;
+    while (t <= L) { out.push([x0 + (x1 - x0) * t / L, y0 + (y1 - y0) * t / L]); t += step; }
+    carry = L - (t - step);
+  }
+  const last = sm[sm.length - 1]; if (Math.hypot(last[0] - out[out.length - 1][0], last[1] - out[out.length - 1][1]) > 0.5) out.push(last);
+  return out;
+}
+/* pure: the nearest point of a polyline, and its distance */
+function curveNearest(pts, x, y) {
+  let best = { x: pts[0][0], y: pts[0][1], d: Infinity };
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
+    const t = clamp(((x - ax) * dx + (y - ay) * dy) / L2, 0, 1), px = ax + dx * t, py = ay + dy * t, d = Math.hypot(x - px, y - py);
+    if (d < best.d) best = { x: px, y: py, d };
+  }
+  return best;
+}
+/* pure: the point of the concentric ellipse family (centre, shape rx:ry) through p0, nearest to p */
+function concApply(c, k, x, y) {
+  const a = Math.atan2((y - c.cy) / c.ry, (x - c.cx) / c.rx);
+  return { x: c.cx + c.rx * k * Math.cos(a), y: c.cy + c.ry * k * Math.sin(a) };
+}
+const concScale = (c, x, y) => Math.hypot((x - c.cx) / c.rx, (y - c.cy) / c.ry);
+function installRulers2() {
+  if (ruler.snap.curve == null) ruler.snap.curve = true;
+  if (ruler.snap.conc == null) ruler.snap.conc = true;
+  const mk = (id, name, extra) => { TOOLDEF[id] = { name, kind: 'dragdraw', icon: 'ruler', ...extra }; if (!settings[id]) settings[id] = {}; };
+  mk('rl_curve', 'Curve ruler', {
+    ddDown(o) { o.path = [[o.x0, o.y0]]; },
+    ddMove(o) { o.path.push([o.x1, o.y1]); },
+    ddEnd(o) { if (o.path && o.path.length > 3) { ruler.curve = { pts: curveSmooth(o.path, Math.max(2, 6 / view.scale)) }; ruler.snap.curve = true; } refreshProps(); },
+    ddPreview: (g, S, o) => { if (!o.path) return; g.beginPath(); o.path.forEach(([x, y], i) => { const s = S(x, y); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); }); g.stroke(); }
+  });
+  mk('rl_conc', 'Concentric ruler', {
+    ddEnd(o) { const b = ddBox(o); if (b.w > 3 && b.h > 3) { ruler.conc = { cx: b.x + b.w / 2, cy: b.y + b.h / 2, rx: b.w / 2, ry: b.h / 2 }; ruler.snap.conc = true; } refreshProps(); },
+    ddPreview: (g, S, o) => { const b = ddBox(o), c = S(b.x + b.w / 2, b.y + b.h / 2), m = vmat(); g.save(); g.translate(c[0], c[1]); g.transform(m.a, m.b, m.c, m.d, 0, 0); for (const k of [0.5, 1]) { g.beginPath(); g.ellipse(0, 0, b.w / 2 * k, b.h / 2 * k, 0, 0, 7); g.stroke(); } g.restore(); }
+  });
+  const G = GROUPS.find(g => g.id === 'ruler'); if (G) for (const id of ['rl_curve', 'rl_conc']) if (!G.subs.includes(id)) G.subs.push(id);
+  const rs0 = rulerStart; rulerStart = function (d) {
+    const lock = rs0.apply(this, arguments), R = RL_HIT / view.scale;
+    if (ruler.curve && ruler.snap.curve) { const n = curveNearest(ruler.curve.pts, d.x, d.y); if (n.d < R && (!lock || lock.type === 'pmulti' || lock.type === 'persp')) return { type: 'curve' }; }
+    if (lock) return lock;
+    if (ruler.conc && ruler.snap.conc) { const k = concScale(ruler.conc, d.x, d.y); if (k > 0.02) return { type: 'conc', k }; }
+    return null;
+  };
+  const ra0 = rulerApply; rulerApply = function (lock, d) {
+    if (lock && lock.type === 'curve' && ruler.curve) { const n = curveNearest(ruler.curve.pts, d.x, d.y); return { x: n.x, y: n.y }; }
+    if (lock && lock.type === 'conc' && ruler.conc) return concApply(ruler.conc, lock.k, d.x, d.y);
+    return ra0.apply(this, arguments);
+  };
+  const dr0 = drawRulers; drawRulers = function (g, S) {
+    dr0.apply(this, arguments);
+    if (!ruler.show) return;
+    g.save(); g.lineWidth = 1.5; g.setLineDash([]);
+    if (ruler.curve) { g.strokeStyle = ruler.snap.curve ? '#ff9f2f' : '#8a7458'; g.beginPath(); ruler.curve.pts.forEach(([x, y], i) => { const s = S(x, y); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); }); g.stroke(); }
+    if (ruler.conc) {
+      const c = ruler.conc, s = S(c.cx, c.cy), m = vmat();
+      g.save(); g.translate(s[0], s[1]); g.transform(m.a, m.b, m.c, m.d, 0, 0); g.strokeStyle = ruler.snap.conc ? 'rgba(180,120,255,.7)' : 'rgba(130,110,150,.45)';
+      for (let k = 1; k <= 6; k++) { g.beginPath(); g.ellipse(0, 0, c.rx * k / 3, c.ry * k / 3, 0, 0, 7); g.stroke(); }
+      g.restore(); g.fillStyle = '#b478ff'; g.beginPath(); g.arc(s[0], s[1], 4, 0, 7); g.fill();
+    }
+    g.restore();
+  };
+  const pp0 = proProps; proProps = function (body, id) {
+    const out = pp0.apply(this, arguments);
+    if (!id.startsWith('rl_')) return out;
+    const btn = body.querySelector('button'), chk = (label, k, set) => { const l = document.createElement('label'); l.className = 'check'; const i = document.createElement('input'); i.type = 'checkbox'; i.checked = ruler.snap[k]; i.onchange = () => { ruler.snap[k] = i.checked; drawOverlay(); }; l.append(i, ' ' + label + (set ? '' : ' (not set)')); btn ? body.insertBefore(l, btn) : body.appendChild(l); };
+    chk('Curve ruler', 'curve', !!ruler.curve); chk('Concentric ruler', 'conc', !!ruler.conc);
+    if (id === 'rl_curve' || id === 'rl_conc') { const h = body.querySelector('p.muted.small'); if (h) h.textContent = id === 'rl_curve' ? 'Draw the guide curve. Strokes that start near it slide along it.' : 'Drag a box: the centre and the shape. Every stroke then goes round that centre (circles or ellipses of any size).'; }
+    return out;
+  };
+  const rc0 = CMD.rulerClear; CMD.rulerClear = () => { ruler.curve = ruler.conc = null; rc0(); };
+  if (typeof TOOL_TIPS === 'object') Object.assign(TOOL_TIPS, { rl_curve: 'Draw a guide curve; strokes that start near it follow it.', rl_conc: 'Drag a box for the centre: strokes go round it in circles or ellipses.' });
+}
+
 /* ---------- layer masks ----------
    A mask is a hidden pixel layer stored on the layer (layer.mask). Its opaque pixels HIDE the layer.
    While "edit mask" is on you paint red = hide, erase = reveal.                                    */
@@ -14551,6 +14641,8 @@ const TP_DRAW = {
   rl_persp: g => { const vx = 75, vy = 6; g.strokeStyle = TP_ACC; g.lineWidth = 1; for (const x of [0, 30, 120, 150]) { g.beginPath(); g.moveTo(vx, vy); g.lineTo(x, 30); g.stroke(); } g.beginPath(); g.arc(vx, vy, 2.5, 0, 7); g.fillStyle = TP_ACC; g.fill(); tpStroke(g, 1.6); g.strokeRect(52, 18, 46, 10); g.beginPath(); g.moveTo(52, 18); g.lineTo(64, 12); g.lineTo(86, 12); g.lineTo(98, 18); g.stroke(); },
   rl_sym: g => { g.setLineDash([3, 3]); g.strokeStyle = TP_ACC; g.lineWidth = 1; g.beginPath(); g.moveTo(75, 0); g.lineTo(75, 30); g.stroke(); g.setLineDash([]); tpStroke(g, 1.8); for (const s of [1, -1]) { g.beginPath(); g.moveTo(75 + s * 6, 6); g.bezierCurveTo(75 + s * 40, 2, 75 + s * 50, 26, 75 + s * 14, 26); g.stroke(); } },
   rl_ell: g => { g.setLineDash([3, 3]); g.strokeStyle = TP_ACC; g.lineWidth = 1; g.beginPath(); g.ellipse(75, 15, 50, 11, 0, 0, 7); g.stroke(); g.setLineDash([]); tpStroke(g, 2); g.beginPath(); g.ellipse(75, 15, 50, 11, 0, Math.PI * 0.1, Math.PI * 1.2); g.stroke(); },
+  rl_curve: g => { g.strokeStyle = TP_ACC; g.lineWidth = 1.5; g.beginPath(); g.moveTo(8, 24); g.bezierCurveTo(50, -6, 90, 36, 142, 6); g.stroke(); tpStroke(g, 2); g.beginPath(); g.moveTo(30, 17); g.bezierCurveTo(55, 6, 80, 18, 110, 14); g.stroke(); },
+  rl_conc: g => { g.strokeStyle = TP_ACC; g.lineWidth = 1; for (const k of [4, 8, 12]) { g.beginPath(); g.ellipse(75, 15, k * 3, k, 0, 0, 7); g.stroke(); } tpStroke(g, 2); g.beginPath(); g.ellipse(75, 15, 30, 10, 0, 0.3, 4.2); g.stroke(); },
   /* balloons */
   bl_ellipse: g => tpBalloon(g, 'ellipse'), bl_round: g => tpBalloon(g, 'round'), bl_cloud: g => tpBalloon(g, 'cloud'),
   bl_spike: g => tpBalloon(g, 'spike'), bl_thought: g => tpBalloon(g, 'thought'),
@@ -15866,6 +15958,7 @@ const HELP_TIPS = [
   { q: 'trace photo line art extract lines from picture', t: 'Lines from a photo', x: 'Import the photo, then Filter › Extract line art: you get dark lines on a clear layer to trace or colour.', a: [['cmd', 'fxLineArt', 'Extract line art…']] },
   { q: 'eyedropper pick colour color hold press long copy colour from drawing', t: 'Pick a colour by holding', x: 'Touch and hold (or click and hold) on the drawing for half a second: a circle shows the colour and it becomes your colour. Move to pick another one, lift to keep it. Turn it off in View › Hold to pick colour.', a: [['cmd', 'holdPick', 'Hold to pick on / off']] },
   { q: 'perfect circle straight line shape snap quickshape draw circle square triangle round correct shape', t: 'Perfect shapes (hold to snap)', x: 'Draw a circle, line, square or triangle and keep the pen down for half a second at the end: it becomes a perfect shape with the same brush. Lift to keep it, undo to get your stroke back. View › Hold to snap shapes turns it off.', a: [['cmd', 'holdShape', 'Hold to snap on / off']] },
+  { q: 'curve ruler concentric ruler circles rings follow a curve guide règle courbe concentrique', t: 'Curve and concentric rulers', x: 'Ruler group: Curve ruler — draw a guide curve, then strokes that start near it slide along it. Concentric ruler — drag a box for the centre and shape; every stroke then goes round that centre (circles or ellipses of any size). Clear rulers removes them.', a: [['tool', 'rl_curve', 'Curve ruler'], ['tool', 'rl_conc', 'Concentric ruler']] },
   { q: 'export pdf print comic manga pages book printer export pages images imprimer exporter pdf', t: 'Export or print your comic pages', x: 'File › Export pages: every page (or some) as one PDF at the print size of the file, or as PNG pictures in a ZIP, or 🖨 Print (Ctrl+P). Guides and other draft layers are left out.', a: [['cmd', 'exportPages', 'Export pages'], ['cmd', 'printPages', 'Print']] },
   { q: 'keyboard shortcut custom change key hotkey bind my own keys raccourci clavier personnaliser', t: 'Make your own keyboard shortcuts', x: 'Help › Keyboard shortcuts: find any command or tool, press Set, then the keys you want (Ctrl / Alt / Shift + a key, or a single key). Your keys win over the built-in ones and show in the menus. ✕ removes one, Reset all my keys starts again.', a: [['cmd', 'keyShortcuts', 'Keyboard shortcuts']] },
   { q: 'reference picture image photo window sub view model sheet next to canvas référence image fenêtre', t: 'Reference window', x: 'Window › Reference window: keep reference pictures next to the canvas. ＋ Add (or drop / paste a picture), wheel or ＋ − to zoom, drag to look around, ⇋ to flip, 💧 (or Alt+click) to pick a colour. The pictures stay for next time.', a: [['cmd', 'refWin', 'Reference window']] },
@@ -17984,6 +18077,8 @@ Keyboard shortcuts (make your own)|ทางลัดแป้นพิมพ์
 Export pages (PDF / pictures)|ส่งออกหน้า (PDF / รูปภาพ)|Exporter les pages (PDF / images)|Exportar páginas (PDF / imágenes)|Exportar páginas (PDF / imagens)|Seiten exportieren (PDF / Bilder)|ページを書き出す（PDF / 画像）|导出页面（PDF / 图像）|페이지 내보내기 (PDF / 이미지)
 Print|พิมพ์|Imprimer|Imprimir|Imprimir|Drucken|印刷|打印|인쇄
 Export pages|ส่งออกหน้า|Exporter les pages|Exportar páginas|Exportar páginas|Seiten exportieren|ページを書き出す|导出页面|페이지 내보내기
+Curve ruler|ไม้บรรทัดเส้นโค้ง|Règle courbe|Regla curva|Régua curva|Kurvenlineal|曲線定規|曲线尺|곡선 자
+Concentric ruler|ไม้บรรทัดวงกลมซ้อน|Règle concentrique|Regla concéntrica|Régua concêntrica|Konzentrisches Lineal|同心円定規|同心圆尺|동심원 자
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트
@@ -18418,7 +18513,7 @@ function init() {
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
     installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installComicExport, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installRulers2, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installComicExport, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset

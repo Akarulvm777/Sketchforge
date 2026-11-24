@@ -401,6 +401,8 @@ Keyboard shortcuts (make your own)|ทางลัดแป้นพิมพ์
 Export pages (PDF / pictures)|ส่งออกหน้า (PDF / รูปภาพ)|Exporter les pages (PDF / images)|Exportar páginas (PDF / imágenes)|Exportar páginas (PDF / imagens)|Seiten exportieren (PDF / Bilder)|ページを書き出す（PDF / 画像）|导出页面（PDF / 图像）|페이지 내보내기 (PDF / 이미지)
 Print|พิมพ์|Imprimer|Imprimir|Imprimir|Drucken|印刷|打印|인쇄
 Export pages|ส่งออกหน้า|Exporter les pages|Exportar páginas|Exportar páginas|Seiten exportieren|ページを書き出す|导出页面|페이지 내보내기
+Curve ruler|ไม้บรรทัดเส้นโค้ง|Règle courbe|Regla curva|Régua curva|Kurvenlineal|曲線定規|曲线尺|곡선 자
+Concentric ruler|ไม้บรรทัดวงกลมซ้อน|Règle concentrique|Regla concéntrica|Régua concêntrica|Konzentrisches Lineal|同心円定規|同心圆尺|동심원 자
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트

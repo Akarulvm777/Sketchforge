@@ -90,6 +90,12 @@ const TESTS = {
     const offs = t.slice(xref).split('\n').slice(3).filter(l => / 00000 n /.test(l)).map(l => +l.slice(0, 10));
     return offs.every((o, i) => t.slice(o).startsWith((i + 1) + ' 0 obj')) || 'offsets';
   },
+  'curve and concentric rulers (curveSmooth, curveNearest, concApply)': () => {
+    const c = curveSmooth([[0, 0], [10, 0], [20, 0], [30, 0], [40, 0]], 5); if (c.length !== 9 || Math.abs(c[4][0] - 20) > 0.01) return 'smooth ' + JSON.stringify(c);
+    const n = curveNearest([[0, 0], [100, 0]], 30, 12); if (n.x !== 30 || n.y !== 0 || n.d !== 12) return 'nearest ' + JSON.stringify(n);
+    const C = { cx: 0, cy: 0, rx: 2, ry: 1 }, k = concScale(C, 4, 0), p = concApply(C, k, 0, 5);
+    return k === 2 && Math.abs(p.x) < 1e-9 && Math.abs(p.y - 2) < 1e-9 || 'conc ' + JSON.stringify(p);
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
