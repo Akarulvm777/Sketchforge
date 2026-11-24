@@ -307,7 +307,7 @@ function init() {
   // Each starts on its own: one that fails is logged (window.__sfStartErrors) and the others still start.
   const STARTUP = [
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
-    installMultiDoc, installSession, installAutoSave, installMobile, installWelcome, installTutorials, installUpdater, // documents, start
+    installMultiDoc, installSession, installAutoSave, installMobile, installTouchBar, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
     installWorkspace, installMasks, installPro, installPersp, installRulers2, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installComicExport, installCamera, installTexPlus, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files

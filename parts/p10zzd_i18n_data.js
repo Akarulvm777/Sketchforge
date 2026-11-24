@@ -56,6 +56,10 @@ Expand selected area|ขยายส่วนที่เลือก|Agrandir l
 Shrink selected area|หดส่วนที่เลือก|Réduire la sélection|Contraer selección|Contrair seleção|Auswahl verkleinern|選択範囲を縮小|收缩选区|선택 영역 축소
 Blur border|เบลอขอบ|Adoucir le bord|Desenfocar borde|Suavizar borda|Rand weichzeichnen|境界をぼかす|模糊边缘|경계 흐리기
 Layer|เลเยอร์|Calque|Capa|Camada|Ebene|レイヤー|图层|레이어
+Layers|เลเยอร์|Calques|Capas|Camadas|Ebenen|レイヤー一覧|图层列表|레이어 목록
+Brush: tools and their settings|พู่กัน: เครื่องมือและการตั้งค่า|Pinceau : outils et réglages|Pincel: herramientas y ajustes|Pincel: ferramentas e ajustes|Pinsel: Werkzeuge und Einstellungen|ブラシ：ツールと設定|画笔：工具与设置|붓: 도구와 설정
+Brush size|ขนาดพู่กัน|Taille du pinceau|Tamaño del pincel|Tamanho do pincel|Pinselgröße|ブラシサイズ|画笔大小|붓 크기
+Brush opacity|ความทึบพู่กัน|Opacité du pinceau|Opacidad del pincel|Opacidade do pincel|Pinseldeckkraft|ブラシの不透明度|画笔不透明度|붓 불투명도
 New layer|เลเยอร์ใหม่|Nouveau calque|Nueva capa|Nova camada|Neue Ebene|新規レイヤー|新建图层|새 레이어
 New vector layer|เลเยอร์เวกเตอร์ใหม่|Nouveau calque vectoriel|Nueva capa vectorial|Nova camada vetorial|Neue Vektorebene|新規ベクターレイヤー|新建矢量图层|새 벡터 레이어
 Duplicate|ทำสำเนา|Dupliquer|Duplicar|Duplicar|Duplizieren|複製|复制|복제

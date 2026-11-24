@@ -5,6 +5,7 @@ website and the GitHub release notes are made from this file (see `build.py`, `t
 `tools/release_notes.py`).
 
 ## 3.6: Text you can edit, adjustment layers, camera, PDF and more
+- iPad and phones: each thing has its own button: 🖌 Brush, 🎨 Colour, 🗂 Layers and 🧭 View open only their own panel. Quick size and opacity sliders on the side of the canvas.
 - Editable text: every text is its own text layer. Click it again with the Text tool to change the words; size, font, colour and balloon in Tool Property change it at once.
 - Adjustment layers (Layer menu): Hue / Saturation, Brightness & contrast, Levels, Tone curve, Colour balance, Gradient map, Posterize, Threshold and Invert change everything below without touching it. Double-click to change them any time; erase parts to limit them.
 - Animation camera (Animation › Camera): pan, zoom and rotate keys that glide between frames. Watch playback through it; videos, GIFs and pictures are framed by it.
