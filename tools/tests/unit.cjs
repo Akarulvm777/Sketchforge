@@ -96,6 +96,13 @@ const TESTS = {
     const C = { cx: 0, cy: 0, rx: 2, ry: 1 }, k = concScale(C, 4, 0), p = concApply(C, k, 0, 5);
     return k === 2 && Math.abs(p.x) < 1e-9 && Math.abs(p.y - 2) < 1e-9 || 'conc ' + JSON.stringify(p);
   },
+  'animation camera (camAt, camMatrix)': () => {
+    const cam = { keys: [[0, { x: 100, y: 50, z: 1, rot: 0 }], [10, { x: 300, y: 50, z: 4, rot: 90 }]] };
+    const a = camAt(cam, 5, 400, 100); if (Math.round(a.x) !== 200 || Math.abs(a.z - 2) > 1e-9 || a.rot !== 45) return 'mid ' + JSON.stringify(a);
+    if (camAt(cam, -3, 400, 100).x !== 100 || camAt(cam, 20, 400, 100).x !== 300 || camAt(null, 3, 400, 100).x !== 200) return 'ends';
+    const m = camMatrix({ x: 100, y: 50, z: 2, rot: 0 }, 400, 100), p = [m[0] * 100 + m[2] * 50 + m[4], m[1] * 100 + m[3] * 50 + m[5]];
+    return p[0] === 200 && p[1] === 50 && m[0] === 2 || 'matrix ' + p;
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;

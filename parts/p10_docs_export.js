@@ -11,7 +11,7 @@ function newDocument(w, h, frames, fps, transparent, name) {
   if (typeof docPrepareNew === 'function') docPrepareNew(); // opens a new tab (p10o_multidoc)
   stop();
   stroke = null; active = null;
-  Object.assign(state, { name: name || 'Untitled', w, h, frameCount: frames, fps, frame: 0, layers: [], projectType: 'illust' }); // New › Manga / comic and New manga page set 'comic' right after
+  Object.assign(state, { name: name || 'Untitled', w, h, frameCount: frames, fps, frame: 0, layers: [], projectType: 'illust', camera: null }); // New › Manga / comic and New manga page set 'comic' right after
   state.onion = { on: false, before: 2, after: 1 };
   resizeDocCanvases();
   layerSeq = 1; layerCounter = 1;
@@ -147,7 +147,7 @@ async function buildDocObject(src, opts = {}) {
   const folderList = []; for (const l of st.layers) if (l.folder && !folderList.includes(l.folder)) folderList.push(l.folder);
   const doc = {
     format: 'sketchforge', version: 2, name: st.name, w: st.w, h: st.h,
-    frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode, projectType: st.projectType || undefined, dpi: st.dpi || undefined,
+    frameCount: st.frameCount, fps: st.fps, loop: st.loop, mode: st.mode, projectType: st.projectType || undefined, dpi: st.dpi || undefined, camera: st.camera && st.camera.keys && st.camera.keys.length ? st.camera : undefined,
     layerCounter: src.lc,
     layers: st.layers.map(l => ({
       name: l.name, visible: l.visible, opacity: l.opacity, blend: l.blend, locked: l.locked, paper: l.paper, px: l.px, py: l.py, clip: l.clip, alock: l.alock, ref: l.ref, draft: l.draft,
@@ -205,7 +205,7 @@ async function openDocumentFile(file) {
     if (typeof docPrepareNew === 'function') docPrepareNew(); // opens in a new tab (p10o_multidoc)
     stop();
     const w = doc.w, h = doc.h;
-    Object.assign(state, { name: doc.name || file.name.replace(/\.[^.]+$/, ''), w, h, frameCount: doc.frameCount || 1, fps: doc.fps || 12, frame: 0, loop: doc.loop !== false, layers: [], projectType: doc.projectType || (doc.mode === 'anim' ? 'anim' : 'illust') });
+    Object.assign(state, { name: doc.name || file.name.replace(/\.[^.]+$/, ''), w, h, frameCount: doc.frameCount || 1, fps: doc.fps || 12, frame: 0, loop: doc.loop !== false, layers: [], projectType: doc.projectType || (doc.mode === 'anim' ? 'anim' : 'illust'), camera: doc.camera || null });
     if (doc.dpi) state.dpi = doc.dpi;
     resizeDocCanvases();
     layerSeq = 1; layerCounter = doc.layerCounter || doc.layers.length;

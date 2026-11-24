@@ -21,7 +21,9 @@ const HOOKABLE = {
   render3D: [() => render3D, f => { render3D = f; }],
   setPoseOnCanvas: [() => setPoseOnCanvas, f => { setPoseOnCanvas = f; }],
   syncLayerControls: [() => syncLayerControls, f => { syncLayerControls = f; }],
-  buildMenus: [() => buildMenus, f => { buildMenus = f; }]
+  buildMenus: [() => buildMenus, f => { buildMenus = f; }],
+  stop: [() => stop, f => { stop = f; }],
+  drawOverlay: [() => drawOverlay, f => { drawOverlay = f; }]
 };
 function hookAfter(name, fn, order = 0) {
   let h = HOOKS[name];

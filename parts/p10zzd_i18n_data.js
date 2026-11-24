@@ -403,6 +403,9 @@ Print|พิมพ์|Imprimer|Imprimir|Imprimir|Drucken|印刷|打印|인쇄
 Export pages|ส่งออกหน้า|Exporter les pages|Exportar páginas|Exportar páginas|Seiten exportieren|ページを書き出す|导出页面|페이지 내보내기
 Curve ruler|ไม้บรรทัดเส้นโค้ง|Règle courbe|Regla curva|Régua curva|Kurvenlineal|曲線定規|曲线尺|곡선 자
 Concentric ruler|ไม้บรรทัดวงกลมซ้อน|Règle concentrique|Regla concéntrica|Régua concêntrica|Konzentrisches Lineal|同心円定規|同心圆尺|동심원 자
+Camera (pan, zoom, rotate)|กล้อง (แพน ซูม หมุน)|Caméra (déplacer, zoomer, tourner)|Cámara (mover, zoom, girar)|Câmera (mover, zoom, girar)|Kamera (schwenken, zoomen, drehen)|カメラ（パン・ズーム・回転）|摄像机（平移、缩放、旋转）|카메라 (이동, 확대, 회전)
+Camera key from what I see|คีย์กล้องจากมุมที่เห็นตอนนี้|Clé de caméra depuis la vue actuelle|Clave de cámara desde lo que veo|Chave de câmera do que estou vendo|Kamera-Schlüssel aus der Ansicht|今の表示からカメラキー|从当前视图创建摄像机关键帧|지금 보이는 대로 카메라 키
+Camera|กล้อง|Caméra|Cámara|Câmera|Kamera|カメラ|摄像机|카메라
 Edit text|แก้ไขข้อความ|Modifier le texte|Editar texto|Editar texto|Text bearbeiten|テキストを編集|编辑文字|텍스트 편집
 Rasterize text (make it a picture)|แปลงข้อความเป็นภาพ|Pixelliser le texte (en faire une image)|Rasterizar texto (convertir en imagen)|Rasterizar texto (virar imagem)|Text rastern (in Bild umwandeln)|テキストをラスタライズ（画像にする）|栅格化文字（变为图像）|텍스트 래스터화 (그림으로)
 Update text|อัปเดตข้อความ|Mettre à jour le texte|Actualizar texto|Atualizar texto|Text aktualisieren|テキストを更新|更新文字|텍스트 업데이트

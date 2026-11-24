@@ -1318,3 +1318,7 @@ body.hub-open #menubar { z-index: 9002; }
 .keyrow .kname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .keyrow kbd, .mi kbd.mine { font-size: 11px; }
 .keyrow kbd.mine, .mi kbd.mine { color: var(--accent, #e0a06a); }
+/* animation camera (p10pcb) */
+.campanel { height: auto; resize: none; left: calc(100vw - 380px); top: 120px; width: 340px; }
+.campanel .cambody { padding: 8px 10px; overflow: auto; max-height: 70vh; }
+#viewport.campreview::after { content: ''; position: absolute; left: 50%; top: 50%; width: var(--camw); height: var(--camh); transform: translate(-50%, -50%); box-shadow: 0 0 0 9999px rgba(0,0,0,.92); pointer-events: none; z-index: 60; }
