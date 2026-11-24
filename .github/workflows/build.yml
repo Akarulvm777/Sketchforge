@@ -62,7 +62,8 @@ jobs:
   test:
     # nothing is built or released unless the tests pass
     needs: gate
-    if: github.event_name != 'workflow_dispatch' || inputs.fix_notes != true
+    # website-only runs skip it: master's app code was already tested before it was merged
+    if: github.event_name != 'workflow_dispatch' || (inputs.fix_notes != true && inputs.site_only != true)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -260,7 +261,7 @@ jobs:
           gh release upload "$V" out/*.ipa --clobber
   web:
     needs: [gate, test]
-    if: (needs.gate.outputs.build == 'true' || needs.gate.outputs.site == 'true') && needs.test.result == 'success'
+    if: always() && ((needs.gate.outputs.build == 'true' && needs.test.result == 'success') || (needs.gate.outputs.site == 'true' && (needs.test.result == 'success' || needs.test.result == 'skipped')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
