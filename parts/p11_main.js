@@ -309,7 +309,7 @@ function init() {
     loadBuiltinPens, loadCustomP, applyIcons, installCsFeatures, installGpuMix, installAddonUI, installCustomP,       // core
     installMultiDoc, installSession, installAutoSave, installMobile, installTouchBar, installWelcome, installTutorials, installUpdater, // documents, start
     installCloud, buildMenus,
-    installWorkspace, installMasks, installPro, installPersp, installRulers2, installText, installTextLayers, installAdjust, installLayerFx, installRefWin, installKeys, installComicExport, installCamera, installTexPlus, installTexDepth, installBufTiles, installFilters, installSmartFill, installVector, // drawing
+    installWorkspace, installMasks, installPro, installPersp, installRulers2, installText, installTextLayers, installAdjust, installSelTransform, installLayerFx, installRefWin, installKeys, installComicExport, installCamera, installTexPlus, installTexDepth, installBufTiles, installFilters, installSmartFill, installVector, // drawing
     installAnim, installVideo, installPSD, installReuse, installRig, installUiExtras, installTimelapse, installSymmetry,   // animation, files
     installAnimPlus, installImport, installEffects, installFx2, installHold, installBoneTool, installChainBones, installSkeleton,
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset

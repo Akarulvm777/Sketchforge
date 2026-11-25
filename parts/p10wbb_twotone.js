@@ -8,9 +8,9 @@ function twoToneTip(ctx, st, cx, cy, d, paintCore) {
   const s = st.s, e = clamp(s.twoEdge ?? (s.twoTone === 'glow' ? 0.8 : 0.35), 0.05, 0.9), sub = state.color2 || '#000000';
   const op = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = 'destination-over';
-  if (s.twoTone === 'glow') { const D = d * (1 + e * 1.6); ctx.drawImage(getTip(sub, 0), cx - D / 2, cy - D / 2, D, D); }
+  if (s.twoTone === 'glow') { const D = d * (1 + e * 1.6); ctx.drawImage(tipAt(getTip(sub, 0), D), cx - D / 2, cy - D / 2, D, D); }
   else if (s.hardness >= 0.97) { ctx.fillStyle = sub; ctx.beginPath(); ctx.arc(cx, cy, d / 2, 0, Math.PI * 2); ctx.fill(); }
-  else ctx.drawImage(getTip(sub, s.hardness), cx - d / 2, cy - d / 2, d, d);
+  else ctx.drawImage(tipAt(getTip(sub, s.hardness), d), cx - d / 2, cy - d / 2, d, d);
   ctx.globalCompositeOperation = op;
   paintCore(ctx, st, cx, cy, s.twoTone === 'glow' ? d : Math.max(0.5, d * (1 - e)));
 }

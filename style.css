@@ -1358,3 +1358,9 @@ body.hub-open #menubar { z-index: 9002; }
 #touchbar.phone button span { display: none; }
 @media (max-width: 560px) { #tpop, #tpop[data-side="left"], #tpop[data-side="right"] { right: 62px; } #touchbar.phone { position: fixed; z-index: 9300; } }
 .texplus .texpreview { display: block; width: 100%; max-width: 240px; height: auto; border-radius: 6px; margin: 4px 0 6px; background: #fff; }
+/* selection bar + transform (p10sb) */
+#selBar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 60; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 6px; border-radius: 12px; background: rgba(30,30,34,.9); backdrop-filter: blur(6px); box-shadow: 0 4px 16px rgba(0,0,0,.35); max-width: calc(100% - 24px); }
+#selBar[hidden] { display: none; }
+#selBar button { padding: 6px 10px; font-size: 13px; white-space: nowrap; border-radius: 8px; }
+#selBar button.on { background: var(--accent, #e0a06a); color: #111; }
+@media (pointer: coarse) { #selBar button { padding: 9px 12px; font-size: 14px; } }
