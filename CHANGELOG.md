@@ -4,6 +4,9 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.10: Speed check
+- Help › ⏱ Speed check: draw a few strokes with your brushes, then Show results: a table per brush (screen frames per second, time per pen movement and per dot, pen lift) and your device details, to find exactly what is slow on your iPad, phone or computer.
+
 ## 3.9: Transform a selection, and lighter brushes on iPad
 - Selection bar: whenever something is selected, a bar at the bottom of the canvas gives ⤢ Transform, ⬚ Deselect, Invert, Copy, Cut and Fill (easy on iPad and phones).
 - Transform a selection: drag a corner to scale (🔒 Keep shape for the same proportions), an edge to stretch, the round handle to rotate, inside to move; ◇ Distort moves each corner on its own; flip left / right or up / down; ✓ Apply or ✕ Cancel (also Select › Transform selection, Ctrl+T).
