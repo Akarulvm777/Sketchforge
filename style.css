@@ -1364,3 +1364,14 @@ body.hub-open #menubar { z-index: 9002; }
 #selBar button { padding: 6px 10px; font-size: 13px; white-space: nowrap; border-radius: 8px; }
 #selBar button.on { background: var(--accent, #e0a06a); color: #111; }
 @media (pointer: coarse) { #selBar button { padding: 9px 12px; font-size: 14px; } }
+/* speed check (p10zbk) */
+#speedBadge { position: fixed; left: 50%; top: 60px; transform: translateX(-50%); z-index: 9500; display: flex; gap: 6px; align-items: center; padding: 6px 8px 6px 12px; border-radius: 12px; background: rgba(30,30,34,.92); color: #eee; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+#speedBadge button { padding: 5px 10px; }
+#speedDlg .speedtab { border-collapse: collapse; font-size: 12px; margin: 6px 0; }
+#speedDlg .speedtab th, #speedDlg .speedtab td { border: 1px solid rgba(128,128,128,.35); padding: 3px 6px; text-align: right; }
+#speedDlg .speedtab td:first-child, #speedDlg .speedtab th:first-child { text-align: left; }
+#speedDlg .speedtab td.bad { color: #ff6b6b; font-weight: bold; }
+#speedDlg .speeddev { font-size: 10px; white-space: pre-wrap; word-break: break-all; max-width: 640px; opacity: .8; }
+#speedDlg { width: min(96vw, 820px); max-width: 96vw; }
+#speedDlg .speedtab { width: 100%; }
+#speedDlg .speedtab th { font-size: 11px; font-weight: 600; }

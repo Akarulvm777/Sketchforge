@@ -315,7 +315,7 @@ function init() {
     installLayersPro, installFoxRig, installSwapTutorial, install3DGizmo, install3DCanvas, install3DLayer, installReset,    // 3D, reset
     installStartHub, installToolTutorials, installMoreTutorials, installMangaPage, installSwap, installLipSync, installFace, // home, learn
     installPhysics, installPagesPanel, installColorSets, installBrushEditor, installToolAdvanced, installToolTune,
-    installPaperTexture, installStudio, installDrafts, installLanguages,                                                                 // last: they wrap the ones above
+    installPaperTexture, installStudio, installDrafts, installLanguages, installSpeedCheck,                                                                 // last: they wrap the ones above
     buildMenus, buildToolbox, renderSwatches, restoreLayout
   ];
   for (const f of STARTUP) { try { f(); } catch (e) { console.error('Inkvessa: ' + f.name + ' failed to start', e); (window.__sfStartErrors = window.__sfStartErrors || []).push(f.name + ': ' + (e && e.message || e)); } }
