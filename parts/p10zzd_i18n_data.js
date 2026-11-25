@@ -62,6 +62,11 @@ Grows with the brush size|ขยายตามขนาดพู่กัน|Su
 Second texture|พื้นผิวที่สอง|Deuxième texture|Segunda textura|Segunda textura|Zweite Textur|2つ目のテクスチャ|第二纹理|두 번째 텍스처
 Second strength|ความแรงที่สอง|Force (2e)|Intensidad (2.ª)|Intensidade (2.ª)|Stärke (2.)|2つ目の強さ|第二强度|두 번째 강도
 Second scale|ขนาดที่สอง|Échelle (2e)|Escala (2.ª)|Escala (2.ª)|Skalierung (2.)|2つ目のスケール|第二比例|두 번째 배율
+Transform|แปลงรูป|Transformer|Transformar|Transformar|Transformieren|変形|变换|변형
+Scale / rotate|ย่อขยาย / หมุน|Échelle / rotation|Escalar / rotar|Escalar / girar|Skalieren / Drehen|拡大縮小 / 回転|缩放 / 旋转|크기 / 회전
+Distort|บิดรูป|Déformer|Distorsionar|Distorcer|Verzerren|ゆがみ|扭曲|왜곡
+Keep shape|รักษาสัดส่วน|Garder les proportions|Mantener forma|Manter forma|Form behalten|比率を保持|保持比例|비율 유지
+Apply|ใช้|Appliquer|Aplicar|Aplicar|Anwenden|適用|应用|적용
 Layers|เลเยอร์|Calques|Capas|Camadas|Ebenen|レイヤー一覧|图层列表|레이어 목록
 Brush: tools and their settings|พู่กัน: เครื่องมือและการตั้งค่า|Pinceau : outils et réglages|Pincel: herramientas y ajustes|Pincel: ferramentas e ajustes|Pinsel: Werkzeuge und Einstellungen|ブラシ：ツールと設定|画笔：工具与设置|붓: 도구와 설정
 Brush size|ขนาดพู่กัน|Taille du pinceau|Tamaño del pincel|Tamanho do pincel|Pinselgröße|ブラシサイズ|画笔大小|붓 크기

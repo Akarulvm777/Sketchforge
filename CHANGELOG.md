@@ -4,6 +4,12 @@ Every Sketchforge update, newest first. Each section is `## <version>: <title>`;
 website and the GitHub release notes are made from this file (see `build.py`, `tools/build_site.mjs`,
 `tools/release_notes.py`).
 
+## 3.9: Transform a selection, and lighter brushes on iPad
+- Selection bar: whenever something is selected, a bar at the bottom of the canvas gives ⤢ Transform, ⬚ Deselect, Invert, Copy, Cut and Fill (easy on iPad and phones).
+- Transform a selection: drag a corner to scale (🔒 Keep shape for the same proportions), an edge to stretch, the round handle to rotate, inside to move; ◇ Distort moves each corner on its own; flip left / right or up / down; ✓ Apply or ✕ Cancel (also Select › Transform selection, Ctrl+T).
+- After moving or transforming a selected part, picking a brush drops the selection, so you can draw everywhere again (before, the place it came from could not be drawn on).
+- Soft and picture brushes draw each dot from a ready-made small copy of the tip instead of shrinking the big tip every time: much less work for iPad / iPhone browsers.
+
 ## 3.8: Inkvessa Draw — new name and logo
 - New name: **Inkvessa Draw**.
 - New logo: a big "I" shaped like a pen, a tilted "D" with two big eyes and a sparkle stroke, in the same neon colours.

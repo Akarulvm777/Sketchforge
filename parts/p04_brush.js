@@ -21,6 +21,29 @@ function getTip(color, hardness) {
 
 /* custom (imported) brush tips */
 const customTips = new Map(), tintCache = new Map();
+/* pure: the size (px) of the ready-made copy of a tip for a dab of diameter d: 4 sizes per doubling, so a dab is
+   drawn at most ~19 % smaller than its copy; null = use the full tip (big dabs) */
+function tipBucket(d, full) {
+  if (!(d > 0) || d >= full * 0.8) return null;
+  return Math.max(2, Math.min(full, Math.ceil(Math.pow(2, Math.ceil(Math.log2(Math.max(2, d)) * 4) / 4))));
+}
+/* a tip at about the dab's size: shrinking a 256 px tip picture to a small dab for every dab was the slow part of
+   picture / soft brushes on iPad / iPhone browsers (WebKit shrinks on the processor); the copies are made once
+   (halving step by step for a clean result) and kept on the tip canvas */
+function tipAt(src, d) {
+  const b = tipBucket(d, src.width);
+  if (!b) return src;
+  const m = src._sized || (src._sized = new Map());
+  let c = m.get(b);
+  if (!c) {
+    let cur = src;
+    while (cur.width / 2 >= b * 1.01) { const h = makeCanvas(Math.max(1, cur.width >> 1), Math.max(1, cur.height >> 1)), hg = h.getContext('2d'); hg.imageSmoothingQuality = 'high'; hg.drawImage(cur, 0, 0, h.width, h.height); cur = h; }
+    c = makeCanvas(b, Math.max(1, Math.round(b * src.height / src.width))); const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, c.width, c.height);
+    if (m.size > 24) m.clear();
+    m.set(b, c);
+  }
+  return c;
+}
 function tintedTip(id, color) {
   const key = id + color;
   let c = tintCache.get(key);
@@ -167,7 +190,7 @@ function paintTip(ctx, st, cx, cy, d) {
     if (s.tipFollow && st.dir != null) ang += st.dir;
     if (ang) ctx.rotate(ang);
     if (s.tipThick && s.tipThick !== 1) ctx.scale(1, s.tipThick);
-    ctx.drawImage(tip, -d / 2, -d / 2, d, d);
+    ctx.drawImage(tipAt(tip, d * Math.max(1, s.tipThick || 1)), -d / 2, -d / 2, d, d);
     ctx.restore();
   } else if (s.hardness >= 0.97 && !s.nib && !(s.nibRatio < 1)) { // plain round pen: no save / restore per dab
     ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(cx, cy, d / 2, 0, Math.PI * 2); ctx.fill();
@@ -183,10 +206,10 @@ function paintTip(ctx, st, cx, cy, d) {
   } else if (s.nibRatio < 1) {
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(-s.nibAngle * DEG); ctx.scale(1, s.nibRatio);
-    ctx.drawImage(getTip(ink, s.hardness), -d / 2, -d / 2, d, d);
+    ctx.drawImage(tipAt(getTip(ink, s.hardness), d), -d / 2, -d / 2, d, d);
     ctx.restore();
   } else {
-    ctx.drawImage(getTip(ink, s.hardness), cx - d / 2, cy - d / 2, d, d);
+    ctx.drawImage(tipAt(getTip(ink, s.hardness), d), cx - d / 2, cy - d / 2, d, d);
   }
 }
 function hueShift(hex, deg) { // rotate the hue of a #rrggbb colour

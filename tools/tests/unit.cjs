@@ -121,6 +121,21 @@ const TESTS = {
     if (buftTiles(-50, -50, 10, 10, 2894, 4093).length !== 0 || buftTiles(-50, -50, 100, 100, 2894, 4093).length !== 1) return 'clamp low';
     const e = buftTiles(2800, 4000, 500, 500, 2894, 4093); return JSON.stringify(e) === '[[5,7]]' || 'clamp high ' + JSON.stringify(e);
   },
+  'selection transform quads (quadPoint, quadScaleCorner, quadScaleEdge, quadRotate)': () => {
+    const q = [[0, 0], [10, 0], [10, 10], [0, 10]];
+    const p = quadPoint(q, 0.5, 0.5); if (p[0] !== 5 || p[1] !== 5) return 'point';
+    if (!quadIsAffine(q) || quadIsAffine([[0, 0], [10, 0], [20, 20], [0, 10]])) return 'affine';
+    const s = quadScaleCorner(q, 2, 20, 30, false); if (s[2][0] !== 20 || s[2][1] !== 30 || s[0][0] !== 0) return 'corner ' + JSON.stringify(s);
+    const k = quadScaleCorner(q, 2, 20, 12, true); if (Math.abs(k[2][0] - 20) > 1e-9 || Math.abs(k[2][1] - 20) > 1e-9) return 'keep ' + JSON.stringify(k);
+    const e = quadScaleEdge(q, 1, 30, 5); if (e[1][0] !== 30 || e[2][0] !== 30 || e[0][0] !== 0) return 'edge ' + JSON.stringify(e);
+    const r = quadRotate(q, Math.PI / 2, 5, 5); if (Math.abs(r[0][0] - 10) > 1e-9 || Math.abs(r[0][1]) > 1e-9) return 'rotate ' + JSON.stringify(r);
+    const b = quadBox(q, 0); return b.x === 0 && b.w === 10 || 'box';
+  },
+  'small tip copies (tipBucket)': () => {
+    if (tipBucket(300, 256) !== null || tipBucket(210, 256) !== null) return 'big dabs use the full tip';
+    for (const d of [3, 7.5, 12, 40, 99, 180]) { const b = tipBucket(d, 256); if (!(b >= d && b <= d * 1.2 + 1)) return 'bucket ' + d + ' → ' + b; }
+    return tipBucket(0, 256) === null || 'zero';
+  },
   'pressure curve (prCurve)': () => {
     const c = [[0, 0.2], [0.5, 0.4], [1, 1]];
     return prCurve(c, 0) === 0.2 && Math.abs(prCurve(c, 0.25) - 0.3) < 1e-9 && Math.abs(prCurve(c, 0.75) - 0.7) < 1e-9 && prCurve(c, 2) === 1 && prCurve(null, 0.3) === 0.3;
